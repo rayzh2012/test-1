@@ -9,122 +9,54 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Fetch and validate Magic Baby Memorial full-story package
+      - name: Fetch verified Magic Baby Memorial package
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import requests,re,html,hashlib,os,sys,urllib.parse,time,json
-          from pathlib import Path
-
-          OUT=Path('out'); OUT.mkdir(exist_ok=True)
-          sess=requests.Session()
-          sess.headers.update({'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36','Accept-Language':'zh-CN,zh;q=0.9,en;q=0.8'})
-
-          landing=[
-            'https://www.mediafire.com/?jatw51syt19ggzw',
-            'http://www.mediafire.com/?jatw51syt19ggzw',
-            'https://www.962.net/rpg/10023.html',
-            'https://www.3h3.com/danji/2605.html',
-          ]
-          seen=set(); candidates=[]; logs=[]
-          def add(u,ref=None):
-            if not u: return
-            u=html.unescape(u).replace('\\/','/')
-            if u.startswith('//'): u='https:'+u
-            if ref: u=urllib.parse.urljoin(ref,u)
-            if u.startswith('http') and u not in seen:
-              seen.add(u); candidates.append((u,ref))
-          def extract(page,base):
-            pats=[
-              r'id=["\']downloadButton["\'][^>]*href=["\']([^"\']+)',
-              r'href=["\']([^"\']+)["\'][^>]*id=["\']downloadButton["\']',
-              r'href=["\']([^"\']+\.(?:zip|rar|7z|exe)(?:\?[^"\']*)?)["\']',
-              r'(https?://[^"\'<>\\s]+\.(?:zip|rar|7z|exe)(?:\?[^"\'<>\\s]*)?)',
-            ]
-            for p in pats:
-              for m in re.findall(p,page,re.I): add(m,base)
-            for href,text in re.findall(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',page,re.I|re.S):
-              txt=re.sub('<[^>]+>',' ',text)
-              if any(k in txt for k in ['下载','download','电信','联通','普通下载']): add(href,base)
-
-          for u in landing:
-            try:
-              r=sess.get(u,timeout=35,allow_redirects=True)
-              logs.append(f'LAND {u} -> {r.status_code} {r.url} type={r.headers.get("content-type")} len={len(r.content)}')
-              if 'text/html' in r.headers.get('content-type','') or b'<html' in r.content[:500].lower():
-                extract(r.text,r.url)
-              else:
-                add(r.url,u)
-            except Exception as e:
-              logs.append(f'LAND_FAIL {u}: {e!r}')
-
-          for u in landing: add(u,None)
-
-          def safe_name(resp,url):
-            cd=resp.headers.get('content-disposition','')
-            m=re.search(r"filename\*=UTF-8''([^;]+)",cd,re.I)
-            if m: return urllib.parse.unquote(m.group(1)).strip('"')
-            m=re.search(r'filename=["\']?([^"\';]+)',cd,re.I)
-            if m: return m.group(1).strip()
-            n=Path(urllib.parse.urlparse(resp.url or url).path).name
-            return n or 'magic_baby_memorial_2012.bin'
-
-          success=None
-          idx=0
-          while idx < len(candidates) and idx < 120:
-            u,ref=candidates[idx]; idx+=1
-            try:
-              headers={'Referer':ref} if ref else {}
-              r=sess.get(u,headers=headers,timeout=45,allow_redirects=True,stream=True)
-              ctype=r.headers.get('content-type','').lower(); clen=int(r.headers.get('content-length') or 0)
-              logs.append(f'TRY {u} -> {r.status_code} {r.url} type={ctype} len={clen}')
-              if r.status_code>=400: r.close(); continue
-              first=next(r.iter_content(65536),b'')
-              is_html=('text/html' in ctype or first.lstrip().lower().startswith((b'<!doctype html',b'<html')))
-              if is_html:
-                rest=first+b''.join(r.iter_content(65536))
-                try: extract(rest.decode(r.encoding or 'utf-8','ignore'),r.url)
-                except Exception: pass
-                r.close(); continue
-              if clen and clen < 50*1024*1024: r.close(); continue
-              name=safe_name(r,u)
-              if not re.search(r'\.(zip|rar|7z|exe)$',name,re.I):
-                path=urllib.parse.urlparse(r.url).path.lower()
-                ext=next((e for e in ['.zip','.rar','.7z','.exe'] if e in path),'')
-                name='magic_baby_memorial_2012'+(ext or '.bin')
-              dest=OUT/name
-              h=hashlib.sha256(); total=0
-              with open(dest,'wb') as f:
-                if first:
-                  f.write(first); h.update(first); total+=len(first)
-                for chunk in r.iter_content(1024*1024):
-                  if chunk:
-                    f.write(chunk); h.update(chunk); total+=len(chunk)
-              r.close()
-              if total < 50*1024*1024:
-                dest.unlink(missing_ok=True); continue
-              success=(dest,total,h.hexdigest(),r.url,ctype)
-              break
-            except Exception as e:
-              logs.append(f'TRY_FAIL {u}: {e!r}')
-
-          (OUT/'fetch.log').write_text('\n'.join(logs),encoding='utf-8')
-          if not success:
-            print('\n'.join(logs[-80:]))
-            raise SystemExit('No real >50MB game package obtained')
-          dest,total,sha,url,ctype=success
-          info={'file':dest.name,'bytes':total,'sha256':sha,'source_final_url':url,'content_type':ctype}
-          (OUT/'manifest.json').write_text(json.dumps(info,ensure_ascii=False,indent=2),encoding='utf-8')
-          print(json.dumps(info,ensure_ascii=False,indent=2))
-          PY
-          file out/* || true
+          mkdir -p out
+          curl -fL --retry 3 --connect-timeout 20 --max-time 900 \
+            -A 'Mozilla/5.0' \
+            -o out/mlbbhjdjb.rar \
+            'https://99dj.197784.com/9dj2/mlbbhjdjb.rar'
+          test $(stat -c%s out/mlbbhjdjb.rar) -gt 50000000
+          sha256sum out/mlbbhjdjb.rar | tee out/SHA256.txt
+          file out/mlbbhjdjb.rar
+          split -b 80M -d -a 2 out/mlbbhjdjb.rar out/mlbbhjdjb.rar.part
+          cat > out/README_合并.txt <<'EOF'
+          魔力宝贝纪念版 2012 全剧情版
+          将三个分卷放在同一目录后合并：
+          macOS/Linux: cat mlbbhjdjb.rar.part00 mlbbhjdjb.rar.part01 mlbbhjdjb.rar.part02 > mlbbhjdjb.rar
+          Windows CMD: copy /b mlbbhjdjb.rar.part00+mlbbhjdjb.rar.part01+mlbbhjdjb.rar.part02 mlbbhjdjb.rar
+          完整RAR SHA256: 683190cf5ae8f1bd746691cdc0c3c6828b28128bc7cd6e0d63a5961e1456c1c4
+          EOF
+          rm out/mlbbhjdjb.rar
           ls -lah out
-      - name: Upload fetched package
+      - name: Upload part00
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: magic-baby-memorial-fetch
-          path: out/
-          if-no-files-found: error
+          name: mlbbhjdjb-rar-part00
+          path: out/mlbbhjdjb.rar.part00
+          compression-level: 0
+          retention-days: 7
+      - name: Upload part01
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlbbhjdjb-rar-part01
+          path: out/mlbbhjdjb.rar.part01
+          compression-level: 0
+          retention-days: 7
+      - name: Upload part02
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlbbhjdjb-rar-part02
+          path: out/mlbbhjdjb.rar.part02
+          compression-level: 0
+          retention-days: 7
+      - name: Upload metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlbbhjdjb-metadata
+          path: |
+            out/SHA256.txt
+            out/README_合并.txt
           retention-days: 7
