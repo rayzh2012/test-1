@@ -3,6 +3,8 @@ name: Fangame Fetch
 on:
   push:
     branches: [ master ]
+  pull_request:
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
@@ -54,7 +56,6 @@ jobs:
               with s.get(du,timeout=45,allow_redirects=True,stream=True) as r:
                 print('DIRECT',du,r.status_code,r.url,r.headers.get('content-type'),r.headers.get('content-length'))
                 if r.status_code!=200: continue
-                ct=(r.headers.get('content-type') or '').lower()
                 cd=r.headers.get('content-disposition') or ''
                 name='magic_baby_memorial_2012.bin'
                 m=re.search(r'filename\*?=(?:UTF-8\'\')?["\']?([^"\';]+)',cd,re.I)
