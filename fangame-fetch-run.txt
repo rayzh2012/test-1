@@ -1,2 +1,3 @@
 Temporary trigger for fangame fetch workflow.
 Target: 魔力宝贝纪念版 2012.1.1 全剧情版
+Run: split-for-drive
