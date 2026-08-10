@@ -1,0 +1,67 @@
+name: Fangame Fetch
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'fangame_targets/**.json'
+      - 'tools/fangame_fetcher.py'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - fangame_targets/magic_baby_dragon_sandglass.json
+          - fangame_targets/magic_baby_115c.json
+          - fangame_targets/magic_baby_120.json
+          - fangame_targets/magic_baby_180.json
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch target
+        id: fetch
+        shell: bash
+        run: |
+          set +e
+          base=$(basename '${{ matrix.target }}' .json)
+          rm -rf out && mkdir -p out
+          python3 tools/fangame_fetcher.py '${{ matrix.target }}' -o out
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Split large archives for Drive connector
+        if: steps.fetch.outputs.rc == '0'
+        shell: bash
+        run: |
+          mkdir -p driveparts
+          game=$(find out -maxdepth 1 -type f ! -name 'fetch_report.json' ! -name 'SHA256.txt' | head -1)
+          split -b 80M -d -a 3 "$game" "driveparts/$(basename "$game")."
+          cp out/SHA256.txt out/fetch_report.json driveparts/
+      - name: Upload full result
+        if: steps.fetch.outputs.rc == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.fetch.outputs.base }}-full
+          path: out/*
+          retention-days: 7
+          compression-level: 0
+      - name: Upload Drive-sized result
+        if: steps.fetch.outputs.rc == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.fetch.outputs.base }}-driveparts
+          path: driveparts/*
+          retention-days: 7
+          compression-level: 0
+      - name: Upload failure report
+        if: steps.fetch.outputs.rc != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.fetch.outputs.base }}-failed
+          path: out/fetch_report.json
+          retention-days: 7
