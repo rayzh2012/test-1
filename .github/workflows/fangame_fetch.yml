@@ -1,8 +1,7 @@
 name: Fangame Fetcher
 on:
   push:
-    paths:
-      - '.github/workflows/fangame_fetch.yml'
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -45,12 +44,10 @@ jobs:
             ]
             for p in pats:
               for m in re.findall(p,page,re.I): add(m,base)
-            # General links whose surrounding text looks like download mirrors.
             for href,text in re.findall(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',page,re.I|re.S):
               txt=re.sub('<[^>]+>',' ',text)
               if any(k in txt for k in ['下载','download','电信','联通','普通下载']): add(href,base)
 
-          # Visit landing pages; MediaFire is first because it historically mirrored exactly the ~200M full-story version.
           for u in landing:
             try:
               r=sess.get(u,timeout=35,allow_redirects=True)
@@ -62,7 +59,6 @@ jobs:
             except Exception as e:
               logs.append(f'LAND_FAIL {u}: {e!r}')
 
-          # Re-add landing candidates after extracted direct links so direct binary endpoints win.
           for u in landing: add(u,None)
 
           def safe_name(resp,url):
@@ -75,7 +71,6 @@ jobs:
             return n or 'magic_baby_memorial_2012.bin'
 
           success=None
-          # keep expanding HTML pages encountered from candidate mirrors
           idx=0
           while idx < len(candidates) and idx < 120:
             u,ref=candidates[idx]; idx+=1
@@ -92,10 +87,8 @@ jobs:
                 try: extract(rest.decode(r.encoding or 'utf-8','ignore'),r.url)
                 except Exception: pass
                 r.close(); continue
-              # Reject tiny wrappers. Full-story game should be roughly 96-200MB; accept >50MB.
               if clen and clen < 50*1024*1024: r.close(); continue
               name=safe_name(r,u)
-              # Preserve useful extension inferred from URL/content-disposition.
               if not re.search(r'\.(zip|rar|7z|exe)$',name,re.I):
                 path=urllib.parse.urlparse(r.url).path.lower()
                 ext=next((e for e in ['.zip','.rar','.7z','.exe'] if e in path),'')
