@@ -77,13 +77,50 @@ jobs:
               print('DIRECT_ERR',du,repr(e))
           raise SystemExit('No valid >=50MB archive fetched')
           PY
-      - name: List output
-        if: always()
-        run: ls -lah out || true
-      - name: Upload archive artifact
+      - name: Split for Drive connector limit
+        if: success()
+        run: |
+          mkdir -p chunks
+          split -b 85000000 -d -a 2 out/RPG.rar chunks/RPG.rar.part-
+          i=1
+          for f in chunks/RPG.rar.part-*; do mv "$f" "chunks/RPG.rar.$(printf '%03d' $i)"; i=$((i+1)); done
+          cp out/SHA256.txt chunks/
+          ls -lah chunks
+      - name: Upload full archive artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: magic-baby-memorial-2012
           path: out/*
+          retention-days: 3
+      - name: Upload Drive part 1
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: magic-baby-drive-part1
+          path: chunks/RPG.rar.001
+          compression-level: 0
+          retention-days: 3
+      - name: Upload Drive part 2
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: magic-baby-drive-part2
+          path: chunks/RPG.rar.002
+          compression-level: 0
+          retention-days: 3
+      - name: Upload Drive part 3
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: magic-baby-drive-part3
+          path: chunks/RPG.rar.003
+          compression-level: 0
+          retention-days: 3
+      - name: Upload checksum
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: magic-baby-sha256
+          path: chunks/SHA256.txt
           retention-days: 3
