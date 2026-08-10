@@ -36,7 +36,7 @@ jobs:
     needs: discover
     if: needs.discover.outputs.targets != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -103,6 +103,54 @@ jobs:
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.007') != ''
         uses: actions/upload-artifact@v4
         with: {name: '${{ steps.fetch.outputs.base }}-part007', path: 'driveparts/*.007', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 008
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.008') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part008', path: 'driveparts/*.008', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 009
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.009') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part009', path: 'driveparts/*.009', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 010
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.010') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part010', path: 'driveparts/*.010', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 011
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.011') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part011', path: 'driveparts/*.011', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 012
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.012') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part012', path: 'driveparts/*.012', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 013
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.013') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part013', path: 'driveparts/*.013', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 014
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.014') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part014', path: 'driveparts/*.014', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 015
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.015') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part015', path: 'driveparts/*.015', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 016
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.016') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part016', path: 'driveparts/*.016', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 017
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.017') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part017', path: 'driveparts/*.017', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 018
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.018') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part018', path: 'driveparts/*.018', retention-days: 7, compression-level: 0}
+      - name: Upload Drive part 019
+        if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.019') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.fetch.outputs.base }}-part019', path: 'driveparts/*.019', retention-days: 7, compression-level: 0}
       - name: Upload Drive metadata
         if: steps.fetch.outputs.rc == '0'
         uses: actions/upload-artifact@v4
