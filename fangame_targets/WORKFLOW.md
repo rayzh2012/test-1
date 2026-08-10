@@ -1,0 +1,1 @@
+Adding or editing a target JSON through a pull request triggers the Fangame Fetch action. Successful runs emit a full verified artifact plus Drive-friendly chunks; failures emit a provenance report so new mirrors can be appended without restarting research.
