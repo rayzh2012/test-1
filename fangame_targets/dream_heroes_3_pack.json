@@ -3,5 +3,10 @@
   "version":"原版+资料片/完美优化正式版",
   "engine":"RPG Maker XP",
   "min_mb":400,
-  "sources":["https://www.3h3.com/danji/11371.html","https://www.962.net/patch/12551.html"]
+  "sources":[
+    "https://www.3h3.com/danji/11371.html",
+    "https://www.962.net/patch/12551.html",
+    "https://mip.cncrk.com/a/35547",
+    "https://m.pcsoft.com.cn/yx/46675.html"
+  ]
 }
