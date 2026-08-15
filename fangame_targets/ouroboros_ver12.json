@@ -1,0 +1,11 @@
+{
+  "name": "OUROBOROS（轮环）",
+  "version": "ver1.2 正式版",
+  "engine": "RPG Maker XP",
+  "min_mb": 600,
+  "sources": [
+    "http://ftp.66rpg.com/2010/game547_OUROBOROS.rar",
+    "http://www.rayfile.com/files/00436223-e9f1-11dd-8184-0019d11a795f",
+    "https://rpg.blue/thread-50920-1-1.html"
+  ]
+}
