@@ -28,23 +28,12 @@ def _looks_downloadish(u):
     return any(x in sig for x in ('download','downurl','down_url','fileurl','file_url','getfile','attach','attachment','/file/','/files/','down.php','download.php')) or any(x in (p.netloc or '').lower() for x in ('mediafire','115.com','rayfile','dropboxusercontent'))
 
 def extract_links(base, text, terms=None):
-    """Return likely download/detail links from old Chinese mirror pages.
-
-    Besides href/src, parse data-url/data-href and common JS navigation forms.
-    Anchor text matching allows stable filename/title fingerprints to traverse
-    generic detail URLs such as /rpg/3664.html.
-    """
     terms=[_norm(x) for x in (terms or []) if _norm(x)]
     found=[]
-
     for href,label in re.findall(r'<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',text,re.I|re.S):
         found.append((href,_norm(label),'anchor'))
-
-    # Common HTML5/custom attributes used by download buttons.
     for attr,val in re.findall(r'\b(data-url|data-href|data-download|download-url|file-url|url)\s*=\s*["\']([^"\']+)["\']',text,re.I):
         found.append((val,'',attr.lower()))
-
-    # Common inline JS navigation/open patterns.
     js_patterns=[
         r'(?:location(?:\.href)?|window\.location(?:\.href)?)\s*=\s*["\']([^"\']+)["\']',
         r'(?:window\.)?open\(\s*["\']([^"\']+)["\']',
@@ -52,46 +41,52 @@ def extract_links(base, text, terms=None):
     ]
     for p in js_patterns:
         for val in re.findall(p,text,re.I): found.append((val,'','js'))
-
-    # src and absolute raw URLs remain useful for script-generated chains.
     for p in (r'src=["\']([^"\']+)["\']',r'https?://[^\s"\'<>]+'):
         for m in re.findall(p,text,re.I):
             if isinstance(m,tuple): m=m[0]
             found.append((m,'','raw'))
-
-    # Quoted relative strings can contain AJAX/download endpoints not exposed
-    # as hrefs; only consider strings that themselves look download-ish.
     for val in re.findall(r'["\']([^"\']{3,500})["\']',text):
         lv=val.lower()
         if any(x in lv for x in ('download','downurl','down.php','fileurl','getfile','.rar','.zip','.7z','.exe')):
             found.append((val,'','quoted'))
-
     scored=[]; emitted=set()
     for raw,label,kind in found:
         raw=html.unescape(raw).replace('\\/','/').strip()
         if raw.startswith('//'): raw='https:'+raw
         if raw.startswith(('javascript:','data:','#')): continue
-        # Reject obvious non-URL JS fragments from the quoted-string pass.
         if kind=='quoted' and (' ' in raw[:30] or raw.startswith(('{','['))): continue
         u=urljoin(base,raw)
         if u in emitted: continue
         emitted.add(u)
-        lu=u.lower(); score=0
+        score=0
         if _looks_downloadish(u): score+=7
         if any(x in urlparse(u).path.lower() for x in ARCHIVE_EXTS): score+=6
         if terms and any(t in label or t in _norm(u) for t in terms): score+=10
         if kind in ('data-url','data-href','data-download','download-url','file-url','js'): score+=4
-        # Static assets are not candidate binaries unless archive extension.
         if urlparse(u).path.lower().endswith(('.js','.css','.jpg','.jpeg','.png','.gif','.webp','.ico')): score-=12
         if score>0: scored.append((score,u))
     return [u for _,u in sorted(scored,key=lambda x:x[0],reverse=True)]
+
+def probe_snippets(text, probe_terms):
+    """Small bounded raw-HTML contexts for debugging dynamic legacy download pages."""
+    out=[]; low=text.lower()
+    for term in probe_terms or []:
+        t=str(term).lower(); start=0; hits=0
+        while t and hits<2:
+            i=low.find(t,start)
+            if i<0: break
+            a=max(0,i-350); b=min(len(text),i+len(t)+650)
+            out.append({'term':term,'context':text[a:b]})
+            start=i+len(t); hits+=1
+        if len(out)>=10: break
+    return out[:10]
 
 def _size_ok(n,min_mb,max_mb=None):
     if n < min_mb*1024*1024: return False
     if max_mb is not None and n > max_mb*1024*1024: return False
     return True
 
-def fetch_http(session,url,outdir,min_mb,report,link_terms=None,max_mb=None):
+def fetch_http(session,url,outdir,min_mb,report,link_terms=None,max_mb=None,probe_terms=None):
     q=[url]; seen=set()
     while q and len(seen)<120:
         u=q.pop(0)
@@ -110,6 +105,8 @@ def fetch_http(session,url,outdir,min_mb,report,link_terms=None,max_mb=None):
                 text=r.content.decode(enc,'ignore')
                 links=extract_links(r.url,text,link_terms)
                 report['attempts'][-1]['candidate_links']=links[:20]
+                snippets=probe_snippets(text,probe_terms)
+                if snippets: report['attempts'][-1]['probe_snippets']=snippets
                 q.extend(x for x in links if x not in seen)
                 continue
             cd=r.headers.get('content-disposition') or ''
@@ -152,10 +149,10 @@ def main():
     report={'name':spec['name'],'version':spec.get('version'),'engine':spec.get('engine'),'sources':spec['sources'],'attempts':[],'success':False}
     s=requests.Session(); s.headers.update({'User-Agent':UA,'Accept':'*/*'})
     min_mb=int(spec.get('min_mb',10)); max_mb=spec.get('max_mb'); max_mb=float(max_mb) if max_mb is not None else None
-    link_terms=spec.get('link_terms') or []
+    link_terms=spec.get('link_terms') or []; probes=spec.get('probe_terms') or []
     result=None
     for u in spec['sources']:
-        result=fetch_ftp(u,out,min_mb,report,max_mb) if u.startswith('ftp://') else fetch_http(s,u,out,min_mb,report,link_terms,max_mb)
+        result=fetch_ftp(u,out,min_mb,report,max_mb) if u.startswith('ftp://') else fetch_http(s,u,out,min_mb,report,link_terms,max_mb,probes)
         if result: break
     if not result:
         json.dump(report,open(out/'fetch_report.json','w'),ensure_ascii=False,indent=2); raise SystemExit(2)
