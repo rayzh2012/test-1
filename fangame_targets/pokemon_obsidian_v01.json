@@ -1,0 +1,9 @@
+{
+  "name": "Pokémon Obsidian",
+  "version": "V0.1 Windows",
+  "engine": "RPG Maker XP / Pokémon SDK",
+  "min_mb": 80,
+  "sources": [
+    "https://github.com/torresflo/Pokemon-Obsidian/releases/download/V0.1/PokemonObsidian_V0.1.zip"
+  ]
+}
