@@ -5,8 +5,9 @@
   "min_mb": 170,
   "max_mb": 230,
   "link_terms": ["全新世纪", "game948", "悠哈悠哈", "下载链接", "立即下载"],
-  "probe_terms": ["var down", "let down", "const down", "down = JSdecrypt", "JSdecrypt(", "下载链接", "soft_165014", "z35yObWltu"],
+  "probe_terms": ["var down", "let down", "const down", "down = JSdecrypt", "JSdecrypt(", "下载链接", "soft_165014"],
   "sources": [
+    "https://dl19.wsyhn.com/3DMGAME_New_Century.CHS.Green.rar",
     "https://www.bchongw.com/down/soft_165014/type/1.html",
     "https://www.doyo.cn/game/802",
     "https://www.duote.com/game/307742.html",
