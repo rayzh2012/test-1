@@ -21,41 +21,68 @@ def archive_head_ok(path):
 def _norm(s):
     return re.sub(r'\s+',' ', html.unescape(re.sub(r'<[^>]+>',' ',s or ''))).strip().lower()
 
-def extract_links(base, text, terms=None):
-    """Return likely download/detail links.
+def _looks_downloadish(u):
+    p=urlparse(u)
+    sig=(p.path+'?'+p.query).lower()
+    if any(sig.endswith(x) or x+'?' in sig for x in ARCHIVE_EXTS): return True
+    return any(x in sig for x in ('download','downurl','down_url','fileurl','file_url','getfile','attach','attachment','/file/','/files/','down.php','download.php')) or any(x in (p.netloc or '').lower() for x in ('mediafire','115.com','rayfile','dropboxusercontent'))
 
-    Historical download indexes often hide the useful target behind a generic
-    /rpg/1234.html detail URL.  A URL-only scorer misses those.  Optional
-    link_terms lets a target follow anchors whose visible text contains a
-    stable filename/title fingerprint, while retaining the old download/file
-    URL scoring for the next hop.
+def extract_links(base, text, terms=None):
+    """Return likely download/detail links from old Chinese mirror pages.
+
+    Besides href/src, parse data-url/data-href and common JS navigation forms.
+    Anchor text matching allows stable filename/title fingerprints to traverse
+    generic detail URLs such as /rpg/3664.html.
     """
     terms=[_norm(x) for x in (terms or []) if _norm(x)]
     found=[]
 
-    # Preserve anchor text so stable title/filename stems can guide us through
-    # list/tag/search pages whose href itself contains no useful keywords.
     for href,label in re.findall(r'<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',text,re.I|re.S):
-        found.append((href,_norm(label)))
+        found.append((href,_norm(label),'anchor'))
 
-    # Also retain non-anchor src/raw URLs for legacy script-generated pages.
+    # Common HTML5/custom attributes used by download buttons.
+    for attr,val in re.findall(r'\b(data-url|data-href|data-download|download-url|file-url|url)\s*=\s*["\']([^"\']+)["\']',text,re.I):
+        found.append((val,'',attr.lower()))
+
+    # Common inline JS navigation/open patterns.
+    js_patterns=[
+        r'(?:location(?:\.href)?|window\.location(?:\.href)?)\s*=\s*["\']([^"\']+)["\']',
+        r'(?:window\.)?open\(\s*["\']([^"\']+)["\']',
+        r'(?:url|downurl|downloadurl|fileurl)\s*[:=]\s*["\']([^"\']+)["\']',
+    ]
+    for p in js_patterns:
+        for val in re.findall(p,text,re.I): found.append((val,'','js'))
+
+    # src and absolute raw URLs remain useful for script-generated chains.
     for p in (r'src=["\']([^"\']+)["\']',r'https?://[^\s"\'<>]+'):
         for m in re.findall(p,text,re.I):
             if isinstance(m,tuple): m=m[0]
-            found.append((m,''))
+            found.append((m,'','raw'))
+
+    # Quoted relative strings can contain AJAX/download endpoints not exposed
+    # as hrefs; only consider strings that themselves look download-ish.
+    for val in re.findall(r'["\']([^"\']{3,500})["\']',text):
+        lv=val.lower()
+        if any(x in lv for x in ('download','downurl','down.php','fileurl','getfile','.rar','.zip','.7z','.exe')):
+            found.append((val,'','quoted'))
 
     scored=[]; emitted=set()
-    for raw,label in found:
-        raw=raw.replace('&amp;','&').replace('\\/','/')
+    for raw,label,kind in found:
+        raw=html.unescape(raw).replace('\\/','/').strip()
         if raw.startswith('//'): raw='https:'+raw
+        if raw.startswith(('javascript:','data:','#')): continue
+        # Reject obvious non-URL JS fragments from the quoted-string pass.
+        if kind=='quoted' and (' ' in raw[:30] or raw.startswith(('{','['))): continue
         u=urljoin(base,raw)
         if u in emitted: continue
         emitted.add(u)
         lu=u.lower(); score=0
-        if any(x in lu for x in ARCHIVE_EXTS): score+=6
-        if any(x in lu for x in ('download','down','file','attach','mediafire','qiannao','115.com')): score+=3
-        if terms and any(t in label or t in _norm(u) for t in terms): score+=9
-        if any(x in lu for x in ('javascript:','#')): score-=10
+        if _looks_downloadish(u): score+=7
+        if any(x in urlparse(u).path.lower() for x in ARCHIVE_EXTS): score+=6
+        if terms and any(t in label or t in _norm(u) for t in terms): score+=10
+        if kind in ('data-url','data-href','data-download','download-url','file-url','js'): score+=4
+        # Static assets are not candidate binaries unless archive extension.
+        if urlparse(u).path.lower().endswith(('.js','.css','.jpg','.jpeg','.png','.gif','.webp','.ico')): score-=12
         if score>0: scored.append((score,u))
     return [u for _,u in sorted(scored,key=lambda x:x[0],reverse=True)]
 
@@ -77,14 +104,13 @@ def fetch_http(session,url,outdir,min_mb,report,link_terms=None,max_mb=None):
             report['attempts'].append({'url':u,'status':r.status_code,'final_url':r.url,'content_type':ct,'content_length':cl})
             if r.status_code!=200: continue
             if 'text/html' in ct or cl==0 and r.url.lower().endswith(('.html','.htm','.php','.page','/')):
-                # Many 2008-2012 Chinese mirrors are GBK/GB2312.  requests often
-                # defaults to ISO-8859-1 when headers are incomplete, which
-                # destroys Chinese anchor text and defeats title matching.
                 enc=r.encoding
                 if not enc or enc.lower() in ('iso-8859-1','ascii'):
                     enc=r.apparent_encoding or 'utf-8'
                 text=r.content.decode(enc,'ignore')
-                q.extend(x for x in extract_links(r.url,text,link_terms) if x not in seen)
+                links=extract_links(r.url,text,link_terms)
+                report['attempts'][-1]['candidate_links']=links[:20]
+                q.extend(x for x in links if x not in seen)
                 continue
             cd=r.headers.get('content-disposition') or ''
             name=None
