@@ -6,6 +6,8 @@ on:
     paths:
       - 'fangame_targets/**.json'
       - 'tools/fangame_fetcher.py'
+      - 'tools/fangame_static_review.py'
+      - '.github/workflows/fangame-fetch.yml'
   workflow_dispatch:
 
 jobs:
@@ -23,13 +25,27 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import glob,json,os,subprocess
           event=os.environ.get('GITHUB_EVENT_NAME','')
+          files=[]
           if event=='pull_request':
-              base=os.environ.get('GITHUB_BASE_REF','master')
-              p=subprocess.run(['git','diff','--name-only',f'origin/{base}...HEAD','--','fangame_targets/*.json'],capture_output=True,text=True)
+              payload={}
+              try:
+                  with open(os.environ.get('GITHUB_EVENT_PATH',''),encoding='utf-8') as f:
+                      payload=json.load(f)
+              except Exception:
+                  pass
+              action=payload.get('action','')
+              before=payload.get('before')
+              after=payload.get('after')
+              if action=='synchronize' and before and after:
+                  rng=f'{before}...{after}'
+              else:
+                  base=os.environ.get('GITHUB_BASE_REF','master')
+                  rng=f'origin/{base}...HEAD'
+              p=subprocess.run(['git','diff','--name-only',rng,'--','fangame_targets/*.json'],capture_output=True,text=True)
               files=[x.strip() for x in p.stdout.splitlines() if x.strip().endswith('.json')]
           else:
               files=glob.glob('fangame_targets/*.json')
-          print('targets='+json.dumps(files,ensure_ascii=False))
+          print('targets='+json.dumps(sorted(set(files)),ensure_ascii=False))
           PY
 
   fetch:
@@ -55,14 +71,21 @@ jobs:
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           echo "base=$base" >> "$GITHUB_OUTPUT"
           exit 0
+      - name: Static AI inspection (not gameplay)
+        if: steps.fetch.outputs.rc == '0'
+        shell: bash
+        run: |
+          game=$(find out -maxdepth 1 -type f ! -name 'fetch_report.json' ! -name 'SHA256.txt' ! -name 'ai_static_review.json' | head -1)
+          python3 tools/fangame_static_review.py "$game" out/ai_static_review.json || true
       - name: Split large archives for Drive connector
         if: steps.fetch.outputs.rc == '0'
         shell: bash
         run: |
           mkdir -p driveparts
-          game=$(find out -maxdepth 1 -type f ! -name 'fetch_report.json' ! -name 'SHA256.txt' | head -1)
+          game=$(find out -maxdepth 1 -type f ! -name 'fetch_report.json' ! -name 'SHA256.txt' ! -name 'ai_static_review.json' | head -1)
           split -b 75M -d -a 3 "$game" "driveparts/$(basename "$game")."
           cp out/SHA256.txt out/fetch_report.json driveparts/
+          if [ -f out/ai_static_review.json ]; then cp out/ai_static_review.json driveparts/; fi
       - name: Upload full result
         if: steps.fetch.outputs.rc == '0'
         uses: actions/upload-artifact@v4
@@ -159,6 +182,8 @@ jobs:
           path: |
             driveparts/SHA256.txt
             driveparts/fetch_report.json
+            driveparts/ai_static_review.json
+          if-no-files-found: ignore
           retention-days: 7
       - name: Upload failure report
         if: steps.fetch.outputs.rc != '0'
