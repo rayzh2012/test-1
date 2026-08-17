@@ -1,0 +1,13 @@
+{
+  "name": "聖魔幻想傳｜作者正式版",
+  "version": "formal release",
+  "engine": "RPG Maker VX Ace",
+  "min_mb": 900,
+  "max_mb": 1400,
+  "link_terms": ["聖魔幻想傳", "命懺", "雙主角", "雙結局", "召喚獸", "VX Ace"],
+  "sources": [
+    "https://forum.gamer.com.tw/G2.php?bsn=4918&lorder=1&parent=4806&sn=4807",
+    "https://drive.google.com/open?id=1AUBcL2ADTH7QRgLn5vQou2vdEzGlby_X",
+    "https://sites.google.com/site/taiwanrpgppubs/category/role-playing-game/rmvxp-5"
+  ]
+}
