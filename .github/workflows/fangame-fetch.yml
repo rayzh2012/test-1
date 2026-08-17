@@ -7,6 +7,7 @@ on:
       - 'fangame_targets/**.json'
       - 'tools/fangame_fetcher.py'
       - 'tools/fangame_static_review.py'
+      - 'tools/fangame_storage_pack.py'
       - '.github/workflows/fangame-fetch.yml'
   workflow_dispatch:
 
@@ -59,121 +60,150 @@ jobs:
         target: ${{ fromJSON(needs.discover.outputs.targets) }}
     steps:
       - uses: actions/checkout@v5
+
       - name: Fetch target
         id: fetch
         shell: bash
         run: |
           set +e
           base=$(basename '${{ matrix.target }}' .json)
-          rm -rf out driveparts && mkdir -p out
+          rm -rf out driveparts storagepayload && mkdir -p out
           python3 tools/fangame_fetcher.py '${{ matrix.target }}' -o out
           rc=$?
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           echo "base=$base" >> "$GITHUB_OUTPUT"
           exit 0
+
       - name: Static AI inspection (not gameplay)
         if: steps.fetch.outputs.rc == '0'
         shell: bash
         run: |
-          game=$(find out -maxdepth 1 -type f ! -name 'fetch_report.json' ! -name 'SHA256.txt' ! -name 'ai_static_review.json' | head -1)
+          game=$(find out -maxdepth 1 -type f ! -name 'fetch_report.json' ! -name 'SHA256.txt' ! -name 'ai_static_review.json' ! -name 'storage_manifest.json' | head -1)
           python3 tools/fangame_static_review.py "$game" out/ai_static_review.json || true
-      - name: Split large archives for Drive connector
+
+      - name: Prepare space-efficient preservation payload
+        if: steps.fetch.outputs.rc == '0'
+        id: storage
+        shell: bash
+        run: |
+          set -e
+          mkdir -p storagepayload
+          game=$(find out -maxdepth 1 -type f ! -name 'fetch_report.json' ! -name 'SHA256.txt' ! -name 'ai_static_review.json' ! -name 'storage_manifest.json' | head -1)
+          python3 tools/fangame_storage_pack.py "$game" storagepayload out/storage_manifest.json
+          payload=$(find storagepayload -maxdepth 1 -type f | head -1)
+          test -n "$payload"
+          echo "payload=$payload" >> "$GITHUB_OUTPUT"
+          python3 - <<'PY'
+          import json
+          m=json.load(open('out/storage_manifest.json',encoding='utf-8'))
+          print('Storage method:',m['storage_method'])
+          print('Original bytes:',m['original_size_bytes'])
+          print('Stored bytes:',m['storage_payload_size_bytes'])
+          print('Savings:',m['storage_savings_bytes'],'bytes',m['storage_savings_percent'],'%')
+          PY
+
+      - name: Split preservation payload for Drive connector
         if: steps.fetch.outputs.rc == '0'
         shell: bash
         run: |
+          set -e
           mkdir -p driveparts
-          game=$(find out -maxdepth 1 -type f ! -name 'fetch_report.json' ! -name 'SHA256.txt' ! -name 'ai_static_review.json' | head -1)
-          split -b 75M -d -a 3 "$game" "driveparts/$(basename "$game")."
-          cp out/SHA256.txt out/fetch_report.json driveparts/
+          payload='${{ steps.storage.outputs.payload }}'
+          split -b 75M -d -a 3 "$payload" "driveparts/$(basename "$payload")."
+          cp out/SHA256.txt out/fetch_report.json out/storage_manifest.json driveparts/
           if [ -f out/ai_static_review.json ]; then cp out/ai_static_review.json driveparts/; fi
+
+      # Full original is temporary CI evidence only; it expires and is NOT the Drive archive.
       - name: Upload full result
         if: steps.fetch.outputs.rc == '0'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.fetch.outputs.base }}-full
           path: out/*
-          retention-days: 7
+          retention-days: 3
           compression-level: 0
+
       - name: Upload Drive part 000
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.000') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part000', path: 'driveparts/*.000', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part000', path: 'driveparts/*.000', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 001
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.001') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part001', path: 'driveparts/*.001', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part001', path: 'driveparts/*.001', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 002
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.002') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part002', path: 'driveparts/*.002', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part002', path: 'driveparts/*.002', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 003
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.003') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part003', path: 'driveparts/*.003', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part003', path: 'driveparts/*.003', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 004
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.004') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part004', path: 'driveparts/*.004', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part004', path: 'driveparts/*.004', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 005
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.005') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part005', path: 'driveparts/*.005', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part005', path: 'driveparts/*.005', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 006
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.006') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part006', path: 'driveparts/*.006', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part006', path: 'driveparts/*.006', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 007
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.007') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part007', path: 'driveparts/*.007', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part007', path: 'driveparts/*.007', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 008
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.008') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part008', path: 'driveparts/*.008', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part008', path: 'driveparts/*.008', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 009
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.009') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part009', path: 'driveparts/*.009', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part009', path: 'driveparts/*.009', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 010
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.010') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part010', path: 'driveparts/*.010', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part010', path: 'driveparts/*.010', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 011
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.011') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part011', path: 'driveparts/*.011', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part011', path: 'driveparts/*.011', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 012
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.012') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part012', path: 'driveparts/*.012', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part012', path: 'driveparts/*.012', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 013
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.013') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part013', path: 'driveparts/*.013', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part013', path: 'driveparts/*.013', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 014
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.014') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part014', path: 'driveparts/*.014', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part014', path: 'driveparts/*.014', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 015
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.015') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part015', path: 'driveparts/*.015', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part015', path: 'driveparts/*.015', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 016
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.016') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part016', path: 'driveparts/*.016', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part016', path: 'driveparts/*.016', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 017
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.017') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part017', path: 'driveparts/*.017', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part017', path: 'driveparts/*.017', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 018
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.018') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part018', path: 'driveparts/*.018', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part018', path: 'driveparts/*.018', retention-days: 3, compression-level: 0}
       - name: Upload Drive part 019
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.019') != ''
         uses: actions/upload-artifact@v4
-        with: {name: '${{ steps.fetch.outputs.base }}-part019', path: 'driveparts/*.019', retention-days: 7, compression-level: 0}
+        with: {name: '${{ steps.fetch.outputs.base }}-part019', path: 'driveparts/*.019', retention-days: 3, compression-level: 0}
+
       - name: Upload Drive metadata
         if: steps.fetch.outputs.rc == '0'
         uses: actions/upload-artifact@v4
@@ -183,12 +213,14 @@ jobs:
             driveparts/SHA256.txt
             driveparts/fetch_report.json
             driveparts/ai_static_review.json
+            driveparts/storage_manifest.json
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 3
+
       - name: Upload failure report
         if: steps.fetch.outputs.rc != '0'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.fetch.outputs.base }}-failed
           path: out/fetch_report.json
-          retention-days: 7
+          retention-days: 3
