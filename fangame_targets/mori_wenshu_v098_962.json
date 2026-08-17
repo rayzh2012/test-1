@@ -1,12 +1,14 @@
 {
   "name": "末日文书｜v0.98第一章 / 太吾绘卷前身保存目标",
   "version": "v0.98 / 2014 public freeware / 224-229MB lineage",
-  "engine": "RPG Maker VX Ace lineage",
+  "engine": "RPG Maker XP",
   "min_mb": 190,
   "max_mb": 280,
-  "link_terms": ["末日文书", "末日文書", "0.98", "v0.98", "224M", "229M", "茄子", "郑杰", "核心向魔幻RPG", "装备锻造", "随机任务", "卡牌召唤兽"],
-  "probe_terms": ["下载地址", "电信网络下载", "联通网络下载", "末日文书", "224MB", "download", "downurl", "fileurl", "location.href"],
+  "link_terms": ["末日文书", "末日文書", "0.98", "v0.98", "224M", "229M", "1pJnXebh", "茄子", "郑杰", "核心向魔幻RPG", "装备锻造", "随机任务", "卡牌召唤兽"],
+  "probe_terms": ["下载地址", "电信网络下载", "联通网络下载", "末日文书", "224MB", "229MB", "1pJnXebh", "download", "downurl", "fileurl", "location.href"],
   "sources": [
+    "https://rpg.blue/forum.php?mod=viewthread&tid=354211",
+    "https://pan.baidu.com/s/1pJnXebh",
     "https://www.duote.com/game/719869.html",
     "https://www.962.net/tags/%EF%BF%BD%D8%BA%EF%BF%BD%EF%BF%BD%EF%BF%BD.html",
     "https://bbs.3dmgame.com/thread-4236431-1-1.html"
