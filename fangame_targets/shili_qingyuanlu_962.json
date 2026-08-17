@@ -2,11 +2,12 @@
   "name": "十里情缘录｜962中文硬盘版系谱",
   "version": "2013 lineage / 204MB",
   "engine": "RPG Maker fangame lineage",
-  "min_mb": 160,
-  "max_mb": 270,
-  "link_terms": ["十里情缘录", "十里情緣錄", "204M", "204MB", "最爱南宫煌", "仙剑", "穿越", "十里坡"],
+  "min_mb": 180,
+  "max_mb": 240,
+  "link_terms": ["十里情缘录", "十里情緣錄", "slqyl", "204M", "204MB", "最爱南宫煌", "仙剑", "穿越", "十里坡"],
   "sources": [
-    "https://www.962.net/list/3_cn_32.html",
+    "https://99dj.197784.com/9dj4/slqyl.rar",
+    "https://www.962.net/rpg/21867.html",
     "https://www.962.net/k/xjsj/",
     "https://www.palslp.com/BBS/forum.php?action=printable&mod=viewthread&tid=6250"
   ]
