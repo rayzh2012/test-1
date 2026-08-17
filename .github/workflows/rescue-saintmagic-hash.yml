@@ -1,0 +1,38 @@
+name: Rescue Saint Magic Hash
+
+on:
+  push:
+    paths:
+      - '.github/workflows/rescue-saintmagic-hash.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  hash-public-drive-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install gdown
+        run: python -m pip install -q gdown
+
+      - name: Download public author package and hash it
+        shell: bash
+        run: |
+          set -euo pipefail
+          gdown --fuzzy 'https://drive.google.com/file/d/1AUBcL2ADTH7QRgLn5vQou2vdEzGlby_X/view' -O saint_magic.exe
+          bytes=$(stat -c%s saint_magic.exe)
+          test "$bytes" -eq 1190938906
+          sha256sum saint_magic.exe | tee SHA256.txt
+          file saint_magic.exe | tee FILE_TYPE.txt
+          printf 'source_drive_id=1AUBcL2ADTH7QRgLn5vQou2vdEzGlby_X\nbytes=%s\n' "$bytes" > SOURCE.txt
+
+      - name: Upload checksum evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: saint-magic-checksum-evidence
+          path: |
+            SHA256.txt
+            FILE_TYPE.txt
+            SOURCE.txt
+          retention-days: 7
