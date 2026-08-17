@@ -1,12 +1,12 @@
 {
   "name": "洛河神曲｜962玩家自制原创RPG系谱",
-  "version": "2014 lineage / 318MB",
+  "version": "2014 lineage / 318MB / exact lhsq repack",
   "engine": "RPG Maker lineage",
-  "min_mb": 270,
-  "max_mb": 380,
-  "link_terms": ["洛河神曲", "318M", "318MB", "RPG大师", "原创剧情", "历史人物", "神话", "武皇篇"],
+  "min_mb": 285,
+  "max_mb": 350,
+  "link_terms": ["洛河神曲", "lhsq", "318M", "318MB", "RPG大师", "原创剧情", "历史人物", "神话", "武皇篇"],
   "sources": [
-    "https://www.962.net/tags/%EF%BF%BD%D8%BA%EF%BF%BD%EF%BF%BD%EF%BF%BD.html",
-    "https://www.962.net/k/xjsj/"
+    "https://99dj.197784.com/9dj3/lhsq.rar",
+    "https://www.962.net/rpg/27412.html"
   ]
 }
