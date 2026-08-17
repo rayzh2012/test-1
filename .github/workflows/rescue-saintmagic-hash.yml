@@ -33,13 +33,13 @@ jobs:
           set -uo pipefail
           : > DOWNLOAD_LOG.txt
 
-          echo "Attempt 1: gdown by file id" | tee -a DOWNLOAD_LOG.txt
-          if gdown --id "$DRIVE_ID" -O "$OUT" 2>&1 | tee -a DOWNLOAD_LOG.txt; then
+          echo "Attempt 1: gdown positional file id" | tee -a DOWNLOAD_LOG.txt
+          if gdown "$DRIVE_ID" -O "$OUT" 2>&1 | tee -a DOWNLOAD_LOG.txt; then
             true
           else
             rm -f "$OUT"
-            echo "Attempt 2: gdown fuzzy canonical URL" | tee -a DOWNLOAD_LOG.txt
-            gdown --fuzzy "https://drive.google.com/file/d/${DRIVE_ID}/view?usp=sharing" -O "$OUT" 2>&1 | tee -a DOWNLOAD_LOG.txt || true
+            echo "Attempt 2: gdown positional canonical URL" | tee -a DOWNLOAD_LOG.txt
+            gdown "https://drive.google.com/file/d/${DRIVE_ID}/view?usp=sharing" -O "$OUT" 2>&1 | tee -a DOWNLOAD_LOG.txt || true
           fi
 
           if [ ! -f "$OUT" ]; then
