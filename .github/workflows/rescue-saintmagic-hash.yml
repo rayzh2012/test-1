@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/rescue-saintmagic-hash.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -11,28 +12,76 @@ permissions:
 jobs:
   hash-public-drive-package:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
+    env:
+      DRIVE_ID: 1AUBcL2ADTH7QRgLn5vQou2vdEzGlby_X
+      OUT: saint_magic.exe
+      # Historical observed package size. Keep as evidence, not a brittle equality gate.
+      EXPECTED_BYTES: '1190938906'
+      MIN_BYTES: '1000000000'
     steps:
-      - name: Install gdown
-        run: python -m pip install -q gdown
+      - name: Install downloader
+        run: |
+          python -m pip install --upgrade -q pip
+          python -m pip install --upgrade -q gdown
+          gdown --version | tee GDOWN_VERSION.txt
 
-      - name: Download public author package and hash it
+      - name: Download public author package
+        id: fetch
+        shell: bash
+        run: |
+          set -uo pipefail
+          : > DOWNLOAD_LOG.txt
+
+          echo "Attempt 1: gdown by file id" | tee -a DOWNLOAD_LOG.txt
+          if gdown --id "$DRIVE_ID" -O "$OUT" 2>&1 | tee -a DOWNLOAD_LOG.txt; then
+            true
+          else
+            rm -f "$OUT"
+            echo "Attempt 2: gdown fuzzy canonical URL" | tee -a DOWNLOAD_LOG.txt
+            gdown --fuzzy "https://drive.google.com/file/d/${DRIVE_ID}/view?usp=sharing" -O "$OUT" 2>&1 | tee -a DOWNLOAD_LOG.txt || true
+          fi
+
+          if [ ! -f "$OUT" ]; then
+            echo "download_status=missing" | tee FETCH_STATUS.txt
+            exit 1
+          fi
+
+          bytes=$(stat -c%s "$OUT")
+          kind=$(file -b "$OUT" || true)
+          printf 'download_status=present\nbytes=%s\nfile_type=%s\n' "$bytes" "$kind" | tee FETCH_STATUS.txt
+
+          # Reject Google/HTML error pages and obviously incomplete payloads.
+          if [ "$bytes" -lt "$MIN_BYTES" ]; then
+            echo "validation_error=payload_below_minimum_${MIN_BYTES}" | tee -a FETCH_STATUS.txt
+            exit 1
+          fi
+          if printf '%s' "$kind" | grep -Eqi 'HTML|XML|ASCII text|Unicode text'; then
+            echo "validation_error=text_or_error_page" | tee -a FETCH_STATUS.txt
+            exit 1
+          fi
+
+      - name: Hash and fingerprint validated payload
         shell: bash
         run: |
           set -euo pipefail
-          gdown --fuzzy 'https://drive.google.com/file/d/1AUBcL2ADTH7QRgLn5vQou2vdEzGlby_X/view' -O saint_magic.exe
-          bytes=$(stat -c%s saint_magic.exe)
-          test "$bytes" -eq 1190938906
-          sha256sum saint_magic.exe | tee SHA256.txt
-          file saint_magic.exe | tee FILE_TYPE.txt
-          printf 'source_drive_id=1AUBcL2ADTH7QRgLn5vQou2vdEzGlby_X\nbytes=%s\n' "$bytes" > SOURCE.txt
+          bytes=$(stat -c%s "$OUT")
+          sha256sum "$OUT" | tee SHA256.txt
+          file "$OUT" | tee FILE_TYPE.txt
+          printf 'source_drive_id=%s\nobserved_bytes=%s\nhistorical_expected_bytes=%s\nsize_delta=%s\n' \
+            "$DRIVE_ID" "$bytes" "$EXPECTED_BYTES" "$((bytes - EXPECTED_BYTES))" | tee SOURCE.txt
 
-      - name: Upload checksum evidence only
+      - name: Upload rescue evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: saint-magic-checksum-evidence
+          name: saint-magic-rescue-evidence
+          if-no-files-found: warn
           path: |
             SHA256.txt
             FILE_TYPE.txt
             SOURCE.txt
-          retention-days: 7
+            FETCH_STATUS.txt
+            DOWNLOAD_LOG.txt
+            GDOWN_VERSION.txt
+          retention-days: 14
