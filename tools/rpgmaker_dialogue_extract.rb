@@ -40,8 +40,6 @@ def extract_commands(list, base, rows)
     code=iv(cmd,:@code,0).to_i; params=iv(cmd,:@parameters,[])
     case code
     when 101
-      # XP often stores text directly in 101. VX/VX Ace use 101 as a Show Text header
-      # (face name/index, background, position) and put actual lines in 401.
       current=nil
       if params.length==1 && params[0].is_a?(String)
         current=add_or_append_text(nil,base,idx,utf8(params[0]),rows)
@@ -58,7 +56,6 @@ def extract_commands(list, base, rows)
         current=add_or_append_text(current,base,idx,text,rows)
       end
     when 105
-      # Scrolling Text header; actual lines are 405.
       current={**base,'command_index'=>idx,'kind'=>'dialogue','text'=>'','lines'=>[],'header_meta'=>params}
     when 405
       text=params.map{|x| utf8(x)}.reject(&:empty?).join(' ')
@@ -110,15 +107,19 @@ end
 text_rows=rows.select{|r| r['kind']=='dialogue'}
 choice_rows=rows.select{|r| r['kind']=='choice'}
 texts=text_rows.map{|r| r['text'].to_s.strip}.reject(&:empty?)
+unique_count=texts.uniq.length
+duplicate_count=texts.length-unique_count
 summary={
   'dialogue_blocks'=>text_rows.length,
   'dialogue_lines'=>text_rows.sum{|r| Array(r['lines']).length},
   'choice_blocks'=>choice_rows.length,
   'dialogue_chars'=>texts.sum(&:length),
   'choice_options'=>choice_rows.sum{|r| Array(r['choices']).length},
-  'unique_dialogue_blocks'=>texts.uniq.length,
-  'duplicate_dialogue_blocks'=>texts.length-texts.uniq.length,
-  'duplicate_dialogue_ratio'=>texts.empty? ? 0.0 : ((texts.length-texts.uniq.length).to_f/texts.length).round(4),
+  'unique_dialogue_blocks'=>unique_count,
+  'duplicate_dialogue_blocks'=>duplicate_count,
+  'unique_text_blocks'=>unique_count,
+  'duplicate_text_blocks'=>duplicate_count,
+  'duplicate_dialogue_ratio'=>texts.empty? ? 0.0 : (duplicate_count.to_f/texts.length).round(4),
   'errors'=>errors
 }
 out={'schema'=>'fangame-dialogue-v2','summary'=>summary,'rows'=>rows}
