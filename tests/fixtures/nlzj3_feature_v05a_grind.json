@@ -1,0 +1,122 @@
+{
+  "schema_version": "fangame.features.v0.5a",
+  "domain": "fangame",
+  "identity": {
+    "title": "怒龙战记3",
+    "archive_filename": "nlzj3.rar",
+    "engine": "RPG Maker VX",
+    "sha256": "761ea5dd2510ee04658751865a827f6a8a4ae644270d094a7ebd21963919c5c1"
+  },
+  "observed": {},
+  "runtime": {},
+  "derived": {},
+  "inferred": {
+    "sidequest_confidence": "UNKNOWN",
+    "ending_confidence": "UNKNOWN",
+    "estimated_hours_range": null,
+    "grind_pressure": null,
+    "progression_inference_status": "NOT_RUN_V0.5A_EVIDENCE_ONLY",
+    "inference_version": "fangame.graph.inference.v0.4.1"
+  },
+  "ranking": {},
+  "graph": {
+    "status": "GRAPH_OBSERVED",
+    "graph_version": "rpgmaker.graph.v0.3",
+    "start_map_id": 26,
+    "summary": {
+      "maps_loaded": 139,
+      "direct_map_edges": 474,
+      "weak_component_count": 6
+    }
+  },
+  "progression": {
+    "status": "PROGRESSION_OBSERVED",
+    "evidence_version": "rpgmaker.progression.v0.5a",
+    "observed": {
+      "maps_loaded": 139,
+      "maps_with_random_encounters": 37,
+      "random_encounter_map_ratio": 0.26618705035971224,
+      "encounter_step_stats": {
+        "count": 37,
+        "min": 5.0,
+        "p25": 15.0,
+        "median": 20.0,
+        "p75": 20.0,
+        "max": 300.0,
+        "mean": 26.594594594594593
+      },
+      "enemy_exp_stats": {
+        "count": 77,
+        "min": 5.0,
+        "p25": 110.0,
+        "median": 8000.0,
+        "p75": 33000.0,
+        "max": 300000.0,
+        "mean": 23815.44155844156
+      },
+      "enemy_gold_stats": {
+        "count": 77,
+        "min": 8.0,
+        "p25": 220.0,
+        "median": 12000.0,
+        "p75": 33000.0,
+        "max": 300000.0,
+        "mean": 24688.064935064936
+      },
+      "equipment_price_stats": {
+        "count": 104,
+        "min": 40.0,
+        "p25": 1425.0,
+        "median": 7000.0,
+        "p75": 32500.0,
+        "max": 999999.0,
+        "mean": 94899.85576923077
+      },
+      "event_commands": {
+        "event_command_count": 15837,
+        "transfer_ops": 490,
+        "battle_processing_ops": 21,
+        "shop_processing_ops": 13,
+        "hp_mp_state_change_ops": 0,
+        "recover_all_ops": 7,
+        "change_exp_ops": 7,
+        "change_level_ops": 0,
+        "change_skill_ops": 0,
+        "change_gold_ops": 289,
+        "positive_gold_reward_ops": 39,
+        "negative_gold_cost_ops": 250,
+        "change_item_ops": 703,
+        "positive_item_reward_ops": 679,
+        "negative_item_cost_ops": 24,
+        "change_weapon_ops": 25,
+        "positive_weapon_reward_ops": 25,
+        "negative_weapon_cost_ops": 0,
+        "change_armor_ops": 66,
+        "positive_armor_reward_ops": 66,
+        "negative_armor_cost_ops": 0
+      }
+    },
+    "derived": {
+      "median_equipment_price_to_enemy_gold_ratio": 0.5833333333333334,
+      "median_class_exp_basis_to_enemy_exp_ratio": null,
+      "median_progression_exp_basis_to_enemy_exp_ratio": 0.003625
+    },
+    "limitations": [
+      "Real-evidence fixture extracted from Fangame Genome run 32117128116; progression fields are evidence/proxies, not grind labels."
+    ],
+    "load_error_count": 0
+  },
+  "evidence": {
+    "progression_report": "rpgmaker_progression.json"
+  },
+  "audit": {
+    "generated_at_utc": "2026-08-18T08:35:37+00:00",
+    "feature_emitter_version": "0.3.0",
+    "schema_merge_version": "0.4.1",
+    "inference_version": "fangame.graph.inference.v0.4.1",
+    "pre_progression_feature_version": "fangame.features.v0.4",
+    "progression_bridge_version": "0.5a.0",
+    "progression_evidence_version": "rpgmaker.progression.v0.5a",
+    "source_fetch_run_id": "32117128116"
+  }
+}

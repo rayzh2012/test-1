@@ -10,17 +10,23 @@ on:
       - 'tools/fangame_graph_inference.py'
       - 'tools/fangame_inference_feature_merge.py'
       - 'tools/fangame_progression_feature_merge.py'
+      - 'tools/fangame_grind_vector.py'
+      - 'tools/fangame_grind_vector_feature_merge.py'
       - 'schemas/fangame_features.schema.json'
       - 'schemas/fangame_features_v03.schema.json'
       - 'schemas/fangame_features_v04.schema.json'
       - 'schemas/fangame_features_v05a.schema.json'
+      - 'schemas/fangame_features_v05b.schema.json'
       - 'tests/test_fangame_feature_store.py'
       - 'tests/test_fangame_graph_feature_bridge.py'
       - 'tests/test_fangame_graph_inference.py'
       - 'tests/test_fangame_replay_v04.py'
       - 'tests/test_fangame_progression_feature_bridge.py'
+      - 'tests/test_fangame_grind_vector.py'
+      - 'tests/test_fangame_grind_vector_feature_bridge.py'
       - 'tests/fixtures/fangame_nlzj3_feature_v02/**'
       - 'tests/fixtures/rpgmaker_graph_inference_v04.json'
+      - 'tests/fixtures/nlzj3_feature_v05a_grind.json'
       - '.github/workflows/fangame-feature-store.yml'
       - '.github/workflows/fangame-feature-store-test.yml'
   push:
@@ -32,17 +38,23 @@ on:
       - 'tools/fangame_graph_inference.py'
       - 'tools/fangame_inference_feature_merge.py'
       - 'tools/fangame_progression_feature_merge.py'
+      - 'tools/fangame_grind_vector.py'
+      - 'tools/fangame_grind_vector_feature_merge.py'
       - 'schemas/fangame_features.schema.json'
       - 'schemas/fangame_features_v03.schema.json'
       - 'schemas/fangame_features_v04.schema.json'
       - 'schemas/fangame_features_v05a.schema.json'
+      - 'schemas/fangame_features_v05b.schema.json'
       - 'tests/test_fangame_feature_store.py'
       - 'tests/test_fangame_graph_feature_bridge.py'
       - 'tests/test_fangame_graph_inference.py'
       - 'tests/test_fangame_replay_v04.py'
       - 'tests/test_fangame_progression_feature_bridge.py'
+      - 'tests/test_fangame_grind_vector.py'
+      - 'tests/test_fangame_grind_vector_feature_bridge.py'
       - 'tests/fixtures/fangame_nlzj3_feature_v02/**'
       - 'tests/fixtures/rpgmaker_graph_inference_v04.json'
+      - 'tests/fixtures/nlzj3_feature_v05a_grind.json'
       - '.github/workflows/fangame-feature-store.yml'
       - '.github/workflows/fangame-feature-store-test.yml'
   workflow_dispatch:
@@ -65,3 +77,7 @@ jobs:
         run: python3 tests/test_fangame_replay_v04.py
       - name: Run v0.5a progression Feature Store bridge regression
         run: python3 tests/test_fangame_progression_feature_bridge.py
+      - name: Run v0.5b real-evidence grind-vector regression
+        run: python3 tests/test_fangame_grind_vector.py
+      - name: Run v0.5b grind-vector Feature Store bridge regression
+        run: python3 tests/test_fangame_grind_vector_feature_bridge.py

@@ -7,6 +7,7 @@ on:
       - 'tools/fangame_inspect.py'
       - 'tools/rpgmaker_marshal_probe.rb'
       - 'tools/rpgmaker_graph_probe.rb'
+      - 'tools/rpgmaker_progression_probe.rb'
       - 'tools/rpgmaker_marshal_lib.rb'
       - 'tools/rpgmaker_dialogue_extract.rb'
       - 'tools/rpgmaker_map_graph.rb'
@@ -40,7 +41,11 @@ jobs:
           print(json.load(open('out/fetch_report.json'))['file'])
           PY
           )
-          python3 tools/fangame_inspect.py "out/$game" --workdir genome_work --out out/playability_static.json
+          python3 tools/fangame_inspect.py "out/$game" \
+            --workdir genome_work \
+            --out out/playability_static.json \
+            --graph-out out/rpgmaker_graph.json \
+            --progression-out out/rpgmaker_progression.json
           python3 - <<'PY' > out/game_root.txt
           import json, pathlib
           st=json.load(open('out/playability_static.json'))
@@ -69,10 +74,14 @@ jobs:
           ci=json.load(open('out/content_inference.json'))['summary']
           a=json.load(open('out/asset_fingerprint.json'))['summary']
           ph=json.load(open('out/perceptual_hash.json'))['summary']
+          prog=json.load(open('out/rpgmaker_progression.json'))
+          po=prog.get('observed') or {}
+          pd=prog.get('derived') or {}
+          pc=po.get('event_commands') or {}
           m=st.get('marshal_content') or {}
           maps=max(1,g.get('map_nodes',0))
           summary={
-            'schema':'fangame-genome-v0.6',
+            'schema':'fangame-genome-v0.7',
             'engine':st.get('engine'),
             'maps':g.get('map_nodes'),
             'dialogue_blocks':d.get('dialogue_blocks'),
@@ -121,7 +130,22 @@ jobs:
             'battle_calls':m.get('battle_calls'),
             'shops':m.get('shop_calls'),
             'choices':m.get('choice_options'),
-            'note':'Observed/derived metrics plus explicitly labeled candidate inference. v0.6 factorizes quest-like candidates into explicit sidequests, mainline gates, optional content, and unresolved candidates; unfinished content endpoints remain distinct from completed endings. Perceptual similarity is not authorship/RTP identity.'
+            'progression_evidence_version':prog.get('evidence_version'),
+            'random_encounter_maps':po.get('maps_with_random_encounters'),
+            'random_encounter_map_ratio':po.get('random_encounter_map_ratio'),
+            'median_encounter_step':(po.get('encounter_step_stats') or {}).get('median'),
+            'median_enemy_exp':(po.get('enemy_exp_stats') or {}).get('median'),
+            'median_enemy_gold':(po.get('enemy_gold_stats') or {}).get('median'),
+            'median_equipment_price':(po.get('equipment_price_stats') or {}).get('median'),
+            'equipment_price_to_enemy_gold_ratio':pd.get('median_equipment_price_to_enemy_gold_ratio'),
+            'progression_exp_basis_to_enemy_exp_ratio':pd.get('median_progression_exp_basis_to_enemy_exp_ratio'),
+            'positive_gold_reward_ops':pc.get('positive_gold_reward_ops'),
+            'positive_item_reward_ops':pc.get('positive_item_reward_ops'),
+            'positive_weapon_reward_ops':pc.get('positive_weapon_reward_ops'),
+            'positive_armor_reward_ops':pc.get('positive_armor_reward_ops'),
+            'change_exp_ops':pc.get('change_exp_ops'),
+            'recover_all_ops':pc.get('recover_all_ops'),
+            'note':'Observed/derived metrics plus explicitly labeled candidate inference. v0.7 adds raw progression/economy benchmark evidence for future calibration; it still does not emit a grind score or playtime estimate. Perceptual similarity is not authorship/RTP identity.'
           }
           json.dump(summary,open('out/genome_summary.json','w'),ensure_ascii=False,indent=2)
           print(json.dumps(summary,ensure_ascii=False,indent=2))
@@ -129,9 +153,11 @@ jobs:
       - name: Upload genome evidence
         uses: actions/upload-artifact@v4
         with:
-          name: nulong-zhanji3-genome-v06
+          name: nulong-zhanji3-genome-v07
           path: |
             out/playability_static.json
+            out/rpgmaker_graph.json
+            out/rpgmaker_progression.json
             out/dialogue_corpus.json
             out/map_graph.json
             out/map_graph_normalized.json
