@@ -1,0 +1,25 @@
+name: Fangame Graph Tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'tools/rpgmaker_graph_probe.rb'
+      - 'tests/test_rpgmaker_graph_probe.rb'
+      - '.github/workflows/fangame-graph-test.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'tools/rpgmaker_graph_probe.rb'
+      - 'tests/test_rpgmaker_graph_probe.rb'
+      - '.github/workflows/fangame-graph-test.yml'
+  workflow_dispatch:
+
+jobs:
+  graph-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run synthetic RPG Maker graph regression
+        run: ruby tests/test_rpgmaker_graph_probe.rb
