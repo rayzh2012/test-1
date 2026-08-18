@@ -1,0 +1,27 @@
+name: Gmail Single Sender Tests
+
+on:
+  pull_request:
+    paths:
+      - 'tools/gmail_single_sender.py'
+      - 'tools/test_gmail_single_sender.py'
+      - '.github/skills/gmail-single-sender/SKILL.md'
+      - '.github/workflows/gmail-single-sender-test.yml'
+  push:
+    paths:
+      - 'tools/gmail_single_sender.py'
+      - 'tools/test_gmail_single_sender.py'
+      - '.github/skills/gmail-single-sender/SKILL.md'
+      - '.github/workflows/gmail-single-sender-test.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run semantic idempotency regression tests
+        working-directory: tools
+        run: python -m unittest -v test_gmail_single_sender.py
