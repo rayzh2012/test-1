@@ -83,7 +83,11 @@ def data_dir_for(root)
 end
 
 def map_files_for(root)
-  %w[Map*.rxdata Map*.rvdata Map*.rvdata2].flat_map{|g| Dir[File.join(data_dir_for(root),g)]}.uniq.sort
+  %w[Map*.rxdata Map*.rvdata Map*.rvdata2]
+    .flat_map{|g| Dir[File.join(data_dir_for(root),g)]}
+    .uniq
+    .select{|p| File.basename(p).match?(/\AMap\d+\.(?:rxdata|rvdata|rvdata2)\z/i)}
+    .sort
 end
 
 def common_events_file(root)
@@ -91,5 +95,6 @@ def common_events_file(root)
 end
 
 def map_id_from_file(path)
-  File.basename(path)[/Map(\d+)/,1].to_i
+  m=File.basename(path).match(/\AMap(\d+)\.(?:rxdata|rvdata|rvdata2)\z/i)
+  m ? m[1].to_i : nil
 end
