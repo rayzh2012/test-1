@@ -14,14 +14,19 @@ def smoke_score(status):
     return {
         'INPUT_FLOW_VERIFIED':4.5,
         'POST_CONFIRM_RESPONSE_VERIFIED':4.2,
-        'BOOT_VERIFIED':4.0,
-        'BOOT_VERIFIED_THEN_EXITED':3.0,
+        'WINDOW_ALIVE_AFTER_CONFIRM':3.4,
+        'WINDOW_VISIBLE_BOOT':2.6,
+        'WINDOW_THEN_EXITED_AFTER_CONFIRM':2.0,
+        'POST_CONFIRM_RUNTIME_UNCERTAIN':2.0,
         'PROCESS_ALIVE_NO_VISIBLE_WINDOW':2.5,
         'NO_CURRENT_RUNTIME_PATH_IN_CI':2.0,
         'CI_RUNTIME_SETUP_FAILED':2.0,
         'CI_AUDIO_SETUP_FAILED':2.0,
         'BOOT_FAILED':1.5,
         'SMOKE_ERROR':1.5,
+        # Legacy states retained for historical artifacts.
+        'BOOT_VERIFIED':4.0,
+        'BOOT_VERIFIED_THEN_EXITED':2.0,
     }.get(status,2.0)
 
 def main():
@@ -42,23 +47,26 @@ def main():
     if hist_votes is None: hist_votes=target.get('historical_votes')
     if hist_downloads is None: hist_downloads=target.get('historical_downloads')
     status=sm.get('status','NOT_SMOKE_TESTED')
-    if status=='INPUT_FLOW_VERIFIED': verdict='高优先：内容规模强，CI已验证窗口、确认键与后续输入链；地图实机阶段仍需截图语义复核'
-    elif status=='POST_CONFIRM_RESPONSE_VERIFIED': verdict='值得玩：已验证启动且确认键产生实质响应，需截图复核是否已进入 New Game'
-    elif status=='BOOT_VERIFIED': verdict='值得继续测：已验证可启动，尚未证明进入游戏流程'
+    if status=='INPUT_FLOW_VERIFIED': verdict='高优先：当前运行环境已验证真实窗口、确认键与后续输入链；地图 gameplay 仍须截图语义复核后再单独标记'
+    elif status=='POST_CONFIRM_RESPONSE_VERIFIED': verdict='值得玩：当前运行环境已验证启动且确认键产生实质响应；需截图复核实际流程阶段'
+    elif status=='WINDOW_ALIVE_AFTER_CONFIRM': verdict='可恢复/继续测：窗口在确认后持续存活，但缺少足够视觉变化证明已进入游戏流程'
+    elif status in ('WINDOW_VISIBLE_BOOT','WINDOW_THEN_EXITED_AFTER_CONFIRM'):
+        verdict='仅窗口证据：可能是启动/错误对话框，禁止升级为可玩；先诊断运行时'
+    elif status=='BOOT_VERIFIED': verdict='历史旧状态：已验证可启动，尚未证明进入游戏流程'
     elif st.get('playability_structural')=='STRUCTURAL_OK': verdict='值得保存/继续测：结构完整，但当前运行路径未完全验证'
     else: verdict='低优先：先解决完整性或运行路径问题'
     card={
       'name':target.get('name') or target.get('title') or st.get('archive'),'engine':st.get('engine'),
       'evidence_separation':'Historical reputation, AI structural prediction, mechanical CI smoke, and semantic screenshot review are separate evidence layers. AI score is NOT a claim that the game was played through.',
       'historical_player_rating_5':hist_rating,'historical_votes':hist_votes,'historical_downloads':hist_downloads,'historical_summary':hist_note,
-      'ci_playability_status':status,'ci_playability_score_5':round(play,2),'semantic_visual_review_required_for':sm.get('semantic_visual_review_required_for',['TITLE_VERIFIED','NEW_GAME_VERIFIED','MAP_GAMEPLAY_VERIFIED']),
+      'ci_playability_status':status,'ci_playability_class':sm.get('playability_class'),'ci_playability_score_5':round(play,2),'semantic_visual_review_required_for':sm.get('semantic_visual_review_required_for',['TITLE_VERIFIED','NEW_GAME_VERIFIED','MAP_GAMEPLAY_VERIFIED']),
       'content_scale':st.get('content_scale'),'metrics':{'maps':maps,'event_commands':events,'dialogue_lines':dialogue,'choice_options':choices,'common_events':commons,'skills':skills,'items':items,'enemies':enemies,'map_transfers':transfers,'shop_calls':shops},
       'ai_structural_scores_5':{'narrative_volume':round(narrative,2),'system_breadth':round(system,2),'agency_exploration':round(agency,2),'content_richness':round(content,2),'ai_interest_prediction':round(ai_interest,2)},
       'verdict':verdict,'confidence':'MEDIUM' if mc.get('maps_loaded',0)>0 else 'LOW_TO_MEDIUM'
     }
     Path(a.out_json).write_text(json.dumps(card,ensure_ascii=False,indent=2),encoding='utf-8')
     h='未收录' if hist_rating is None else f'{float(hist_rating):.1f}/5' + (f'（{hist_votes}票）' if hist_votes else '')
-    md=f'''# {card['name']}｜AI Rescue Review Card\n\n- 引擎：{card['engine']}\n- 历史玩家口碑：{h}\n- CI机械可玩性：{status}（{play:.1f}/5）\n- 内容规模：{card['content_scale']}\n- AI结构预测：{ai_interest:.1f}/5（不是实机通关评分）\n- 剧情量：{narrative:.1f}/5｜系统广度：{system:.1f}/5｜选择/探索：{agency:.1f}/5\n- 地图 {maps}｜事件命令 {events}｜对话 {dialogue}｜选择项 {choices}｜公共事件 {commons}\n- 技能 {skills}｜物品 {items}｜敌人 {enemies}｜地图传送 {transfers}\n\n**结论：{verdict}**\n\n> 历史口碑、文件结构、CI机械输入和截图语义复核严格分层；只有截图/行为证据确认后才标 TITLE_VERIFIED / NEW_GAME_VERIFIED / MAP_GAMEPLAY_VERIFIED。\n'''
+    md=f'''# {card['name']}｜AI Rescue Review Card\n\n- 引擎：{card['engine']}\n- 历史玩家口碑：{h}\n- CI机械可玩性：{status}（{play:.1f}/5）\n- CI分类：{sm.get('playability_class','UNKNOWN')}\n- 内容规模：{card['content_scale']}\n- AI结构预测：{ai_interest:.1f}/5（不是实机通关评分）\n- 剧情量：{narrative:.1f}/5｜系统广度：{system:.1f}/5｜选择/探索：{agency:.1f}/5\n- 地图 {maps}｜事件命令 {events}｜对话 {dialogue}｜选择项 {choices}｜公共事件 {commons}\n- 技能 {skills}｜物品 {items}｜敌人 {enemies}｜地图传送 {transfers}\n\n**结论：{verdict}**\n\n> 历史口碑、文件结构、CI机械输入和截图语义复核严格分层；只有截图/行为证据确认后才标 TITLE_VERIFIED / NEW_GAME_VERIFIED / MAP_GAMEPLAY_VERIFIED。\n'''
     if hist_note: md += f'\n历史评价摘要：{hist_note}\n'
     Path(a.out_md).write_text(md,encoding='utf-8'); print(json.dumps(card,ensure_ascii=False,indent=2))
 
