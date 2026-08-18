@@ -127,7 +127,9 @@ metrics={
   'switch_ops'=>0,'variable_ops'=>0,'common_events'=>0,'database_text_chars'=>0,'load_errors'=>[]
 }
 map_globs=['Map*.rxdata','Map*.rvdata','Map*.rvdata2']
-map_globs.flat_map{|g| Dir[File.join(data_dir,g)]}.uniq.sort.each do |f|
+map_files=map_globs.flat_map{|g| Dir[File.join(data_dir,g)]}.uniq
+  .select{|p| File.basename(p).match?(/\AMap\d+\.(?:rxdata|rvdata|rvdata2)\z/i)}.sort
+map_files.each do |f|
   map,err=mload(f)
   if !map
     metrics['map_load_errors']+=1
