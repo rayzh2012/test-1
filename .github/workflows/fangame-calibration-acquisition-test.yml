@@ -1,0 +1,33 @@
+name: Fangame Calibration Acquisition Tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'tools/fangame_calibration_inventory.py'
+      - 'tools/fangame_calibration_acquisition_queue.py'
+      - 'schemas/fangame_calibration_acquisition_policy_v07.schema.json'
+      - 'tests/test_fangame_calibration_acquisition.py'
+      - 'calibration/grind/acquisition/**'
+      - '.github/workflows/fangame-calibration-acquisition-test.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'tools/fangame_calibration_inventory.py'
+      - 'tools/fangame_calibration_acquisition_queue.py'
+      - 'schemas/fangame_calibration_acquisition_policy_v07.schema.json'
+      - 'tests/test_fangame_calibration_acquisition.py'
+      - 'calibration/grind/acquisition/**'
+      - '.github/workflows/fangame-calibration-acquisition-test.yml'
+  workflow_dispatch:
+
+jobs:
+  fact-policy-decision-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install policy schema validator
+        run: python3 -m pip install --disable-pip-version-check --quiet jsonschema
+      - name: Validate inventory facts and policy-driven queue decisions
+        run: python3 tests/test_fangame_calibration_acquisition.py
