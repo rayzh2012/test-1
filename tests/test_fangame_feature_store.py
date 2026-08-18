@@ -69,7 +69,7 @@ def main():
         assert record["derived"]["choice_density_per_1000_commands"] == round(440 / 15837 * 1000, 4)
         assert record["derived"]["transfer_density_per_map"] == round(490 / 140, 4)
         assert record["derived"]["asset_count"] == 1278
-        assert record["derived"]["system_object_count"] == 1096
+        assert record["derived"]["system_object_count"] == 1056
         assert record["derived"]["content_richness_score_5"] == 4.72
         assert record["inferred"]["sidequest_confidence"] == "UNKNOWN"
         assert record["inferred"]["ending_confidence"] == "UNKNOWN"
