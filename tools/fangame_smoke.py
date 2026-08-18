@@ -25,7 +25,6 @@ def ensure_wine32(notes):
     return True
 
 def ensure_virtual_audio(notes):
-    """Give headless Wine/RGSS a real userspace audio endpoint instead of mistaking no CI sound card for a broken game."""
     if not shutil.which('pulseaudio') or not shutil.which('pactl'):
         if not shutil.which('sudo'): return False,None
         rc,log=run(['sudo','apt-get','install','-y','pulseaudio','pulseaudio-utils'],timeout=240)
@@ -35,23 +34,19 @@ def ensure_virtual_audio(notes):
     try: runtime.chmod(0o700)
     except Exception: pass
     env=os.environ.copy(); env['XDG_RUNTIME_DIR']=str(runtime)
-    # Kill only a per-user leftover server in this disposable CI worker, then start a fresh one.
     run(['pulseaudio','-k'],env=env,timeout=10)
     rc,log=run(['pulseaudio','--start','--exit-idle-time=-1','--log-target=stderr'],env=env,timeout=30)
     notes.append(f'pulseaudio start rc={rc}')
-    if rc != 0 and 'Daemon startup successful' not in log:
-        notes.append(log[-1500:])
+    if rc != 0 and 'Daemon startup successful' not in log: notes.append(log[-1500:])
     time.sleep(1)
     rc,info=run(['pactl','info'],env=env,timeout=10)
     if rc != 0:
         notes.append('pactl info failed: '+info[-1200:]); return False,None
-    rc,mod=run(['pactl','load-module','module-null-sink','sink_name=fangame_ci','sink_properties=device.description=FangameCI'],env=env,timeout=10)
+    rc,_=run(['pactl','load-module','module-null-sink','sink_name=fangame_ci','sink_properties=device.description=FangameCI'],env=env,timeout=10)
     notes.append(f'null-sink load rc={rc}')
-    # Module may already exist; setting default is the decisive check.
     rc,setlog=run(['pactl','set-default-sink','fangame_ci'],env=env,timeout=10)
     if rc != 0:
         notes.append('set-default-sink failed: '+setlog[-1000:]); return False,None
-    # PULSE_SERVER from pactl info is normally unix:/tmp/.../native; explicit value makes Wine deterministic.
     server=None
     for line in info.splitlines():
         if line.lower().startswith('server string:'):
@@ -113,7 +108,7 @@ def write_result(args,out,result):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--static',required=True); ap.add_argument('--extract-root',required=True); ap.add_argument('--outdir',default='playability_smoke'); args=ap.parse_args()
     st=json.loads(Path(args.static).read_text(encoding='utf-8')); extract=Path(args.extract_root).resolve(); game_root=(extract/st.get('game_root','.')).resolve(); out=Path(args.outdir).resolve(); out.mkdir(parents=True,exist_ok=True)
-    result={'engine':st.get('engine'),'game_root':str(game_root),'status':'NOT_RUN','runtime':None,'process_alive_boot':False,'visible_windows_boot':0,'window_titles':[],'boot_to_confirm_changed_pixels':None,'confirm_to_movement_changed_pixels':None,'notes':[]}
+    result={'engine':st.get('engine'),'game_root':str(game_root),'status':'NOT_RUN','runtime':None,'process_alive_boot':False,'visible_windows_boot':0,'window_titles':[],'boot_to_confirm_changed_pixels':None,'confirm_to_movement_changed_pixels':None,'stage_evidence':[],'semantic_visual_review_required_for':['TITLE_VERIFIED','NEW_GAME_VERIFIED','MAP_GAMEPLAY_VERIFIED'],'notes':[]}
     cmd,runtime=choose_command(game_root,st.get('engine','UNKNOWN')); result['runtime']=runtime
     if not cmd:
         result['status']='NO_CURRENT_RUNTIME_PATH_IN_CI'; result['playability_class']='PLAYABILITY_UNKNOWN'; write_result(args,out,result); return 0
@@ -142,16 +137,22 @@ def main():
         if not alive:
             result['status']='BOOT_FAILED'; result['notes'].append(f'process exited rc={proc.returncode}')
         else:
-            result['status']='BOOT_VERIFIED' if wins else 'PROCESS_ALIVE_NO_VISIBLE_WINDOW'; key(env,'Return'); time.sleep(6)
+            result['status']='BOOT_VERIFIED' if wins else 'PROCESS_ALIVE_NO_VISIBLE_WINDOW'
+            if wins: result['stage_evidence'].append('VISIBLE_GAME_WINDOW')
+            key(env,'Return'); time.sleep(6)
             s2=out/'02_after_confirm.png'; screenshot(env,s2); d1=diff_pixels(s1,s2); result['boot_to_confirm_changed_pixels']=d1
             alive_after_confirm=proc.poll() is None; result['process_alive_after_confirm']=alive_after_confirm
             if alive_after_confirm:
+                if (d1 or 0)>1000: result['stage_evidence'].append('CONFIRM_CAUSED_LARGE_VISUAL_CHANGE')
                 for k in ('Right','Down','Left','Up'): key(env,k); time.sleep(1.0)
                 time.sleep(4); s3=out/'03_after_movement.png'; screenshot(env,s3); d2=diff_pixels(s2,s3); result['confirm_to_movement_changed_pixels']=d2
                 still=proc.poll() is None; result['process_alive_after_inputs']=still
-                if still and wins and (d1 or 0)>1000 and (d2 or 0)>300: result['status']='GAMEPLAY_LIKELY'
-                elif still and wins and (d1 or 0)>1000: result['status']='INPUT_RESPONSE_VERIFIED'
-                elif still and wins: result['status']='BOOT_VERIFIED'
+                if still and wins and (d1 or 0)>1000 and (d2 or 0)>300:
+                    result['status']='INPUT_FLOW_VERIFIED'; result['stage_evidence'].append('ARROW_INPUTS_CAUSED_LARGE_VISUAL_CHANGE')
+                elif still and wins and (d1 or 0)>1000:
+                    result['status']='POST_CONFIRM_RESPONSE_VERIFIED'
+                elif still and wins:
+                    result['status']='BOOT_VERIFIED'
             else:
                 result['status']='BOOT_VERIFIED_THEN_EXITED'; result['notes'].append('Game process exited after first confirm; inspect runtime.log/screenshots before calling gameplay broken.')
     except Exception as e:
@@ -167,8 +168,8 @@ def main():
             try: xvfb.kill()
             except Exception: pass
         logf.close()
-    if result['status']=='GAMEPLAY_LIKELY': result['playability_class']='PLAYABILITY_GAMEPLAY_LIKELY'
-    elif result['status'] in ('INPUT_RESPONSE_VERIFIED','BOOT_VERIFIED'): result['playability_class']='PLAYABILITY_VERIFIED_BOOT'
+    if result['status']=='INPUT_FLOW_VERIFIED': result['playability_class']='PLAYABILITY_VERIFIED_INPUT_FLOW'
+    elif result['status'] in ('POST_CONFIRM_RESPONSE_VERIFIED','BOOT_VERIFIED'): result['playability_class']='PLAYABILITY_VERIFIED_BOOT'
     elif result['status']=='BOOT_VERIFIED_THEN_EXITED': result['playability_class']='PLAYABILITY_BOOT_ONLY_NEEDS_DIAGNOSIS'
     elif result['status']=='BOOT_FAILED': result['playability_class']='PLAYABILITY_UNKNOWN_OR_BROKEN_ON_CI'
     else: result['playability_class']='PLAYABILITY_UNKNOWN'
