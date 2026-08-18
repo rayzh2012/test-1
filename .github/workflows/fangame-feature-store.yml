@@ -70,7 +70,7 @@ jobs:
             echo "Downloaded ${artifact_name} -> ${dest}"
           done < /tmp/metadata.tsv
 
-      - name: Emit canonical v0.4 feature records
+      - name: Emit canonical v0.5a feature records
         env:
           SOURCE_FETCH_RUN_ID: ${{ steps.source.outputs.run_id }}
           SOURCE_FETCH_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
@@ -105,6 +105,13 @@ jobs:
             fi
             python3 tools/fangame_inference_feature_merge.py "${inference_merge[@]}"
 
+            progression_merge=(--features "$out/fangame_features.json" --out "$out/fangame_features.json")
+            if [ -f "$d/rpgmaker_progression.json" ]; then
+              cp "$d/rpgmaker_progression.json" "$out/rpgmaker_progression.json"
+              progression_merge+=(--progression "$out/rpgmaker_progression.json")
+            fi
+            python3 tools/fangame_progression_feature_merge.py "${progression_merge[@]}"
+
             python3 - "$out/fangame_features.json" <<'PY'
           import json, os, pathlib, sys
           p=pathlib.Path(sys.argv[1])
@@ -115,26 +122,29 @@ jobs:
           p.write_text(json.dumps(rec,ensure_ascii=False,indent=2),encoding='utf-8')
           PY
 
-            cp schemas/fangame_features_v04.schema.json "$out/fangame_features.schema.json"
+            cp schemas/fangame_features_v05a.schema.json "$out/fangame_features.schema.json"
           done
 
-      - name: Validate v0.4 feature records
+      - name: Validate v0.5a feature records
         shell: bash
         run: |
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check --quiet jsonschema
           python3 - <<'PY'
           import json, pathlib, jsonschema
-          schema=json.loads(pathlib.Path('schemas/fangame_features_v04.schema.json').read_text(encoding='utf-8'))
+          schema=json.loads(pathlib.Path('schemas/fangame_features_v05a.schema.json').read_text(encoding='utf-8'))
           files=list(pathlib.Path('feature_records').glob('*/fangame_features.json'))
           assert files, 'no canonical feature records'
           for f in files:
               rec=json.loads(f.read_text(encoding='utf-8'))
               jsonschema.validate(rec,schema)
-              assert rec['schema_version']=='fangame.features.v0.4'
-              assert 'graph' in rec and 'inferred' in rec
+              assert rec['schema_version']=='fangame.features.v0.5a'
+              assert 'graph' in rec and 'inferred' in rec and 'progression' in rec
+              assert rec['inferred'].get('estimated_hours_range') is None
+              assert rec['inferred'].get('grind_pressure') is None
+              assert rec['inferred'].get('progression_inference_status')=='NOT_RUN_V0.5A_EVIDENCE_ONLY'
               assert rec['audit'].get('source_fetch_run_id')
-          print(json.dumps({'records':len(files),'schema':'fangame.features.v0.4','validated':True}))
+          print(json.dumps({'records':len(files),'schema':'fangame.features.v0.5a','validated':True}))
           PY
 
       - name: Build analytical Feature Store assets
@@ -150,9 +160,9 @@ jobs:
           rows=list(csv.DictReader(p.open(encoding='utf-8-sig')))
           assert rows, 'feature store is empty'
           required={
-            'schema_version','identity.title','identity.archive_filename','graph.status',
+            'schema_version','identity.title','identity.archive_filename','graph.status','progression.status',
             'inferred.sidequest_candidate_count','inferred.ending_candidate_count',
-            'audit.source_fetch_run_id','audit.inference_version'
+            'inferred.progression_inference_status','audit.source_fetch_run_id','audit.inference_version'
           }
           missing=required-set(rows[0])
           assert not missing, f'missing required flattened columns: {missing}'
@@ -168,6 +178,7 @@ jobs:
             feature_records/**/fangame_features.schema.json
             feature_records/**/rpgmaker_graph.json
             feature_records/**/fangame_inference.json
+            feature_records/**/rpgmaker_progression.json
             fangame_feature_store.ndjson
             fangame_feature_store.csv
           if-no-files-found: error
