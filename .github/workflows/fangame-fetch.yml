@@ -8,6 +8,7 @@ on:
       - 'tools/fangame_fetcher.py'
       - 'tools/fangame_inspect.py'
       - 'tools/fangame_smoke.py'
+      - 'tools/fangame_review_card.py'
       - 'tools/rpgmaker_marshal_probe.rb'
       - '.github/workflows/fangame-fetch.yml'
   workflow_dispatch:
@@ -66,7 +67,8 @@ jobs:
         run: |
           set +e
           sudo apt-get update
-          sudo apt-get install -y p7zip-full unar libarchive-tools xvfb xdotool scrot imagemagick
+          sudo apt-get install -y p7zip-full unar libarchive-tools xvfb xdotool scrot imagemagick fonts-noto-cjk locales pulseaudio pulseaudio-utils
+          sudo locale-gen zh_CN.UTF-8 || true
           sudo apt-get install -y wine wine64 || true
           sudo apt-get install -y easyrpg-player || true
           sudo apt-get install -y mkxp || true
@@ -82,6 +84,9 @@ jobs:
         id: inspect
         continue-on-error: true
         shell: bash
+        env:
+          LANG: zh_CN.UTF-8
+          LC_ALL: zh_CN.UTF-8
         run: |
           game=$(python3 - <<'PY'
           import json
@@ -94,6 +99,9 @@ jobs:
         if: steps.fetch.outputs.rc == '0' && hashFiles('out/playability_static.json') != ''
         continue-on-error: true
         shell: bash
+        env:
+          LANG: zh_CN.UTF-8
+          LC_ALL: zh_CN.UTF-8
         run: |
           python3 tools/fangame_smoke.py --static out/playability_static.json --extract-root playability_work/extract --outdir out/playability_smoke
 
@@ -123,6 +131,8 @@ jobs:
           cp out/SHA256.txt out/fetch_report.json driveparts/
           [ -f out/playability_static.json ] && cp out/playability_static.json driveparts/ || true
           [ -f out/playability_smoke/playability_smoke.json ] && cp out/playability_smoke/playability_smoke.json driveparts/ || true
+          [ -f out/playability_smoke/fangame_review_card.json ] && cp out/playability_smoke/fangame_review_card.json driveparts/ || true
+          [ -f out/playability_smoke/fangame_review_card.md ] && cp out/playability_smoke/fangame_review_card.md driveparts/ || true
 
       - name: Upload full result
         if: steps.fetch.outputs.rc == '0'
@@ -223,6 +233,8 @@ jobs:
             driveparts/fetch_report.json
             driveparts/playability_static.json
             driveparts/playability_smoke.json
+            driveparts/fangame_review_card.json
+            driveparts/fangame_review_card.md
           if-no-files-found: warn
           retention-days: 7
       - name: Upload failure report
