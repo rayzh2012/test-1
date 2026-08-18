@@ -2,9 +2,22 @@
 import argparse
 import collections
 import json
+import re
 from pathlib import Path
 
-INFERENCE_VERSION = "fangame.graph.inference.v0.4"
+INFERENCE_VERSION = "fangame.graph.inference.v0.4.1"
+
+TASK_TEXT = re.compile(
+    r"(支线|支線|任务|任務|委托|委託|请求|請求|帮忙|幫忙|帮助|幫助|接受|接下|完成|交付|"
+    r"悬赏|懸賞|讨伐|討伐|寻找|尋找|收集|护送|護送|"
+    r"\bquest\b|\bmission\b|\brequest\b|\bhelp\b|\baccept\b|\bcomplete\b|\bdeliver\b|\bhunt\b|\bcollect\b|\bescort\b)",
+    re.I,
+)
+REWARD_TEXT = re.compile(
+    r"(奖励|獎勵|报酬|報酬|获得|獲得|得到|金币|金幣|经验|經驗|"
+    r"\breward\b|\breceive\b|\bobtained\b|\bgain(?:ed)?\b|\bearned\b|\bexp\b|\bgold\b)",
+    re.I,
+)
 
 
 def load(path):
@@ -26,7 +39,7 @@ def bfs(start, adj):
     q = collections.deque([start])
     while q:
         cur = q.popleft()
-        for nxt in adj.get(cur, ()): 
+        for nxt in adj.get(cur, ()):
             if nxt not in dist:
                 dist[nxt] = dist[cur] + 1
                 q.append(nxt)
@@ -50,6 +63,10 @@ def event_page_lookup(graph):
     return {x.get("node_id"): x for x in graph.get("event_pages", []) if x.get("node_id")}
 
 
+def common_event_lookup(graph):
+    return {x.get("node_id"): x for x in graph.get("common_events", []) if x.get("node_id")}
+
+
 def node_set(items):
     return {x.get("node_id") for x in items if x.get("node_id")}
 
@@ -62,11 +79,29 @@ def state_key(edge):
     return f"{t}:{sid}"
 
 
-def infer_sidequests(graph):
+def text_by_node(graph):
+    out = collections.defaultdict(list)
+    for row in list(graph.get("event_pages", [])) + list(graph.get("common_events", [])):
+        nid = row.get("node_id")
+        if not nid:
+            continue
+        for text in row.get("dialogue_samples", []) or []:
+            if isinstance(text, str) and text.strip():
+                out[nid].append(text.strip())
+    for row in graph.get("choice_nodes", []):
+        nid = row.get("node_id")
+        if not nid:
+            continue
+        for text in row.get("options", []) or []:
+            if isinstance(text, str) and text.strip():
+                out[nid].append(text.strip())
+    return out
+
+
+def build_optional_clusters(graph):
     reads = graph.get("state_reads", [])
     writes = graph.get("state_writes", [])
     page_lookup = event_page_lookup(graph)
-    nmap = node_maps(graph)
     start_map = (graph.get("system") or {}).get("start_map_id")
 
     by_state = collections.defaultdict(lambda: {"reads": set(), "writes": set(), "maps": set()})
@@ -95,11 +130,13 @@ def infer_sidequests(graph):
     }
 
     parent = {}
+
     def find(x):
         parent.setdefault(x, x)
         if parent[x] != x:
             parent[x] = find(parent[x])
         return parent[x]
+
     def union(a, b):
         ra, rb = find(a), find(b)
         if ra != rb:
@@ -109,11 +146,11 @@ def infer_sidequests(graph):
     for key, info in eligible.items():
         nodes = set(info["reads"]) | set(info["writes"])
         state_nodes[key] = nodes
-        nodes = sorted(nodes)
-        for n in nodes:
+        ordered = sorted(nodes)
+        for n in ordered:
             find(n)
-        for n in nodes[1:]:
-            union(nodes[0], n)
+        for n in ordered[1:]:
+            union(ordered[0], n)
 
     groups = collections.defaultdict(set)
     for key, nodes in state_nodes.items():
@@ -126,6 +163,7 @@ def infer_sidequests(graph):
     shops = node_set(graph.get("shop_nodes", []))
     terminal_nodes = node_set(graph.get("terminal_signals", []))
     common_calls = node_set(graph.get("common_event_edges", []))
+    text_map = text_by_node(graph)
 
     candidates = []
     for idx, (_, states) in enumerate(sorted(groups.items(), key=lambda kv: sorted(kv[1])[0]), 1):
@@ -176,28 +214,119 @@ def infer_sidequests(graph):
         if score < 3.0:
             continue
 
-        evidence_nodes = sorted(nodes)
+        samples = []
+        for nid in sorted(nodes):
+            for text in text_map.get(nid, []):
+                if text not in samples:
+                    samples.append(text)
+                if len(samples) >= 12:
+                    break
+            if len(samples) >= 12:
+                break
+
         candidates.append({
-            "candidate_id": f"sidequest:{idx}",
+            "candidate_id": f"optional:{idx}",
             "score": round(score, 2),
             "confidence": confidence(score),
             "maps": sorted(maps),
             "state_keys": sorted(states),
-            "evidence_node_ids": evidence_nodes,
+            "evidence_node_ids": sorted(nodes),
             "reason_codes": reasons,
             "dialogue_lines_in_cluster": dialogue,
-            "evidence_summary": f"Local state cluster across {len(maps)} map(s), {len(evidence_nodes)} event/common-event node(s), {len(states)} state key(s)."
+            "semantic_text_samples": samples,
+            "evidence_summary": (
+                f"Optional-state cluster across {len(maps)} map(s), {len(nodes)} event/common-event node(s), "
+                f"{len(states)} state key(s)."
+            ),
         })
 
     overall = "UNKNOWN"
     if candidates:
-        scores = [c["score"] for c in candidates]
-        overall = confidence(sum(scores) / len(scores))
+        overall = confidence(sum(x["score"] for x in candidates) / len(candidates))
     return {
         "candidate_count": len(candidates),
         "confidence": overall,
         "candidates": candidates,
-        "method": "Local switch/variable read-write clusters with interaction evidence; candidate count is not an official quest count."
+        "method": (
+            "Local switch/variable read-write clusters plus interaction evidence. These are optional-content/state-machine "
+            "candidates only and must not be reported as quest counts."
+        ),
+    }
+
+
+def infer_sidequests(graph, optional_clusters):
+    reward_nodes = node_set(graph.get("reward_nodes", []))
+    candidates = []
+
+    for idx, opt in enumerate(optional_clusters.get("candidates", []), 1):
+        nodes = set(opt.get("evidence_node_ids") or [])
+        samples = opt.get("semantic_text_samples") or []
+        task_hits = [x for x in samples if TASK_TEXT.search(x)]
+        reward_hits = [x for x in samples if REWARD_TEXT.search(x)]
+        observed_reward = bool(nodes & reward_nodes)
+
+        # Conservative semantic promotion: topology alone proves optional structure, not a quest.
+        if not task_hits and not reward_hits and not observed_reward:
+            continue
+
+        score = min(2.5, float(opt.get("score") or 0) * 0.35)
+        reasons = ["PROMOTED_FROM_OPTIONAL_CLUSTER"]
+        if task_hits:
+            score += 2.25
+            reasons.append("TASK_TEXT_SIGNAL")
+        if reward_hits:
+            score += 1.75
+            reasons.append("REWARD_TEXT_SIGNAL")
+        if observed_reward:
+            score += 2.5
+            reasons.append("OBSERVED_REWARD_COMMAND")
+        if len(opt.get("state_keys") or []) >= 2 and len(nodes) >= 2:
+            score += 0.75
+            reasons.append("MULTI_STAGE_STATE_PROGRESS")
+        if "HAS_PLAYER_CHOICE" in (opt.get("reason_codes") or []):
+            score += 0.25
+            reasons.append("PLAYER_ACCEPT_REJECT_SHAPE")
+        if "HAS_BATTLE_GATE" in (opt.get("reason_codes") or []):
+            score += 0.25
+            reasons.append("COMBAT_OBJECTIVE_SHAPE")
+
+        semantic_samples = []
+        for x in task_hits + reward_hits:
+            if x not in semantic_samples:
+                semantic_samples.append(x)
+
+        candidates.append({
+            "candidate_id": f"sidequest:{idx}",
+            "score": round(score, 2),
+            "confidence": confidence(score),
+            "maps": opt.get("maps") or [],
+            "state_keys": opt.get("state_keys") or [],
+            "evidence_node_ids": opt.get("evidence_node_ids") or [],
+            "reason_codes": reasons,
+            "semantic_signal_samples": semantic_samples[:8],
+            "source_optional_candidate_id": opt.get("candidate_id"),
+            "evidence_summary": (
+                "Optional structural cluster promoted to sidequest candidate only after task/reward semantic evidence."
+            ),
+        })
+
+    overall = "UNKNOWN"
+    if candidates:
+        overall = confidence(sum(x["score"] for x in candidates) / len(candidates))
+    elif optional_clusters.get("candidate_count"):
+        overall = "LOW"
+
+    return {
+        "candidate_count": len(candidates),
+        "confidence": overall,
+        "candidates": candidates,
+        "unpromoted_optional_cluster_count": max(
+            0, int(optional_clusters.get("candidate_count") or 0) - len(candidates)
+        ),
+        "method": (
+            "Conservative promotion from optional structural clusters. A cluster is not called a sidequest candidate unless "
+            "task/reward text or an observed reward command is present."
+        ),
     }
 
 
@@ -257,7 +386,7 @@ def infer_endings(graph):
         condition_signature = {
             "switches": condition.get("switches", []),
             "variables": condition.get("variables", []),
-            "self_switches": condition.get("self_switches", [])
+            "self_switches": condition.get("self_switches", []),
         }
 
         if score < 2.0:
@@ -273,7 +402,7 @@ def infer_endings(graph):
             "evidence_node_ids": [nid],
             "reason_codes": reasons,
             "terminal_text_samples": [s.get("text") for s in sigs if s.get("text")][:5],
-            "evidence_summary": f"Terminal candidate with {', '.join(sorted(types))}; score {score:.2f}."
+            "evidence_summary": f"Terminal candidate with {', '.join(sorted(types))}; score {score:.2f}.",
         })
 
     overall = "UNKNOWN"
@@ -284,7 +413,10 @@ def infer_endings(graph):
         "distinct_terminal_cluster_count": len(candidates),
         "confidence": overall,
         "candidates": candidates,
-        "method": "Strong terminal signals (return-to-title and/or terminal text), with conditional and reachability evidence. Game-over alone is excluded."
+        "method": (
+            "Strong terminal signals (return-to-title and/or terminal text), with conditional and reachability evidence. "
+            "Game-over and exit-event alone are excluded."
+        ),
     }
 
 
@@ -300,14 +432,29 @@ def main():
         warnings.append("GRAPH_SUMMARY_MISSING")
     if (graph.get("summary") or {}).get("load_error_count", 0):
         warnings.append("GRAPH_LOAD_ERRORS_PRESENT")
+    if not any((x.get("dialogue_samples") or []) for x in graph.get("event_pages", [])):
+        warnings.append("SIDEQUEST_SEMANTIC_TEXT_SPARSE")
+
+    optional = build_optional_clusters(graph)
+    sidequests = infer_sidequests(graph, optional)
+    endings = infer_endings(graph)
 
     out = {
         "inference_version": INFERENCE_VERSION,
         "source_graph_version": graph.get("graph_version"),
-        "sidequests": infer_sidequests(graph),
-        "endings": infer_endings(graph),
+        "optional_clusters": optional,
+        "sidequests": sidequests,
+        "endings": endings,
         "warnings": warnings,
-        "disclaimer": "All counts are conservative structural candidates inferred from RPG Maker graph evidence, not official quest/ending counts and not claims of completed playthrough."
+        "evidence_policy": {
+            "optional_cluster": "structural candidate from local state/read-write topology",
+            "sidequest_candidate": "optional cluster plus semantic task/reward evidence",
+            "ending_candidate": "strong terminal signal cluster; not official ending count",
+        },
+        "disclaimer": (
+            "All counts are conservative structural/semantic candidates inferred from RPG Maker graph evidence, not official "
+            "quest/ending counts and not claims of completed playthrough."
+        ),
     }
     Path(args.out).write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(out, ensure_ascii=False, indent=2))
