@@ -1,0 +1,44 @@
+name: Fangame Evidence Replay Tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'tools/fangame_evidence_replay.py'
+      - 'tools/fangame_inspect.py'
+      - 'tools/rpgmaker_marshal_probe.rb'
+      - 'tools/rpgmaker_graph_probe.rb'
+      - 'tools/rpgmaker_progression_probe.rb'
+      - 'tools/fangame_feature_emitter.py'
+      - 'tools/fangame_graph_feature_merge.py'
+      - 'tools/fangame_graph_inference.py'
+      - 'tools/fangame_inference_feature_merge.py'
+      - 'tools/fangame_progression_feature_merge.py'
+      - 'tools/fangame_grind_vector.py'
+      - 'tools/fangame_grind_vector_feature_merge.py'
+      - 'schemas/fangame_features_v05b.schema.json'
+      - 'tests/build_minimal_rpgmaker_replay_fixture.rb'
+      - 'tests/test_fangame_evidence_replay.py'
+      - '.github/workflows/fangame-evidence-replay*.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'tools/fangame_evidence_replay.py'
+      - 'tests/build_minimal_rpgmaker_replay_fixture.rb'
+      - 'tests/test_fangame_evidence_replay.py'
+      - '.github/workflows/fangame-evidence-replay*.yml'
+  workflow_dispatch:
+
+jobs:
+  immutable-replay-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install replay dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full ruby
+          python3 -m pip install --disable-pip-version-check --quiet jsonschema
+      - name: Replay synthetic raw archive through current pipeline
+        run: python3 tests/test_fangame_evidence_replay.py

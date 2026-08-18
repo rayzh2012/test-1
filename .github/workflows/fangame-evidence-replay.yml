@@ -1,0 +1,119 @@
+name: Fangame Evidence Replay
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Historical Fangame Fetch/Genome run ID containing an immutable *-full artifact"
+        required: true
+        type: string
+      artifact_name:
+        description: "Exact historical Actions artifact name, usually <target>-full"
+        required: true
+        type: string
+      target_path:
+        description: "Optional current fangame_targets/*.json path for identity enrichment"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout newest replay toolchain
+        uses: actions/checkout@v5
+        with:
+          ref: master
+      - name: Install replay dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools ruby
+          python3 -m pip install --disable-pip-version-check --quiet jsonschema
+      - name: Download exact immutable source artifact
+        id: source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p replay_bundle replay_output
+          row=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false and .name == env.SOURCE_ARTIFACT_NAME) | [.id,.name,.digest] | @tsv' | head -n1)
+          if [ -z "$row" ]; then
+            echo "Artifact not found, expired, or name mismatch: ${SOURCE_ARTIFACT_NAME} on run ${SOURCE_RUN_ID}" >&2
+            exit 2
+          fi
+          IFS=$'\t' read -r artifact_id artifact_name artifact_digest <<< "$row"
+          echo "artifact_id=${artifact_id}" >> "$GITHUB_OUTPUT"
+          echo "artifact_digest=${artifact_digest}" >> "$GITHUB_OUTPUT"
+          curl -fL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            -o /tmp/source-artifact.zip
+          unzip -q -o /tmp/source-artifact.zip -d replay_bundle
+      - name: Replay raw package through current collectors
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(
+            --bundle replay_bundle
+            --outdir replay_output
+            --source-run-id '${{ inputs.source_run_id }}'
+            --source-artifact-name '${{ inputs.artifact_name }}'
+          )
+          if [ -n '${{ inputs.target_path }}' ] && [ -f '${{ inputs.target_path }}' ]; then
+            args+=(--target '${{ inputs.target_path }}')
+          fi
+          python3 tools/fangame_evidence_replay.py "${args[@]}"
+      - name: Attach provider artifact digest to replay manifest
+        shell: bash
+        env:
+          SOURCE_ARTIFACT_DIGEST: ${{ steps.source.outputs.artifact_digest }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          p=pathlib.Path('replay_output/replay_manifest.json')
+          m=json.loads(p.read_text(encoding='utf-8'))
+          m['source']['github_actions_artifact_digest']=os.environ.get('SOURCE_ARTIFACT_DIGEST') or None
+          p.write_text(json.dumps(m,ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
+      - name: Verify replay did not authorize model outputs
+        run: |
+          python3 - <<'PY'
+          import json
+          f=json.load(open('replay_output/fangame_features.json'))
+          m=json.load(open('replay_output/replay_manifest.json'))
+          assert f['schema_version']=='fangame.features.v0.5b'
+          assert f['inferred'].get('grind_pressure') is None
+          assert f['inferred'].get('estimated_hours_range') is None
+          assert m['immutability']['raw_artifact_changed'] is False
+          assert m['replay_scope']['runtime_replayed'] is False
+          print(json.dumps({'replay':m['replay_version'],'schema':f['schema_version'],'sha256':m['source']['archive_sha256'],'runtime_replayed':False}))
+          PY
+      - name: Upload replay derivation only
+        uses: actions/upload-artifact@v4
+        with:
+          name: fangame-evidence-replay-${{ inputs.source_run_id }}-${{ steps.source.outputs.artifact_id }}
+          path: |
+            replay_output/source_fetch_report.json
+            replay_output/SOURCE_SHA256.txt
+            replay_output/playability_static.json
+            replay_output/rpgmaker_graph.json
+            replay_output/fangame_inference.json
+            replay_output/rpgmaker_progression.json
+            replay_output/fangame_grind_vector.json
+            replay_output/fangame_features.json
+            replay_output/replay_manifest.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
