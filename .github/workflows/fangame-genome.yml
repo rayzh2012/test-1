@@ -9,6 +9,7 @@ on:
       - 'tools/rpgmaker_map_graph.rb'
       - 'tools/rpgmaker_graph_normalize.py'
       - 'tools/fangame_asset_fingerprint.py'
+      - 'tools/fangame_perceptual_hash.py'
       - '.github/workflows/fangame-genome.yml'
   workflow_dispatch:
 
@@ -22,6 +23,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y p7zip-full unar libarchive-tools ruby
+          python3 -m pip install pillow
       - name: Fetch benchmark package
         run: |
           rm -rf out genome_work && mkdir -p out
@@ -47,6 +49,8 @@ jobs:
         run: python3 tools/rpgmaker_graph_normalize.py out/map_graph.json --out out/map_graph_normalized.json
       - name: Fingerprint assets
         run: python3 tools/fangame_asset_fingerprint.py "$(cat out/game_root.txt)" --out out/asset_fingerprint.json
+      - name: Mine perceptual image similarity
+        run: python3 tools/fangame_perceptual_hash.py "$(cat out/game_root.txt)" --threshold 6 --out out/perceptual_hash.json
       - name: Build genome summary
         run: |
           python3 - <<'PY'
@@ -56,10 +60,11 @@ jobs:
           g=json.load(open('out/map_graph.json'))['summary']
           gn=json.load(open('out/map_graph_normalized.json'))['summary']
           a=json.load(open('out/asset_fingerprint.json'))['summary']
+          ph=json.load(open('out/perceptual_hash.json'))['summary']
           m=st.get('marshal_content') or {}
           maps=max(1,g.get('map_nodes',0))
           summary={
-            'schema':'fangame-genome-v0.3',
+            'schema':'fangame-genome-v0.4',
             'engine':st.get('engine'),
             'maps':g.get('map_nodes'),
             'dialogue_blocks':d.get('dialogue_blocks'),
@@ -88,10 +93,15 @@ jobs:
             'unique_asset_hashes':a.get('unique_content_hashes'),
             'exact_duplicate_groups':a.get('exact_duplicate_groups'),
             'exact_reuse_ratio':a.get('exact_reuse_ratio'),
+            'perceptual_image_files':ph.get('image_files'),
+            'near_duplicate_pairs':ph.get('near_duplicate_pairs'),
+            'near_duplicate_clusters':ph.get('near_duplicate_clusters'),
+            'perceptual_cluster_member_files':ph.get('cluster_member_files'),
+            'perceptual_threshold_hamming':ph.get('threshold_hamming'),
             'battle_calls':m.get('battle_calls'),
             'shops':m.get('shop_calls'),
             'choices':m.get('choice_options'),
-            'note':'Observed/derived genome features only. Normalized topology reduces duplicate/reciprocal transfer inflation but does not itself prove optionality or open-world design.'
+            'note':'Observed/derived genome features only. Normalized topology reduces transfer inflation. Perceptual similarity indicates visual similarity only, not authorship or RTP identity.'
           }
           json.dump(summary,open('out/genome_summary.json','w'),ensure_ascii=False,indent=2)
           print(json.dumps(summary,ensure_ascii=False,indent=2))
@@ -99,13 +109,14 @@ jobs:
       - name: Upload genome evidence
         uses: actions/upload-artifact@v4
         with:
-          name: nulong-zhanji3-genome-v03
+          name: nulong-zhanji3-genome-v04
           path: |
             out/playability_static.json
             out/dialogue_corpus.json
             out/map_graph.json
             out/map_graph_normalized.json
             out/asset_fingerprint.json
+            out/perceptual_hash.json
             out/genome_summary.json
           retention-days: 14
           compression-level: 6
