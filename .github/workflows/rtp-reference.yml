@@ -70,8 +70,11 @@ jobs:
           fused=json.load(open('out/game_rtp_fusion.json'))['summary']
           assert exact['exact_reference_match_files']==587, exact
           assert fused['exact_reference_match_files']==587, fused
-          assert fused['modified_rtp_like_files']>=0
-          assert fused['rtp_supported_files_union']>=587
+          assert fused['modified_rtp_like_files']==3, fused
+          assert fused['modified_rtp_like_high_confidence_files']==3, fused
+          assert fused['modified_rtp_like_medium_confidence_files']==0, fused
+          assert fused['rtp_supported_files_union']==590, fused
+          assert fused['no_reference_similarity_files']==688, fused
           assert fused['no_reference_similarity_files'] + fused['rtp_supported_files_union'] == fused['game_asset_files']
           print(json.dumps(fused,ensure_ascii=False,indent=2))
           PY
