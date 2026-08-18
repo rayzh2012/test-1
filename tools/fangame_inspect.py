@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, json, math, os, re, shutil, subprocess
+import argparse, json, re, shutil, subprocess
 from pathlib import Path
 
 DATA_PATTERNS = {
@@ -59,8 +59,7 @@ def files_matching(root: Path, pattern: str):
 def count_assets(root: Path):
     exts_img={'.png','.jpg','.jpeg','.bmp','.gif','.webp'}
     exts_audio={'.ogg','.mp3','.wav','.wma','.mid','.midi','.m4a','.opus'}
-    image=audio=0
-    image_bytes=audio_bytes=0
+    image=audio=0; image_bytes=audio_bytes=0
     for p in root.rglob('*'):
         if not p.is_file(): continue
         e=p.suffix.lower()
@@ -71,21 +70,17 @@ def count_assets(root: Path):
     return image,image_bytes,audio,audio_bytes
 
 def literal_text_chars(root: Path):
-    # Exact for plain-text formats only. Binary RPG Maker data is represented separately by map/data byte proxies.
     exts={'.txt','.rb','.json','.ini','.js','.csv','.md'}
     chars=cjk=words=0
     for p in root.rglob('*'):
         if not p.is_file() or p.suffix.lower() not in exts: continue
         try:
-            b=p.read_bytes()
-            text=''
+            b=p.read_bytes(); text=''
             for enc in ('utf-8','gb18030','big5','shift_jis'):
                 try: text=b.decode(enc); break
                 except Exception: continue
             if not text: text=b.decode('latin1','ignore')
-            chars+=len(text)
-            cjk+=sum(1 for ch in text if '\u3400' <= ch <= '\u9fff')
-            words+=len(re.findall(r"[A-Za-z]{2,}",text))
+            chars+=len(text); cjk+=sum(1 for ch in text if '\u3400' <= ch <= '\u9fff'); words+=len(re.findall(r"[A-Za-z]{2,}",text))
         except Exception: pass
     return chars,cjk,words
 
@@ -97,12 +92,24 @@ def scale_label(map_count, map_bytes, asset_count):
     if signal >= 45: return 'SMALL'
     return 'TINY_OR_OPAQUE'
 
+def marshal_probe(root: Path, work: Path, engine: str):
+    if engine not in ('RPG Maker XP','RPG Maker VX','RPG Maker VX Ace') or not shutil.which('ruby'):
+        return None
+    script=Path(__file__).with_name('rpgmaker_marshal_probe.rb').resolve()
+    if not script.exists(): return None
+    out=work/'marshal_content.json'
+    p=subprocess.run(['ruby',str(script),str(root),'--out',str(out)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    if out.exists():
+        try:
+            data=json.loads(out.read_text(encoding='utf-8'))
+            data['runner_returncode']=p.returncode
+            data['runner_log_tail']=p.stdout[-2000:]
+            return data
+        except Exception: pass
+    return {'marshal_probe':False,'runner_returncode':p.returncode,'runner_log_tail':p.stdout[-2000:]}
+
 def main():
-    ap=argparse.ArgumentParser()
-    ap.add_argument('archive')
-    ap.add_argument('--workdir',default='playability_work')
-    ap.add_argument('--out',default='playability_static.json')
-    args=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument('archive'); ap.add_argument('--workdir',default='playability_work'); ap.add_argument('--out',default='playability_static.json'); args=ap.parse_args()
     src=Path(args.archive).resolve(); work=Path(args.workdir).resolve()
     if work.exists(): shutil.rmtree(work)
     ok,log=extract_archive(src,work/'extract')
@@ -110,44 +117,31 @@ def main():
     if not ok:
         result.update({'engine':'UNKNOWN','playability_structural':'FAILED_EXTRACT'})
         Path(args.out).write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8'); return 2
-    root,root_score=find_game_root(work/'extract')
-    engine,lib=detect_engine(root)
-    pattern=DATA_PATTERNS.get(engine)
-    data_files=[]; map_files=[]
+    root,root_score=find_game_root(work/'extract'); engine,lib=detect_engine(root)
+    pattern=DATA_PATTERNS.get(engine); data_files=[]; map_files=[]
     if pattern:
         data_files=files_matching(root,pattern[0]); map_files=files_matching(root,pattern[1])
     elif engine.startswith('RPG Maker MV'):
         d=(root/'www'/'data') if (root/'www'/'data').exists() else (root/'data')
-        data_files=list(d.glob('*.json')) if d.exists() else []
-        map_files=list(d.glob('Map*.json')) if d.exists() else []
-    map_bytes=sum(p.stat().st_size for p in map_files)
-    data_bytes=sum(p.stat().st_size for p in data_files)
-    img,img_b,aud,aud_b=count_assets(root)
-    chars,cjk,words=literal_text_chars(root)
-    encrypted=any((root/n).exists() for n in ('Game.rgssad','Game.rgss2a','Game.rgss3a'))
-    clean_launcher=(root/'Game.exe').exists() or (root/'RPG_RT.exe').exists()
+        data_files=list(d.glob('*.json')) if d.exists() else []; map_files=list(d.glob('Map*.json')) if d.exists() else []
+    map_bytes=sum(p.stat().st_size for p in map_files); data_bytes=sum(p.stat().st_size for p in data_files)
+    img,img_b,aud,aud_b=count_assets(root); chars,cjk,words=literal_text_chars(root)
+    encrypted=any((root/n).exists() for n in ('Game.rgssad','Game.rgss2a','Game.rgss3a')); clean_launcher=(root/'Game.exe').exists() or (root/'RPG_RT.exe').exists()
     result.update({
-        'game_root':str(root.relative_to(work/'extract')) if root != work/'extract' else '.',
-        'root_score':root_score,
-        'engine':engine,
-        'rgss_library':lib,
-        'clean_launcher_present':clean_launcher,
-        'encrypted_game_archive':encrypted,
-        'map_count':len(map_files),
-        'map_data_bytes':map_bytes,
-        'data_file_count':len(data_files),
-        'data_bytes':data_bytes,
-        'image_count':img,'image_bytes':img_b,
-        'audio_count':aud,'audio_bytes':aud_b,
-        'literal_text_chars':chars,
-        'literal_cjk_chars':cjk,
-        'literal_latin_words':words,
-        'content_scale':scale_label(len(map_files),map_bytes,img+aud),
-        'text_note':'literal_text_* counts plain-text formats only; binary/encrypted RPG Maker event text is not counted exactly. map_data_bytes/data_bytes are the structural story/event-volume proxy.',
+        'game_root':str(root.relative_to(work/'extract')) if root != work/'extract' else '.', 'root_score':root_score, 'engine':engine, 'rgss_library':lib,
+        'clean_launcher_present':clean_launcher, 'encrypted_game_archive':encrypted, 'map_count':len(map_files), 'map_data_bytes':map_bytes,
+        'data_file_count':len(data_files), 'data_bytes':data_bytes, 'image_count':img,'image_bytes':img_b,'audio_count':aud,'audio_bytes':aud_b,
+        'literal_text_chars':chars,'literal_cjk_chars':cjk,'literal_latin_words':words,'content_scale':scale_label(len(map_files),map_bytes,img+aud),
+        'text_note':'Plain-text counts are exact only for text formats. For unencrypted XP/VX/VX Ace, marshal_content adds direct event/dialogue/database metrics. Encrypted archives remain opaque until runtime/decryption.',
         'playability_structural':'STRUCTURAL_OK' if root_score>=8 and (clean_launcher or engine!='UNKNOWN') else 'STRUCTURAL_WEAK'
     })
-    Path(args.out).write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(json.dumps(result,ensure_ascii=False,indent=2))
-    return 0
+    mp=marshal_probe(root,work,engine)
+    if mp is not None:
+        result['marshal_content']=mp
+        if mp.get('maps_loaded',0)>0:
+            result['map_count_verified_by_marshal']=mp.get('maps_loaded')
+            result['story_text_chars_proxy']=mp.get('story_text_chars_proxy',0)
+            result['system_complexity_proxy']=mp.get('system_complexity_proxy',0)
+    Path(args.out).write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8'); print(json.dumps(result,ensure_ascii=False,indent=2)); return 0
 
 if __name__=='__main__': raise SystemExit(main())
