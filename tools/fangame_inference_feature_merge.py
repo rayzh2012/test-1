@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 SCHEMA_VERSION = "fangame.features.v0.4"
-MERGE_VERSION = "0.4.0"
+MERGE_VERSION = "0.4.1"
 
 
 def load(path):
@@ -23,7 +23,9 @@ def compact_candidates(items):
             "state_keys": x.get("state_keys"),
             "signal_types": x.get("signal_types"),
             "evidence_node_ids": x.get("evidence_node_ids"),
-            "reason_codes": x.get("reason_codes")
+            "reason_codes": x.get("reason_codes"),
+            "semantic_signal_samples": x.get("semantic_signal_samples"),
+            "source_optional_candidate_id": x.get("source_optional_candidate_id")
         })
     return out
 
@@ -38,20 +40,29 @@ def main():
     record = load(args.features)
     inference = load(args.inference) if args.inference and Path(args.inference).exists() else {}
 
+    optional = inference.get("optional_clusters") if isinstance(inference.get("optional_clusters"), dict) else {}
     side = inference.get("sidequests") if isinstance(inference.get("sidequests"), dict) else {}
     endings = inference.get("endings") if isinstance(inference.get("endings"), dict) else {}
     inf = record.setdefault("inferred", {})
+
+    inf["optional_cluster_candidate_count"] = optional.get("candidate_count") if inference else None
+    inf["optional_cluster_confidence"] = optional.get("confidence") if inference else "UNKNOWN"
+    inf["optional_cluster_candidates"] = compact_candidates(optional.get("candidates")) if inference else []
+
     inf["sidequest_candidate_count"] = side.get("candidate_count") if inference else None
     inf["sidequest_confidence"] = side.get("confidence") if inference else "UNKNOWN"
     inf["sidequest_candidates"] = compact_candidates(side.get("candidates")) if inference else []
+    inf["unpromoted_optional_cluster_count"] = side.get("unpromoted_optional_cluster_count") if inference else None
+
     inf["ending_candidate_count"] = endings.get("candidate_count") if inference else None
     inf["distinct_terminal_cluster_count"] = endings.get("distinct_terminal_cluster_count") if inference else None
     inf["ending_confidence"] = endings.get("confidence") if inference else "UNKNOWN"
     inf["ending_candidates"] = compact_candidates(endings.get("candidates")) if inference else []
     inf["inference_version"] = inference.get("inference_version") if inference else "none.v0.4"
     inf["evidence_summary"] = (
-        f"Graph inference: {side.get('candidate_count', 0)} sidequest candidate(s), "
-        f"{endings.get('candidate_count', 0)} ending candidate(s). Counts are structural candidates, not official counts."
+        f"Graph inference: {optional.get('candidate_count', 0)} optional structural cluster(s), "
+        f"{side.get('candidate_count', 0)} semantically promoted sidequest candidate(s), "
+        f"{endings.get('candidate_count', 0)} ending candidate(s). Counts are candidates, not official counts."
         if inference else
         "Graph inference unavailable; candidate fields remain UNKNOWN."
     )
