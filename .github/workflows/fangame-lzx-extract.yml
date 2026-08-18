@@ -1,0 +1,63 @@
+name: Fangame LZX Deep Extract
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_url:
+        description: Direct URL to the archived InstallShield SFX
+        required: true
+      expected_sha256:
+        description: Expected SHA256 of original package
+        required: true
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CAB LZX decoder
+        run: sudo apt-get update && sudo apt-get install -y cabextract
+      - name: Fetch package
+        env:
+          URL: ${{ inputs.package_url }}
+        run: curl -fL --retry 3 "$URL" -o package.exe
+      - name: Verify original identity
+        env:
+          EXPECTED: ${{ inputs.expected_sha256 }}
+        run: |
+          ACTUAL=$(sha256sum package.exe | awk '{print $1}')
+          test "$ACTUAL" = "$EXPECTED"
+      - name: Locate embedded CAB
+        run: python tools/installshield_cab_inventory.py package.exe --out inventory.json
+      - name: Carve largest embedded CAB
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          j=json.load(open('inventory.json',encoding='utf-8'))
+          b=Path('package.exe').read_bytes()
+          o=j['cab']['offset']; n=j['cab']['bytes']
+          Path('payload.cab').write_bytes(b[o:o+n])
+          PY
+      - name: Extract LZX payload without executing installer
+        run: |
+          mkdir extracted
+          cabextract -q -d extracted payload.cab
+          find extracted -type f | sort > extracted-files.txt
+      - name: Semantic probe
+        run: |
+          ruby tools/rpgmaker_marshal_probe.rb extracted > semantic-probe.txt || true
+      - name: Evidence manifest
+        run: |
+          find extracted -type f -print0 | sort -z | xargs -0 sha256sum > extracted-sha256.txt
+          du -sb extracted > extracted-bytes.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fangame-lzx-deep-evidence
+          path: |
+            inventory.json
+            extracted-files.txt
+            extracted-sha256.txt
+            extracted-bytes.txt
+            semantic-probe.txt
+          retention-days: 30
