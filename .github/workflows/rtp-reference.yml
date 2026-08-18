@@ -14,8 +14,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
-      - name: Install extractor
-        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+      - name: Install extractors
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full innoextract
       - name: Build VX hash-only reference
         run: |
           mkdir -p out
@@ -29,6 +29,7 @@ jobs:
           assert x['package_bytes']>1000000
           assert len(x['package_sha256'])==64
           assert x['asset_files']>0, x
+          assert x['unique_asset_hashes']>0
           assert all('sha256' in a and 'relative_path' in a for a in x['assets'])
           assert 'binary' not in x and 'payload' not in x
           print({k:x[k] for k in ['package_bytes','package_sha256','asset_files','unique_asset_hashes']})
