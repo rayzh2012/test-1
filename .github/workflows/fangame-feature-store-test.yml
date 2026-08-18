@@ -15,6 +15,7 @@ on:
       - 'tests/test_fangame_feature_store.py'
       - 'tests/test_fangame_graph_feature_bridge.py'
       - 'tests/test_fangame_graph_inference.py'
+      - 'tests/test_fangame_replay_v04.py'
       - 'tests/fixtures/fangame_nlzj3_feature_v02/**'
       - 'tests/fixtures/rpgmaker_graph_inference_v04.json'
       - '.github/workflows/fangame-feature-store.yml'
@@ -33,6 +34,7 @@ on:
       - 'tests/test_fangame_feature_store.py'
       - 'tests/test_fangame_graph_feature_bridge.py'
       - 'tests/test_fangame_graph_inference.py'
+      - 'tests/test_fangame_replay_v04.py'
       - 'tests/fixtures/fangame_nlzj3_feature_v02/**'
       - 'tests/fixtures/rpgmaker_graph_inference_v04.json'
       - '.github/workflows/fangame-feature-store.yml'
@@ -53,3 +55,5 @@ jobs:
         run: python3 tests/test_fangame_graph_feature_bridge.py
       - name: Run v0.4 graph inference regression
         run: python3 tests/test_fangame_graph_inference.py
+      - name: Replay legacy real evidence through v0.4
+        run: python3 tests/test_fangame_replay_v04.py
