@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rayzh2012/test-1/schemas/fangame_features_v03.schema.json",
+  "title": "Fangame Feature Store Record v0.3",
+  "type": "object",
+  "required": ["schema_version", "domain", "identity", "observed", "runtime", "derived", "inferred", "ranking", "graph", "evidence", "audit"],
+  "properties": {
+    "schema_version": {"const": "fangame.features.v0.3"},
+    "domain": {"const": "fangame"},
+    "identity": {
+      "type": "object",
+      "required": ["title", "archive_filename"],
+      "properties": {
+        "game_id": {"type": ["string", "null"]},
+        "title": {"type": ["string", "null"]},
+        "version": {"type": ["string", "null"]},
+        "engine": {"type": ["string", "null"]},
+        "archive_filename": {"type": ["string", "null"]},
+        "package_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "sha256": {"type": ["string", "null"]},
+        "lineage": {"type": ["string", "null"]},
+        "source": {"type": ["string", "null"]},
+        "source_candidates": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "observed": {"type": "object", "additionalProperties": true},
+    "runtime": {"type": "object", "additionalProperties": true},
+    "derived": {"type": "object", "additionalProperties": true},
+    "inferred": {"type": "object", "additionalProperties": true},
+    "ranking": {"type": "object", "additionalProperties": true},
+    "graph": {
+      "type": "object",
+      "required": ["status", "graph_version", "start_map_id", "summary"],
+      "properties": {
+        "status": {"enum": ["GRAPH_OBSERVED", "GRAPH_PRESENT_NO_SUMMARY", "GRAPH_UNAVAILABLE"]},
+        "graph_version": {"type": ["string", "null"]},
+        "start_map_id": {"type": ["integer", "null"]},
+        "summary": {
+          "type": "object",
+          "properties": {
+            "maps_loaded": {"type": ["integer", "null"], "minimum": 0},
+            "event_page_nodes": {"type": ["integer", "null"], "minimum": 0},
+            "common_event_nodes": {"type": ["integer", "null"], "minimum": 0},
+            "direct_map_edges": {"type": ["integer", "null"], "minimum": 0},
+            "variable_map_edges": {"type": ["integer", "null"], "minimum": 0},
+            "unique_direct_map_pairs": {"type": ["integer", "null"], "minimum": 0},
+            "weak_component_count": {"type": ["integer", "null"], "minimum": 0},
+            "largest_component_maps": {"type": ["integer", "null"], "minimum": 0},
+            "isolated_maps_by_direct_transfer": {"type": ["integer", "null"], "minimum": 0},
+            "maps_without_direct_outgoing": {"type": ["integer", "null"], "minimum": 0},
+            "maps_without_direct_incoming": {"type": ["integer", "null"], "minimum": 0},
+            "conditional_branch_nodes": {"type": ["integer", "null"], "minimum": 0},
+            "choice_nodes": {"type": ["integer", "null"], "minimum": 0},
+            "common_event_call_edges": {"type": ["integer", "null"], "minimum": 0},
+            "battle_call_nodes": {"type": ["integer", "null"], "minimum": 0},
+            "shop_call_nodes": {"type": ["integer", "null"], "minimum": 0},
+            "switch_read_ids": {"type": ["integer", "null"], "minimum": 0},
+            "switch_write_ids": {"type": ["integer", "null"], "minimum": 0},
+            "variable_read_ids": {"type": ["integer", "null"], "minimum": 0},
+            "variable_write_ids": {"type": ["integer", "null"], "minimum": 0},
+            "local_switch_ids": {"type": ["integer", "null"], "minimum": 0},
+            "shared_switch_ids": {"type": ["integer", "null"], "minimum": 0},
+            "local_variable_ids": {"type": ["integer", "null"], "minimum": 0},
+            "shared_variable_ids": {"type": ["integer", "null"], "minimum": 0},
+            "terminal_signal_nodes": {"type": ["integer", "null"], "minimum": 0},
+            "terminal_signals_by_type": {"type": "object"},
+            "label_nodes": {"type": ["integer", "null"], "minimum": 0},
+            "label_jump_nodes": {"type": ["integer", "null"], "minimum": 0},
+            "start_map_id": {"type": ["integer", "null"]},
+            "load_error_count": {"type": ["integer", "null"], "minimum": 0}
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "fetch_report": {"type": ["string", "null"]},
+        "static_report": {"type": ["string", "null"]},
+        "smoke_report": {"type": ["string", "null"]},
+        "review_card": {"type": ["string", "null"]},
+        "graph_report": {"type": ["string", "null"]},
+        "screenshots": {"type": "array", "items": {"type": "string"}},
+        "drive_evidence_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "audit": {
+      "type": "object",
+      "required": ["generated_at_utc", "feature_emitter_version", "graph_bridge_version"],
+      "properties": {
+        "generated_at_utc": {"type": "string"},
+        "feature_emitter_version": {"const": "0.3.0"},
+        "base_feature_emitter_version": {"type": ["string", "null"]},
+        "graph_bridge_version": {"const": "0.3.0"},
+        "inference_version": {"type": ["string", "null"]},
+        "github_run_id": {"type": ["string", "null"]},
+        "github_sha": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
