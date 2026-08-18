@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rayzh2012/test-1/schemas/fangame_grind_calibration_policy_v05d.schema.json",
+  "title": "Fangame Grind Calibration Readiness Policy v0.5d",
+  "type": "object",
+  "required": ["schema_version", "policy_id", "target_label_schema", "target_vector_version", "requirements", "audit"],
+  "properties": {
+    "schema_version": {"const": "fangame.grind.calibration.policy.v0.5d"},
+    "policy_id": {"type": "string", "minLength": 1},
+    "target_label_schema": {"const": "fangame.grind.label.v0.5c"},
+    "target_vector_version": {"const": "fangame.grind.vector.v0.5b"},
+    "requirements": {
+      "type": "object",
+      "required": [
+        "min_distinct_games",
+        "min_active_labels",
+        "min_distinct_independence_groups",
+        "min_games_with_multiple_independent_groups",
+        "min_known_labels_per_dimension",
+        "min_distinct_overall_burden_values",
+        "max_conflicting_game_ratio"
+      ],
+      "properties": {
+        "min_distinct_games": {"type": "integer", "minimum": 1},
+        "min_active_labels": {"type": "integer", "minimum": 1},
+        "min_distinct_independence_groups": {"type": "integer", "minimum": 1},
+        "min_games_with_multiple_independent_groups": {"type": "integer", "minimum": 0},
+        "min_known_labels_per_dimension": {
+          "type": "object",
+          "required": ["required_repetition", "level_pressure", "economy_pressure", "encounter_intrusion", "recovery_penalty", "overall_grind_burden"],
+          "properties": {
+            "required_repetition": {"type": "integer", "minimum": 0},
+            "level_pressure": {"type": "integer", "minimum": 0},
+            "economy_pressure": {"type": "integer", "minimum": 0},
+            "encounter_intrusion": {"type": "integer", "minimum": 0},
+            "recovery_penalty": {"type": "integer", "minimum": 0},
+            "overall_grind_burden": {"type": "integer", "minimum": 0}
+          },
+          "additionalProperties": false
+        },
+        "min_distinct_overall_burden_values": {"type": "integer", "minimum": 1, "maximum": 5},
+        "max_conflicting_game_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+        "min_mixed_or_full_coverage_labels": {"type": "integer", "minimum": 0, "default": 0},
+        "min_distinct_source_types": {"type": "integer", "minimum": 1, "default": 1}
+      },
+      "additionalProperties": false
+    },
+    "audit": {
+      "type": "object",
+      "required": ["policy_version", "rationale"],
+      "properties": {
+        "policy_version": {"type": "string", "minLength": 1},
+        "rationale": {"type": "string", "minLength": 1},
+        "approved_by": {"type": ["string", "null"]},
+        "approved_at_utc": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
