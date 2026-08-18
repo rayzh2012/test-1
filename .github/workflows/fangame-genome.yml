@@ -1,0 +1,97 @@
+name: Fangame Genome
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'tools/rpgmaker_marshal_lib.rb'
+      - 'tools/rpgmaker_dialogue_extract.rb'
+      - 'tools/rpgmaker_map_graph.rb'
+      - 'tools/fangame_asset_fingerprint.py'
+      - '.github/workflows/fangame-genome.yml'
+  workflow_dispatch:
+
+jobs:
+  genome-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install archive tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools ruby
+      - name: Fetch benchmark package
+        run: |
+          rm -rf out genome_work && mkdir -p out
+          python3 tools/fangame_fetcher.py fangame_targets/nulong_zhanji3_v30.json -o out
+      - name: Extract and identify game root
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('out/fetch_report.json'))['file'])
+          PY
+          )
+          python3 tools/fangame_inspect.py "out/$game" --workdir genome_work --out out/playability_static.json
+          python3 - <<'PY' > out/game_root.txt
+          import json, pathlib
+          st=json.load(open('out/playability_static.json'))
+          print((pathlib.Path('genome_work/extract')/st['game_root']).resolve())
+          PY
+      - name: Extract dialogue corpus
+        run: ruby tools/rpgmaker_dialogue_extract.rb "$(cat out/game_root.txt)" --out out/dialogue_corpus.json
+      - name: Export map and state graph
+        run: ruby tools/rpgmaker_map_graph.rb "$(cat out/game_root.txt)" --out out/map_graph.json
+      - name: Fingerprint assets
+        run: python3 tools/fangame_asset_fingerprint.py "$(cat out/game_root.txt)" --out out/asset_fingerprint.json
+      - name: Build genome summary
+        run: |
+          python3 - <<'PY'
+          import json
+          st=json.load(open('out/playability_static.json'))
+          d=json.load(open('out/dialogue_corpus.json'))['summary']
+          g=json.load(open('out/map_graph.json'))['summary']
+          a=json.load(open('out/asset_fingerprint.json'))['summary']
+          m=st.get('marshal_content') or {}
+          maps=max(1,g.get('map_nodes',0))
+          summary={
+            'schema':'fangame-genome-v0.2',
+            'engine':st.get('engine'),
+            'maps':g.get('map_nodes'),
+            'dialogue_blocks':d.get('dialogue_blocks'),
+            'dialogue_chars':d.get('dialogue_chars'),
+            'dialogue_density_chars_per_map':round(d.get('dialogue_chars',0)/maps,2),
+            'unique_text_blocks':d.get('unique_text_blocks'),
+            'duplicate_text_blocks':d.get('duplicate_text_blocks'),
+            'transfer_edges':g.get('transfer_edges'),
+            'branching_maps':g.get('branching_maps'),
+            'terminal_maps':g.get('terminal_maps'),
+            'hub_candidates':g.get('hub_candidates',[])[:10],
+            'switch_ids_read':g.get('switch_ids_read'),
+            'switch_ids_written':g.get('switch_ids_written'),
+            'variable_ids_read':g.get('variable_ids_read'),
+            'variable_ids_written':g.get('variable_ids_written'),
+            'asset_files':a.get('asset_files'),
+            'unique_asset_hashes':a.get('unique_content_hashes'),
+            'exact_duplicate_groups':a.get('exact_duplicate_groups'),
+            'exact_reuse_ratio':a.get('exact_reuse_ratio'),
+            'battle_calls':m.get('battle_calls'),
+            'shops':m.get('shop_calls'),
+            'choices':m.get('choice_options'),
+            'note':'Observed/derived genome features only; no claim of subjective fun or true asset originality.'
+          }
+          json.dump(summary,open('out/genome_summary.json','w'),ensure_ascii=False,indent=2)
+          print(json.dumps(summary,ensure_ascii=False,indent=2))
+          PY
+      - name: Upload genome evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: nulong-zhanji3-genome-v02
+          path: |
+            out/playability_static.json
+            out/dialogue_corpus.json
+            out/map_graph.json
+            out/asset_fingerprint.json
+            out/genome_summary.json
+          retention-days: 14
+          compression-level: 6
