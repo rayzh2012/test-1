@@ -48,7 +48,7 @@ jobs:
         run: ruby tools/rpgmaker_map_graph.rb "$(cat out/game_root.txt)" --out out/map_graph.json
       - name: Normalize map topology
         run: python3 tools/rpgmaker_graph_normalize.py out/map_graph.json --out out/map_graph_normalized.json
-      - name: Infer sidequest and ending candidates
+      - name: Infer content semantic classes
         run: python3 tools/fangame_content_infer.py out/dialogue_corpus.json out/map_graph.json out/map_graph_normalized.json --out out/content_inference.json
       - name: Fingerprint assets
         run: python3 tools/fangame_asset_fingerprint.py "$(cat out/game_root.txt)" --out out/asset_fingerprint.json
@@ -68,7 +68,7 @@ jobs:
           m=st.get('marshal_content') or {}
           maps=max(1,g.get('map_nodes',0))
           summary={
-            'schema':'fangame-genome-v0.5',
+            'schema':'fangame-genome-v0.6',
             'engine':st.get('engine'),
             'maps':g.get('map_nodes'),
             'dialogue_blocks':d.get('dialogue_blocks'),
@@ -96,6 +96,12 @@ jobs:
             'sidequest_candidate_maps':ci.get('sidequest_candidate_maps'),
             'sidequest_high_confidence_maps':ci.get('sidequest_high_confidence_maps'),
             'sidequest_medium_confidence_maps':ci.get('sidequest_medium_confidence_maps'),
+            'explicit_sidequest_maps':ci.get('explicit_sidequest_maps'),
+            'mainline_gate_maps':ci.get('mainline_gate_maps'),
+            'optional_content_maps':ci.get('optional_content_maps'),
+            'unresolved_quest_candidate_maps':ci.get('unresolved_quest_candidate_maps'),
+            'content_endpoint_maps':ci.get('content_endpoint_maps'),
+            'release_completion_status':ci.get('release_completion_status'),
             'ending_candidate_maps':ci.get('ending_candidate_maps'),
             'ending_high_confidence_maps':ci.get('ending_high_confidence_maps'),
             'ending_medium_confidence_maps':ci.get('ending_medium_confidence_maps'),
@@ -111,7 +117,7 @@ jobs:
             'battle_calls':m.get('battle_calls'),
             'shops':m.get('shop_calls'),
             'choices':m.get('choice_options'),
-            'note':'Observed/derived metrics plus explicitly labeled candidate inference. Sidequest/ending candidate counts are not official counts. Perceptual similarity is not authorship/RTP identity.'
+            'note':'Observed/derived metrics plus explicitly labeled candidate inference. v0.6 factorizes quest-like candidates into explicit sidequests, mainline gates, optional content, and unresolved candidates; unfinished content endpoints remain distinct from completed endings. Perceptual similarity is not authorship/RTP identity.'
           }
           json.dump(summary,open('out/genome_summary.json','w'),ensure_ascii=False,indent=2)
           print(json.dumps(summary,ensure_ascii=False,indent=2))
@@ -119,7 +125,7 @@ jobs:
       - name: Upload genome evidence
         uses: actions/upload-artifact@v4
         with:
-          name: nulong-zhanji3-genome-v05
+          name: nulong-zhanji3-genome-v06
           path: |
             out/playability_static.json
             out/dialogue_corpus.json
