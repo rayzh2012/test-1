@@ -29,15 +29,23 @@ def first(*vals):
 
 
 def num(v):
-    if v is None:
+    if v is None or isinstance(v, bool):
         return None
-    try:
-        return int(v)
-    except Exception:
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        return v
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return None
         try:
-            return float(v)
+            if all(ch not in s.lower() for ch in (".", "e")):
+                return int(s)
+            return float(s)
         except Exception:
             return None
+    return None
 
 
 def safe_div(a, b, scale=1.0):
