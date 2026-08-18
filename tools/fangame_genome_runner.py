@@ -63,22 +63,23 @@ def main():
 
     if opaque:
         summary={
-          'schema':'fangame-genome-runner-v1.2','engine':st.get('engine'),'game_root':st.get('game_root'),
+          'schema':'fangame-genome-runner-v1.3','engine':st.get('engine'),'game_root':st.get('game_root'),
           'content_visibility':'OPAQUE_ENCRYPTED','encrypted_game_archive':True,
           'maps':None,'dialogue_blocks':None,'dialogue_chars':None,'dialogue_density_chars_per_map':None,
           'raw_transfer_commands':None,'normalized_undirected_edges':None,'normalized_branching_maps':None,'connected_component_count':None,
-          'sidequest_candidate_maps':None,'ending_candidate_maps':None,
+          'sidequest_candidate_maps':None,'explicit_sidequest_maps':None,'mainline_gate_maps':None,'optional_content_maps':None,
+          'unresolved_quest_candidate_maps':None,'content_endpoint_maps':None,'release_completion_status':None,'ending_candidate_maps':None,
           'asset_scope':'EXTERNALLY_EXPOSED_FILES_ONLY','asset_files':af.get('asset_files'),'exact_reuse_ratio':af.get('exact_reuse_ratio'),
           'perceptual_image_files':ph.get('image_files'),'near_duplicate_clusters':ph.get('near_duplicate_clusters'),
           'battle_calls':None,'shops':None,'choices':None,
           'total_pipeline_wall_time_sec':round(sum(x['wall_time_sec'] for x in audit),3),
           'stage_wall_time_sec':{x['stage']:x['wall_time_sec'] for x in audit},
           'next_capability':'Use a lawful/current compatible runtime or supported archive reader to inspect encrypted RGSS data; until then internal structure remains UNKNOWN.',
-          'note':'Encrypted/opaque mode. Hidden internal content is UNKNOWN, never zero. External assets and runtime evidence may still be measured.'
+          'note':'Encrypted/opaque mode. Hidden internal content and semantic classes are UNKNOWN, never zero. External assets and runtime evidence may still be measured.'
         }
         (out/'opaque_boundary.json').write_text(json.dumps({
           'schema':'fangame-opaque-boundary-v1','engine':st.get('engine'),'encrypted_game_archive':True,
-          'hidden_metrics':['maps','dialogue','map_graph','switch_variable_graph','sidequest_candidates','ending_candidates','battle_calls','shops','choices'],
+          'hidden_metrics':['maps','dialogue','map_graph','switch_variable_graph','content_semantic_classes','sidequest_candidates','ending_candidates','release_completion_status','battle_calls','shops','choices'],
           'observable_metrics':['external_asset_fingerprint','external_perceptual_similarity','launcher/runtime evidence'],
           'rule':'UNKNOWN != 0'
         },ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
@@ -104,19 +105,22 @@ def main():
     ci=json.loads((out/'content_inference.json').read_text(encoding='utf-8'))['summary']
     m=st.get('marshal_content') or {}; maps=max(1,g.get('map_nodes',0) or 0)
     summary={
-      'schema':'fangame-genome-runner-v1.2','engine':st.get('engine'),'game_root':st.get('game_root'),
+      'schema':'fangame-genome-runner-v1.3','engine':st.get('engine'),'game_root':st.get('game_root'),
       'content_visibility':'INSPECTABLE','encrypted_game_archive':bool(st.get('encrypted_game_archive')),
       'maps':g.get('map_nodes'),'dialogue_blocks':d.get('dialogue_blocks'),'dialogue_chars':d.get('dialogue_chars'),
       'dialogue_density_chars_per_map':round(d.get('dialogue_chars',0)/maps,2),
       'raw_transfer_commands':g.get('transfer_edges'),'normalized_undirected_edges':gn.get('normalized_undirected_edges'),
       'normalized_branching_maps':gn.get('normalized_branching_maps_degree_ge_3'),'connected_component_count':gn.get('connected_component_count'),
-      'sidequest_candidate_maps':ci.get('sidequest_candidate_maps'),'ending_candidate_maps':ci.get('ending_candidate_maps'),
+      'sidequest_candidate_maps':ci.get('sidequest_candidate_maps'),'explicit_sidequest_maps':ci.get('explicit_sidequest_maps'),
+      'mainline_gate_maps':ci.get('mainline_gate_maps'),'optional_content_maps':ci.get('optional_content_maps'),
+      'unresolved_quest_candidate_maps':ci.get('unresolved_quest_candidate_maps'),'content_endpoint_maps':ci.get('content_endpoint_maps'),
+      'release_completion_status':ci.get('release_completion_status'),'ending_candidate_maps':ci.get('ending_candidate_maps'),
       'asset_scope':'FULL_EXTRACTED_GAME_ROOT','asset_files':af.get('asset_files'),'exact_reuse_ratio':af.get('exact_reuse_ratio'),
       'perceptual_image_files':ph.get('image_files'),'near_duplicate_clusters':ph.get('near_duplicate_clusters'),
       'battle_calls':m.get('battle_calls'),'shops':m.get('shop_calls'),'choices':m.get('choice_options'),
       'total_pipeline_wall_time_sec':round(sum(x['wall_time_sec'] for x in audit),3),
       'stage_wall_time_sec':{x['stage']:x['wall_time_sec'] for x in audit},
-      'note':'Reusable runner. Fetch/cache payload stays outside evidence outdir. Inferred quest/ending counts are candidates, not official counts; pipeline time is measured as evaluation cost.'
+      'note':'Reusable runner. Fetch/cache payload stays outside evidence outdir. Content inference preserves candidate recall while factorizing explicit sidequests, mainline gates, optional content, unresolved candidates, and unfinished release endpoints; pipeline time is measured as evaluation cost.'
     }
     (out/'genome_summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     write_audit(out,audit)
