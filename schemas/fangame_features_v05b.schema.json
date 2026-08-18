@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rayzh2012/test-1/schemas/fangame_features_v05b.schema.json",
+  "title": "Fangame Feature Store Record v0.5b",
+  "type": "object",
+  "required": ["schema_version", "domain", "identity", "observed", "runtime", "derived", "inferred", "ranking", "graph", "progression", "grind_vector", "evidence", "audit"],
+  "properties": {
+    "schema_version": {"const": "fangame.features.v0.5b"},
+    "domain": {"const": "fangame"},
+    "identity": {"type": "object", "required": ["title", "archive_filename"], "additionalProperties": true},
+    "observed": {"type": "object", "additionalProperties": true},
+    "runtime": {"type": "object", "additionalProperties": true},
+    "derived": {"type": "object", "additionalProperties": true},
+    "ranking": {"type": "object", "additionalProperties": true},
+    "graph": {"type": "object", "additionalProperties": true},
+    "progression": {"type": "object", "additionalProperties": true},
+    "grind_vector": {
+      "type": "object",
+      "required": ["status", "vector_version", "coverage", "missing_core_inputs", "features", "context_only", "calibration_status", "policy"],
+      "properties": {
+        "status": {"enum": ["VECTOR_READY", "VECTOR_PARTIAL", "VECTOR_UNAVAILABLE"]},
+        "vector_version": {"type": ["string", "null"]},
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "missing_core_inputs": {"type": "array", "items": {"type": "string"}},
+        "features": {"type": "object", "additionalProperties": {"type": ["number", "null"]}},
+        "context_only": {"type": "object", "additionalProperties": {"type": ["number", "null"]}},
+        "calibration_status": {"const": "UNLABELED_VECTOR_ONLY"},
+        "policy": {
+          "type": "object",
+          "required": ["weighted_score_emitted", "hours_estimate_emitted", "note"],
+          "properties": {
+            "weighted_score_emitted": {"const": false},
+            "hours_estimate_emitted": {"const": false},
+            "note": {"type": "string"}
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "inferred": {
+      "type": "object",
+      "required": ["sidequest_confidence", "ending_confidence", "inference_version", "progression_inference_status", "grind_inference_status"],
+      "properties": {
+        "estimated_hours_range": {"type": "null"},
+        "grind_pressure": {"type": "null"},
+        "progression_inference_status": {"const": "NOT_RUN_V0.5A_EVIDENCE_ONLY"},
+        "grind_inference_status": {"const": "CALIBRATION_NOT_RUN"},
+        "sidequest_confidence": {"type": ["string", "null"]},
+        "ending_confidence": {"type": ["string", "null"]},
+        "inference_version": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "graph_report": {"type": ["string", "null"]},
+        "inference_report": {"type": ["string", "null"]},
+        "progression_report": {"type": ["string", "null"]},
+        "grind_vector_report": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "audit": {
+      "type": "object",
+      "required": ["generated_at_utc", "feature_emitter_version", "schema_merge_version", "inference_version", "pre_progression_feature_version", "progression_bridge_version", "pre_grind_vector_feature_version", "grind_vector_bridge_version"],
+      "properties": {
+        "generated_at_utc": {"type": "string"},
+        "feature_emitter_version": {"type": "string"},
+        "schema_merge_version": {"enum": ["0.4.0", "0.4.1"]},
+        "inference_version": {"type": ["string", "null"]},
+        "pre_progression_feature_version": {"const": "fangame.features.v0.4"},
+        "progression_bridge_version": {"const": "0.5a.0"},
+        "pre_grind_vector_feature_version": {"const": "fangame.features.v0.5a"},
+        "grind_vector_bridge_version": {"const": "0.5b.0"},
+        "grind_vector_version": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
