@@ -1,0 +1,31 @@
+name: Fangame Grind Calibration Tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'schemas/fangame_grind_label_v05c.schema.json'
+      - 'tools/fangame_grind_corpus_audit.py'
+      - 'tests/test_fangame_grind_corpus_audit.py'
+      - 'calibration/grind/**'
+      - '.github/workflows/fangame-grind-calibration-test.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'schemas/fangame_grind_label_v05c.schema.json'
+      - 'tools/fangame_grind_corpus_audit.py'
+      - 'tests/test_fangame_grind_corpus_audit.py'
+      - 'calibration/grind/**'
+      - '.github/workflows/fangame-grind-calibration-test.yml'
+  workflow_dispatch:
+
+jobs:
+  corpus-governance-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install schema validator
+        run: python3 -m pip install --disable-pip-version-check --quiet jsonschema
+      - name: Validate label schema and corpus governance
+        run: python3 tests/test_fangame_grind_corpus_audit.py
