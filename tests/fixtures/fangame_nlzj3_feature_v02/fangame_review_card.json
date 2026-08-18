@@ -1,0 +1,31 @@
+{
+  "name": "CI Smoke｜怒龙战记3 V3.0",
+  "engine": "RPG Maker VX",
+  "historical_player_rating_5": null,
+  "historical_votes": null,
+  "historical_downloads": null,
+  "ci_playability_status": "GAMEPLAY_LIKELY",
+  "ci_playability_score_5": 5.0,
+  "content_scale": "LARGE",
+  "metrics": {
+    "maps": 140,
+    "event_commands": 15837,
+    "dialogue_lines": 4778,
+    "choice_options": 440,
+    "common_events": 190,
+    "skills": 150,
+    "items": 210,
+    "enemies": 90,
+    "map_transfers": 490,
+    "shop_calls": 13
+  },
+  "ai_structural_scores_5": {
+    "narrative_volume": 4.78,
+    "system_breadth": 4.67,
+    "agency_exploration": 4.71,
+    "content_richness": 4.72,
+    "ai_interest_prediction": 4.81
+  },
+  "verdict": "高优先：内容规模强，CI已有真实输入响应",
+  "confidence": "MEDIUM"
+}

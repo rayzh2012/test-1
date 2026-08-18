@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import datetime as dt
-import hashlib
 import json
 import os
 from pathlib import Path
 
-EMITTER_VERSION = "0.2.0"
+EMITTER_VERSION = "0.2.1"
 SCHEMA_VERSION = "fangame.features.v0.2"
 
 
@@ -30,15 +29,23 @@ def first(*vals):
 
 
 def num(v):
-    if v is None:
+    if v is None or isinstance(v, bool):
         return None
-    try:
-        return int(v)
-    except Exception:
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        return v
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return None
         try:
-            return float(v)
+            if all(ch not in s.lower() for ch in (".", "e")):
+                return int(s)
+            return float(s)
         except Exception:
             return None
+    return None
 
 
 def safe_div(a, b, scale=1.0):
@@ -76,6 +83,38 @@ def infer_package_size(fetch, fetch_path):
     return None
 
 
+def successful_source(fetch):
+    """Return the URL that actually yielded the accepted payload, not merely a candidate page."""
+    attempts = fetch.get("attempts")
+    if isinstance(attempts, list):
+        for attempt in reversed(attempts):
+            if not isinstance(attempt, dict):
+                continue
+            status = num(attempt.get("status"))
+            if isinstance(status, (int, float)) and 200 <= status < 300:
+                url = first(attempt.get("final_url"), attempt.get("url"))
+                if url:
+                    return url
+    return first(fetch.get("source_url"), fetch.get("url"))
+
+
+def source_candidates(fetch):
+    out = []
+    for value in fetch.get("sources", []) if isinstance(fetch.get("sources"), list) else []:
+        if isinstance(value, str) and value and value not in out:
+            out.append(value)
+    attempts = fetch.get("attempts")
+    if isinstance(attempts, list):
+        for attempt in attempts:
+            if not isinstance(attempt, dict):
+                continue
+            for key in ("url", "final_url"):
+                value = attempt.get(key)
+                if isinstance(value, str) and value and value not in out:
+                    out.append(value)
+    return out
+
+
 def choose_mc(static):
     mc = static.get("marshal_content")
     return mc if isinstance(mc, dict) else {}
@@ -98,7 +137,7 @@ def bool_or_none(v):
 
 
 def runtime_semantic_defaults(smoke):
-    # Mechanical smoke is deliberately not promoted to semantic gameplay claims.
+    # Mechanical smoke is deliberately not promoted to semantic screenshot claims.
     status = smoke.get("status")
     input_verified = True if status == "INPUT_FLOW_VERIFIED" else None
     return {
@@ -129,10 +168,14 @@ def main():
     mc = choose_mc(static)
 
     archive_filename = first(fetch.get("file"), static.get("archive"))
-    title = first(target.get("name"), target.get("title"), review.get("name"), archive_filename)
-    engine = first(static.get("engine"), review.get("engine"), target.get("engine"))
     sha256 = first(parse_sha256(args.sha256), fetch.get("sha256"), target.get("sha256"))
+    title = first(target.get("name"), target.get("title"), fetch.get("name"), review.get("name"), archive_filename)
+    version = first(target.get("version"), target.get("release_version"), fetch.get("version"))
+    engine = first(static.get("engine"), review.get("engine"), target.get("engine"), fetch.get("engine"))
     package_bytes = infer_package_size(fetch, args.fetch)
+    actual_source = first(target.get("source"), target.get("source_url"), successful_source(fetch))
+    candidates = source_candidates(fetch)
+    game_id = first(target.get("game_id"), target.get("id"), f"sha256:{sha256}" if sha256 else None)
 
     maps = mc_value(mc, static, ("maps_loaded",), ("map_count_verified_by_marshal", "map_count"))
     events = mc_value(mc, static, ("events", "event_count"))
@@ -145,8 +188,8 @@ def main():
     transfers = mc_value(mc, static, ("map_transfers", "transfers"))
     battle_calls = mc_value(mc, static, ("battle_calls",))
     shops = mc_value(mc, static, ("shop_calls", "shops"))
-    switches = mc_value(mc, static, ("switches",))
-    variables = mc_value(mc, static, ("variables",))
+    switches = mc_value(mc, static, ("switches", "switch_ops"))
+    variables = mc_value(mc, static, ("variables", "variable_ops"))
     actors = mc_value(mc, static, ("actors",))
     classes = mc_value(mc, static, ("classes",))
     skills = mc_value(mc, static, ("skills",))
@@ -195,15 +238,16 @@ def main():
         "schema_version": SCHEMA_VERSION,
         "domain": "fangame",
         "identity": {
-            "game_id": first(target.get("game_id"), target.get("id")),
+            "game_id": game_id,
             "title": title,
-            "version": first(target.get("version"), target.get("release_version")),
+            "version": version,
             "engine": engine,
             "archive_filename": archive_filename,
             "package_bytes": package_bytes,
             "sha256": sha256,
             "lineage": first(target.get("lineage"), target.get("provenance")),
-            "source": first(target.get("source"), target.get("source_url"), fetch.get("source_url"), fetch.get("url")),
+            "source": actual_source,
+            "source_candidates": candidates,
         },
         "observed": {
             "extract_ok": bool_or_none(static.get("extract_ok")) if static else None,

@@ -1,0 +1,33 @@
+name: Fangame Feature Store Tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'tools/fangame_feature_emitter.py'
+      - 'tools/fangame_feature_batch.py'
+      - 'schemas/fangame_features.schema.json'
+      - 'tests/test_fangame_feature_store.py'
+      - 'tests/fixtures/fangame_nlzj3_feature_v02/**'
+      - '.github/workflows/fangame-feature-store-test.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'tools/fangame_feature_emitter.py'
+      - 'tools/fangame_feature_batch.py'
+      - 'schemas/fangame_features.schema.json'
+      - 'tests/test_fangame_feature_store.py'
+      - 'tests/fixtures/fangame_nlzj3_feature_v02/**'
+      - '.github/workflows/fangame-feature-store-test.yml'
+  workflow_dispatch:
+
+jobs:
+  feature-store-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install schema validator
+        run: python3 -m pip install --disable-pip-version-check --quiet jsonschema
+      - name: Run real-evidence regression
+        run: python3 tests/test_fangame_feature_store.py

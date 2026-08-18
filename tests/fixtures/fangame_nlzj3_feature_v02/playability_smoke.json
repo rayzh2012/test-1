@@ -1,0 +1,17 @@
+{
+  "engine": "RPG Maker VX",
+  "game_root": "/home/runner/work/test-1/test-1/playability_work/extract/nlzj3/NLZJ3",
+  "status": "GAMEPLAY_LIKELY",
+  "runtime": "Wine/original Windows launcher",
+  "process_alive_boot": true,
+  "visible_windows_boot": 1,
+  "window_titles": ["Å­ÁúÕ½¼ÇIII V3.0"],
+  "boot_to_confirm_changed_pixels": 226175,
+  "confirm_to_movement_changed_pixels": 226177,
+  "wine32_ready": true,
+  "virtual_audio_ready": true,
+  "wineboot_rc": 0,
+  "process_alive_after_confirm": true,
+  "process_alive_after_inputs": true,
+  "playability_class": "PLAYABILITY_GAMEPLAY_LIKELY"
+}
