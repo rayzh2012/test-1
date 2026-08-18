@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [ master ]
     paths:
+      - 'tools/fangame_inspect.py'
+      - 'tools/rpgmaker_marshal_probe.rb'
+      - 'tools/rpgmaker_graph_probe.rb'
       - 'tools/rpgmaker_marshal_lib.rb'
       - 'tools/rpgmaker_dialogue_extract.rb'
       - 'tools/rpgmaker_map_graph.rb'
@@ -11,6 +14,7 @@ on:
       - 'tools/fangame_asset_fingerprint.py'
       - 'tools/fangame_perceptual_hash.py'
       - 'tools/fangame_content_infer.py'
+      - 'tests/test_rpgmaker_map_inventory.py'
       - '.github/workflows/fangame-genome.yml'
   workflow_dispatch:
 
