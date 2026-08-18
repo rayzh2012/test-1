@@ -8,6 +8,7 @@ on:
       - 'tools/fangame_fetcher.py'
       - 'tools/fangame_inspect.py'
       - 'tools/fangame_smoke.py'
+      - 'tools/rpgmaker_marshal_probe.rb'
       - '.github/workflows/fangame-fetch.yml'
   workflow_dispatch:
 
