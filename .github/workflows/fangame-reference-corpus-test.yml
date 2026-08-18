@@ -1,0 +1,22 @@
+name: Fangame Reference Corpus Test
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'tools/fangame_reference_manifest.py'
+      - 'tools/fangame_reference_match.py'
+      - 'tools/fangame_asset_fingerprint.py'
+      - 'tests/test_fangame_reference_match.py'
+      - '.github/workflows/fangame-reference-corpus-test.yml'
+  workflow_dispatch:
+
+jobs:
+  test-reference-corpus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install pytest
+        run: python3 -m pip install pytest
+      - name: Run tests
+        run: python3 -m pytest -q tests/test_fangame_reference_match.py
