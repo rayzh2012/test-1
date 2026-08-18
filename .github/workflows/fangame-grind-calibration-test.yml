@@ -37,3 +37,27 @@ jobs:
         run: python3 tests/test_fangame_grind_corpus_audit.py
       - name: Validate explicit readiness policy gate
         run: python3 tests/test_fangame_grind_calibration_gate.py
+      - name: Audit production calibration corpus
+        if: hashFiles('calibration/grind/labels.ndjson') != ''
+        run: |
+          python3 tools/fangame_grind_corpus_audit.py \
+            --labels calibration/grind/labels.ndjson \
+            --schema schemas/fangame_grind_label_v05c.schema.json \
+            --out fangame_grind_corpus_audit.json
+          python3 - <<'PY'
+          import json
+          a=json.load(open('fangame_grind_corpus_audit.json'))
+          assert a['corpus_status']=='CORPUS_VALID_UNGATED', a
+          assert a['training_gate']['status']=='NOT_EVALUATED', a
+          assert a['model_outputs']['weights_emitted'] is False
+          assert a['model_outputs']['grind_score_emitted'] is False
+          print(json.dumps({'status':a['corpus_status'],'active_labels':a['active_label_records'],'games':a['distinct_games'],'independence_groups':a['distinct_independence_groups']},ensure_ascii=False))
+          PY
+      - name: Upload production corpus audit
+        if: hashFiles('fangame_grind_corpus_audit.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: fangame-grind-calibration-corpus-audit
+          path: fangame_grind_corpus_audit.json
+          retention-days: 30
+          compression-level: 6
