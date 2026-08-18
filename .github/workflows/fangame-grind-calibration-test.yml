@@ -5,22 +5,28 @@ on:
     branches: [master]
     paths:
       - 'schemas/fangame_grind_label_v05c.schema.json'
+      - 'schemas/fangame_grind_calibration_policy_v05d.schema.json'
       - 'tools/fangame_grind_corpus_audit.py'
+      - 'tools/fangame_grind_calibration_gate.py'
       - 'tests/test_fangame_grind_corpus_audit.py'
+      - 'tests/test_fangame_grind_calibration_gate.py'
       - 'calibration/grind/**'
       - '.github/workflows/fangame-grind-calibration-test.yml'
   push:
     branches: [master]
     paths:
       - 'schemas/fangame_grind_label_v05c.schema.json'
+      - 'schemas/fangame_grind_calibration_policy_v05d.schema.json'
       - 'tools/fangame_grind_corpus_audit.py'
+      - 'tools/fangame_grind_calibration_gate.py'
       - 'tests/test_fangame_grind_corpus_audit.py'
+      - 'tests/test_fangame_grind_calibration_gate.py'
       - 'calibration/grind/**'
       - '.github/workflows/fangame-grind-calibration-test.yml'
   workflow_dispatch:
 
 jobs:
-  corpus-governance-regression:
+  calibration-governance-regression:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -29,3 +35,5 @@ jobs:
         run: python3 -m pip install --disable-pip-version-check --quiet jsonschema
       - name: Validate label schema and corpus governance
         run: python3 tests/test_fangame_grind_corpus_audit.py
+      - name: Validate explicit readiness policy gate
+        run: python3 tests/test_fangame_grind_calibration_gate.py
