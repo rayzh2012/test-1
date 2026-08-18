@@ -1,0 +1,64 @@
+{
+  "graph_version": "rpgmaker.graph.v0.3",
+  "system": {"start_map_id": 1},
+  "maps": [
+    {"map_id": 1, "name": "Start"},
+    {"map_id": 2, "name": "Puzzle Room"}
+  ],
+  "event_pages": [
+    {
+      "node_id": "map:2:event:1:page:0",
+      "map_id": 2,
+      "event_id": 1,
+      "page_index": 0,
+      "dialogue_lines": 2,
+      "dialogue_samples": ["The mechanism clicks.", "A monster appears."],
+      "conditions": {"switches": [], "variables": [], "self_switches": []}
+    },
+    {
+      "node_id": "map:2:event:2:page:0",
+      "map_id": 2,
+      "event_id": 2,
+      "page_index": 0,
+      "dialogue_lines": 1,
+      "dialogue_samples": ["The gate is now open."],
+      "conditions": {"switches": [{"id": 20, "expected": true}], "variables": [], "self_switches": []}
+    }
+  ],
+  "common_events": [],
+  "map_edges": [
+    {"node_id": "map:1:event:1:page:0", "source_map_id": 1, "target_mode": "direct", "target_map_id": 2}
+  ],
+  "state_reads": [
+    {"node_id": "map:2:event:2:page:0", "map_id": 2, "state_type": "switch", "state_id": 20, "reason": "page_condition"}
+  ],
+  "state_writes": [
+    {"node_id": "map:2:event:1:page:0", "map_id": 2, "state_type": "switch", "state_id": 20, "operation": 0, "reason": "control_switches"}
+  ],
+  "common_event_edges": [],
+  "conditional_branches": [],
+  "choice_nodes": [
+    {"node_id": "map:2:event:1:page:0", "map_id": 2, "options": ["Open", "Leave"]}
+  ],
+  "battle_nodes": [
+    {"node_id": "map:2:event:1:page:0", "map_id": 2}
+  ],
+  "shop_nodes": [],
+  "terminal_signals": [],
+  "summary": {
+    "maps_loaded": 2,
+    "event_page_nodes": 2,
+    "direct_map_edges": 1,
+    "weak_component_count": 1,
+    "conditional_branch_nodes": 0,
+    "choice_nodes": 1,
+    "battle_call_nodes": 1,
+    "switch_read_ids": 1,
+    "switch_write_ids": 1,
+    "local_switch_ids": 1,
+    "shared_switch_ids": 0,
+    "terminal_signal_nodes": 0,
+    "start_map_id": 1,
+    "load_error_count": 0
+  }
+}

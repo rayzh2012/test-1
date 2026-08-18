@@ -8,10 +8,10 @@
     {"map_id": 4, "name": "Final"}
   ],
   "event_pages": [
-    {"node_id": "map:2:event:10:page:0", "map_id": 2, "event_id": 10, "page_index": 0, "dialogue_lines": 3, "conditions": {"switches": [], "variables": [], "self_switches": []}},
-    {"node_id": "map:3:event:20:page:0", "map_id": 3, "event_id": 20, "page_index": 0, "dialogue_lines": 4, "conditions": {"switches": [{"id": 5, "expected": true}], "variables": [], "self_switches": []}},
-    {"node_id": "map:4:event:30:page:0", "map_id": 4, "event_id": 30, "page_index": 0, "dialogue_lines": 2, "conditions": {"switches": [{"id": 9, "expected": true}], "variables": [], "self_switches": []}},
-    {"node_id": "map:4:event:30:page:1", "map_id": 4, "event_id": 30, "page_index": 1, "dialogue_lines": 2, "conditions": {"switches": [{"id": 10, "expected": true}], "variables": [], "self_switches": []}}
+    {"node_id": "map:2:event:10:page:0", "map_id": 2, "event_id": 10, "page_index": 0, "dialogue_lines": 3, "dialogue_samples": ["Can you help me clear the cave?", "Accept this quest?"], "conditions": {"switches": [], "variables": [], "self_switches": []}},
+    {"node_id": "map:3:event:20:page:0", "map_id": 3, "event_id": 20, "page_index": 0, "dialogue_lines": 4, "dialogue_samples": ["You completed the request.", "Reward: 500 gold."], "conditions": {"switches": [{"id": 5, "expected": true}], "variables": [], "self_switches": []}},
+    {"node_id": "map:4:event:30:page:0", "map_id": 4, "event_id": 30, "page_index": 0, "dialogue_lines": 2, "dialogue_samples": ["ENDING A"], "conditions": {"switches": [{"id": 9, "expected": true}], "variables": [], "self_switches": []}},
+    {"node_id": "map:4:event:30:page:1", "map_id": 4, "event_id": 30, "page_index": 1, "dialogue_lines": 2, "dialogue_samples": ["ENDING B"], "conditions": {"switches": [{"id": 10, "expected": true}], "variables": [], "self_switches": []}}
   ],
   "common_events": [],
   "map_edges": [

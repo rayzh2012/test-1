@@ -27,9 +27,13 @@
       "type": "object",
       "required": ["sidequest_confidence", "ending_confidence", "inference_version"],
       "properties": {
+        "optional_cluster_candidate_count": {"type": ["integer", "null"], "minimum": 0},
+        "optional_cluster_confidence": {"type": ["string", "null"]},
+        "optional_cluster_candidates": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
         "sidequest_candidate_count": {"type": ["integer", "null"], "minimum": 0},
         "sidequest_confidence": {"type": ["string", "null"]},
         "sidequest_candidates": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+        "unpromoted_optional_cluster_count": {"type": ["integer", "null"], "minimum": 0},
         "ending_candidate_count": {"type": ["integer", "null"], "minimum": 0},
         "distinct_terminal_cluster_count": {"type": ["integer", "null"], "minimum": 0},
         "ending_confidence": {"type": ["string", "null"]},
@@ -58,7 +62,7 @@
         "base_feature_emitter_version": {"type": ["string", "null"]},
         "graph_bridge_version": {"type": ["string", "null"]},
         "pre_inference_feature_version": {"type": ["string", "null"]},
-        "schema_merge_version": {"const": "0.4.0"},
+        "schema_merge_version": {"enum": ["0.4.0", "0.4.1"]},
         "inference_version": {"type": ["string", "null"]},
         "github_run_id": {"type": ["string", "null"]},
         "github_sha": {"type": ["string", "null"]}
@@ -79,7 +83,9 @@
         "state_keys": {"type": ["array", "null"], "items": {"type": "string"}},
         "signal_types": {"type": ["array", "null"], "items": {"type": "string"}},
         "evidence_node_ids": {"type": ["array", "null"], "items": {"type": "string"}},
-        "reason_codes": {"type": ["array", "null"], "items": {"type": "string"}}
+        "reason_codes": {"type": ["array", "null"], "items": {"type": "string"}},
+        "semantic_signal_samples": {"type": ["array", "null"], "items": {"type": "string"}},
+        "source_optional_candidate_id": {"type": ["string", "null"]}
       },
       "additionalProperties": true
     }
