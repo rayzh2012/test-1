@@ -137,12 +137,18 @@ def fetch_http(session,url,outdir,min_mb,report,link_terms=None,max_mb=None,prob
 def fetch_ftp(url,outdir,min_mb,report,max_mb=None):
     name=os.path.basename(urlparse(url).path) or 'download.rar'
     path=Path(outdir)/name
-    for cmd in (["curl","-L","--fail","--connect-timeout","20","--max-time","900","-o",str(path),url],
-                ["wget","-O",str(path),url]):
+    commands=[
+        ["curl","-L","--fail","--connect-timeout","20","--max-time","900","-o",str(path),url],
+        ["wget","--timeout=20","--read-timeout=30","--tries=1","-O",str(path),url]
+    ]
+    for cmd in commands:
         try:
             p=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=950)
             report['attempts'].append({'url':url,'transport':cmd[0],'returncode':p.returncode,'log_tail':p.stdout[-1200:]})
             if p.returncode==0 and path.exists() and _size_ok(path.stat().st_size,min_mb,max_mb) and archive_head_ok(path): return path
+            if cmd[0]=='curl' and p.returncode==28 and (not path.exists() or path.stat().st_size < 1024*1024):
+                report['attempts'].append({'url':url,'transport':'ftp_fallback','skipped':'wget_after_zero-byte_connect_timeout'})
+                break
         except Exception as e:
             report['attempts'].append({'url':url,'transport':cmd[0],'error':repr(e)})
     path.unlink(missing_ok=True); return None
