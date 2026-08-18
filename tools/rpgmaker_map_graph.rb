@@ -13,7 +13,11 @@ def cond_refs(pg)
   refs['switches'] << iv(c,:@switch1_id,nil) if iv(c,:@switch1_valid,false)
   refs['switches'] << iv(c,:@switch2_id,nil) if iv(c,:@switch2_valid,false)
   refs['variables'] << iv(c,:@variable_id,nil) if iv(c,:@variable_valid,false)
-  refs.each{|_,v| v.compact!; v.uniq!}; refs
+  refs.each_value do |v|
+    v.compact!
+    v.uniq!
+  end
+  refs
 end
 
 map_files_for(root).each do |f|
