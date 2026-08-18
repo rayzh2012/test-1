@@ -11,38 +11,70 @@ rows=[]; errors=[]
 def condition_summary(pg)
   c=iv(pg,:@condition,nil); return {} unless c
   out={}
-  [:@switch1_valid,:@switch2_valid,:@variable_valid,:@self_switch_valid,:@actor_valid,:@item_valid].each do |k|
-    v=iv(c,k,nil); out[k.to_s.sub('@','')]=v unless v.nil?
-  end
-  [:@switch1_id,:@switch2_id,:@variable_id,:@variable_value,:@self_switch_ch,:@actor_id,:@item_id].each do |k|
-    v=iv(c,k,nil); out[k.to_s.sub('@','')]=v unless v.nil?
-  end
+  if iv(c,:@switch1_valid,false); out['switch1_id']=iv(c,:@switch1_id,nil); end
+  if iv(c,:@switch2_valid,false); out['switch2_id']=iv(c,:@switch2_id,nil); end
+  if iv(c,:@variable_valid,false); out['variable_id']=iv(c,:@variable_id,nil); out['variable_value']=iv(c,:@variable_value,nil); end
+  if iv(c,:@self_switch_valid,false); out['self_switch_ch']=utf8(iv(c,:@self_switch_ch,'')); end
+  if iv(c,:@actor_valid,false); out['actor_id']=iv(c,:@actor_id,nil); end
+  if iv(c,:@item_valid,false); out['item_id']=iv(c,:@item_id,nil); end
   out
 end
 
+def add_or_append_text(current, base, idx, text, rows, header_meta=nil)
+  return current if text.nil? || text.strip.empty?
+  if current
+    current['lines'] << text
+    current['text']=current['lines'].join("\n")
+    current
+  else
+    row={**base,'command_index'=>idx,'kind'=>'dialogue','text'=>text,'lines'=>[text]}
+    row['header_meta']=header_meta if header_meta
+    rows << row
+    row
+  end
+end
+
 def extract_commands(list, base, rows)
-  current_text=nil
+  current=nil
   Array(list).each_with_index do |cmd,idx|
     code=iv(cmd,:@code,0).to_i; params=iv(cmd,:@parameters,[])
     case code
     when 101
+      # XP often stores text directly in 101. VX/VX Ace use 101 as a Show Text header
+      # (face name/index, background, position) and put actual lines in 401.
+      current=nil
+      if params.length==1 && params[0].is_a?(String)
+        current=add_or_append_text(nil,base,idx,utf8(params[0]),rows)
+      else
+        current={**base,'command_index'=>idx,'kind'=>'dialogue','text'=>'','lines'=>[],'header_meta'=>params.map{|x| x.is_a?(String) ? utf8(x) : x}}
+      end
+    when 401
       text=params.map{|x| utf8(x)}.reject(&:empty?).join(' ')
-      current_text={**base,'command_index'=>idx,'kind'=>'dialogue','text'=>text,'continuations'=>[]}
-      rows << current_text unless text.empty?
-    when 401,405
+      if current && current['lines'].empty? && !rows.include?(current)
+        current['lines'] << text unless text.strip.empty?
+        current['text']=current['lines'].join("\n")
+        rows << current unless current['text'].strip.empty?
+      else
+        current=add_or_append_text(current,base,idx,text,rows)
+      end
+    when 105
+      # Scrolling Text header; actual lines are 405.
+      current={**base,'command_index'=>idx,'kind'=>'dialogue','text'=>'','lines'=>[],'header_meta'=>params}
+    when 405
       text=params.map{|x| utf8(x)}.reject(&:empty?).join(' ')
-      if current_text && !text.empty?
-        current_text['continuations'] << text
-        current_text['text'] = ([current_text['text']] + current_text['continuations']).join("\n")
-      elsif !text.empty?
-        rows << {**base,'command_index'=>idx,'kind'=>'dialogue','text'=>text,'continuations'=>[]}
+      if current && current['lines'].empty? && !rows.include?(current)
+        current['lines'] << text unless text.strip.empty?
+        current['text']=current['lines'].join("\n")
+        rows << current unless current['text'].strip.empty?
+      else
+        current=add_or_append_text(current,base,idx,text,rows)
       end
     when 102
-      choices=Array(params[0]).map{|x| utf8(x)}
+      choices=Array(params[0]).map{|x| utf8(x)}.reject(&:empty?)
       rows << {**base,'command_index'=>idx,'kind'=>'choice','choices'=>choices,'text'=>choices.join(' | ')} unless choices.empty?
-      current_text=nil
+      current=nil
     else
-      current_text=nil unless [401,405].include?(code)
+      current=nil unless [401,405].include?(code)
     end
   end
 end
@@ -75,15 +107,20 @@ if cf
   end
 end
 
+text_rows=rows.select{|r| r['kind']=='dialogue'}
+choice_rows=rows.select{|r| r['kind']=='choice'}
+texts=text_rows.map{|r| r['text'].to_s.strip}.reject(&:empty?)
 summary={
-  'dialogue_blocks'=>rows.count{|r| r['kind']=='dialogue'},
-  'choice_blocks'=>rows.count{|r| r['kind']=='choice'},
-  'dialogue_chars'=>rows.select{|r| r['kind']=='dialogue'}.sum{|r| r['text'].to_s.length},
-  'choice_options'=>rows.select{|r| r['kind']=='choice'}.sum{|r| Array(r['choices']).length},
-  'unique_text_blocks'=>rows.map{|r| r['text']}.reject(&:empty?).uniq.length,
-  'duplicate_text_blocks'=>rows.length-rows.map{|r| r['text']}.reject(&:empty?).uniq.length,
+  'dialogue_blocks'=>text_rows.length,
+  'dialogue_lines'=>text_rows.sum{|r| Array(r['lines']).length},
+  'choice_blocks'=>choice_rows.length,
+  'dialogue_chars'=>texts.sum(&:length),
+  'choice_options'=>choice_rows.sum{|r| Array(r['choices']).length},
+  'unique_dialogue_blocks'=>texts.uniq.length,
+  'duplicate_dialogue_blocks'=>texts.length-texts.uniq.length,
+  'duplicate_dialogue_ratio'=>texts.empty? ? 0.0 : ((texts.length-texts.uniq.length).to_f/texts.length).round(4),
   'errors'=>errors
 }
-out={'schema'=>'fangame-dialogue-v1','summary'=>summary,'rows'=>rows}
+out={'schema'=>'fangame-dialogue-v2','summary'=>summary,'rows'=>rows}
 json=JSON.pretty_generate(out)
 opts[:out] ? File.write(opts[:out],json) : puts(json)
