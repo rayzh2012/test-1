@@ -2,13 +2,17 @@
   "name": "魔神战记 II｜RM v2.6 归隐版",
   "version": "2.6归隐版 / 完整安装程序 / 16h / 2009 final lineage",
   "engine": "RPG Maker XP / RGSS1",
-  "min_mb": 100,
-  "max_mb": 1000,
-  "link_terms": ["魔神战记 II", "魔神战记II", "2.6", "归隐版", "完整安装包", "完整安装程序", "精灵使者", "300多张地图", "共享娱乐软件", "欢迎大家转载"],
-  "probe_terms": ["server_filename", "fs_id", "size", "shareid", "uk", "file_list", "1bnMHlkr", "2.6归隐版", "魔神战记"],
+  "min_mb": 55,
+  "max_mb": 80,
+  "expected_filename": "精灵使者_魔神战记IIRMver2.6归隐版.rar",
+  "expected_bytes": 65445765,
+  "expected_fs_id": "1042945056",
+  "resource_ids": ["6183", "6185"],
+  "link_terms": ["魔神战记 II", "魔神战记II", "2.6", "归隐版", "精灵使者_魔神战记IIRMver2.6归隐版.rar", "精灵使者_魔神战记II_RMv2.6归隐版.rar", "65445765", "6183", "6185", "精灵使者", "共享娱乐软件", "欢迎大家转载"],
+  "probe_terms": ["server_filename", "fs_id", "size", "shareid", "uk", "file_list", "1bnMHlkr", "1042945056", "2.6归隐版", "魔神战记"],
   "sources": [
     "https://pan.baidu.com/s/1bnMHlkr",
     "https://rpg.blue/thread-68669-1-1.html",
-    "https://rpg.blue/forum.php?action=printable&mod=viewthread&tid=68669"
+    "https://rpg.blue/thread-153776-1-1.html"
   ]
 }
