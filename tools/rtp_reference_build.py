@@ -3,9 +3,9 @@
 
 The RTP binaries/assets are temporary inputs only. This tool does NOT redistribute RTP
 content. It emits package provenance plus hashes/relative paths for reference matching.
-Use only official URLs and comply with the publisher's RTP terms.
+Official installer EXEs are unpacked, never executed.
 """
-import argparse, hashlib, json, os, shutil, subprocess, tempfile, urllib.request
+import argparse, hashlib, json, shutil, subprocess, tempfile, urllib.request
 from pathlib import Path
 
 ASSET_EXTS={'.png','.jpg','.jpeg','.bmp','.gif','.ogg','.mp3','.wav','.wma','.mid','.midi'}
@@ -26,10 +26,20 @@ def fetch(url,dst):
     with urllib.request.urlopen(req,timeout=120) as r, open(dst,'wb') as f:
         shutil.copyfileobj(r,f)
 
-def run7z(src,out):
-    Path(out).mkdir(parents=True,exist_ok=True)
-    p=subprocess.run(['7z','x','-y',f'-o{out}',str(src)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+def run(cmd):
+    p=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     return p.returncode,p.stdout[-4000:]
+
+def extract_one(src,out):
+    Path(out).mkdir(parents=True,exist_ok=True)
+    attempts=[]
+    if src.suffix.lower()=='.exe' and shutil.which('innoextract'):
+        rc,log=run(['innoextract','--silent','--extract','--output-dir',str(out),str(src)])
+        attempts.append({'method':'innoextract','rc':rc,'log_tail':log})
+        if rc==0: return True,attempts
+    rc,log=run(['7z','x','-y',f'-o{out}',str(src)])
+    attempts.append({'method':'7z','rc':rc,'log_tail':log})
+    return rc==0,attempts
 
 def recursive_extract(root, max_depth=2):
     logs=[]
@@ -44,10 +54,10 @@ def recursive_extract(root, max_depth=2):
             marker=p.with_name(p.name+'.__extracted__')
             if marker.exists(): continue
             out=p.with_name(p.name+'.contents')
-            rc,log=run7z(p,out)
-            marker.write_text(str(rc),encoding='utf-8')
-            logs.append({'file':str(p.relative_to(root)),'rc':rc,'log_tail':log})
-            if rc==0: new+=1
+            ok,attempts=extract_one(p,out)
+            marker.write_text('0' if ok else '1',encoding='utf-8')
+            logs.append({'file':str(p.relative_to(root)),'ok':ok,'attempts':attempts})
+            if ok: new+=1
         if new==0: break
     return logs
 
@@ -59,8 +69,8 @@ def build(engine_key,out_path):
         magic=pkg.read_bytes()[:4]
         if magic[:2] != b'PK': raise RuntimeError('official download is not ZIP')
         pkg_hash=sha256_file(pkg); pkg_size=pkg.stat().st_size
-        rc,log=run7z(pkg,ext)
-        if rc: raise RuntimeError('outer ZIP extract failed: '+log)
+        ok,outer_attempts=extract_one(pkg,ext)
+        if not ok: raise RuntimeError('outer ZIP extract failed: '+json.dumps(outer_attempts))
         nested=recursive_extract(ext)
         assets=[]
         for p in ext.rglob('*'):
@@ -77,9 +87,8 @@ def build(engine_key,out_path):
           'official_url':src['url'],'official_terms_url':'https://rpgmakerofficial.com/support/rtp/',
           'package_bytes':pkg_size,'package_sha256':pkg_hash,
           'asset_files':len(assets),'unique_asset_hashes':len(hashes),
-          'assets':assets,
-          'nested_extract_log':nested,
-          'redistribution_policy':'HASH_ONLY_OUTPUT; RTP binary/assets are not stored or redistributed by this tool.'
+          'assets':assets,'outer_extract_attempts':outer_attempts,'nested_extract_log':nested,
+          'redistribution_policy':'HASH_ONLY_OUTPUT; RTP binary/assets are temporary and are not stored or redistributed.'
         }
         Path(out_path).write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8')
         print(json.dumps({k:out[k] for k in ['engine','rtp_version','package_bytes','package_sha256','asset_files','unique_asset_hashes']},ensure_ascii=False,indent=2))
