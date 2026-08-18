@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, json, os, shutil, signal, subprocess, time
+import argparse, json, os, shutil, subprocess, time
 from pathlib import Path
 
 
@@ -9,6 +9,32 @@ def run(cmd, env=None, cwd=None, timeout=30):
         return p.returncode,p.stdout[-6000:]
     except Exception as e:
         return 999,repr(e)
+
+def ensure_wine32(notes):
+    """Hosted Ubuntu runners often ship only 64-bit Wine. Old RPG Maker launchers are 32-bit.
+    Bootstrap i386 support only inside CI before classifying a game as boot-broken.
+    """
+    if not shutil.which('wine') or not shutil.which('dpkg') or not shutil.which('sudo'):
+        return False
+    rc,out=run(['dpkg','--print-foreign-architectures'],timeout=10)
+    if 'i386' not in out.split():
+        rc,log=run(['sudo','dpkg','--add-architecture','i386'],timeout=30)
+        notes.append(f'wine32 add-architecture rc={rc}')
+        if rc != 0:
+            notes.append(log[-1200:]); return False
+    # Check whether the package is already installed.
+    rc,_=run(['dpkg-query','-W','-f=${Status}','wine32:i386'],timeout=10)
+    if rc == 0:
+        return True
+    rc,log=run(['sudo','apt-get','update'],timeout=180)
+    notes.append(f'wine32 apt-update rc={rc}')
+    if rc != 0:
+        notes.append(log[-1200:]); return False
+    rc,log=run(['sudo','apt-get','install','-y','wine32:i386'],timeout=300)
+    notes.append(f'wine32 install rc={rc}')
+    if rc != 0:
+        notes.append(log[-2000:]); return False
+    return True
 
 def screenshot(env, path):
     if shutil.which('scrot'):
@@ -39,13 +65,14 @@ def windows(env):
 def choose_command(root: Path, engine: str):
     if engine == 'RPG Maker 2000/2003' and shutil.which('easyrpg-player'):
         return ['easyrpg-player','--window'], 'EasyRPG Player'
+    # Prefer a current native RGSS interpreter when it is actually installed.
+    if engine in ('RPG Maker XP','RPG Maker VX','RPG Maker VX Ace'):
+        for c in ('mkxp-z','mkxp'):
+            if shutil.which(c): return [c],c
     exe=root/'Game.exe'
     if not exe.exists(): exe=root/'RPG_RT.exe'
     if exe.exists() and shutil.which('wine'):
         return ['wine',exe.name], 'Wine/original Windows launcher'
-    if engine in ('RPG Maker XP','RPG Maker VX','RPG Maker VX Ace'):
-        for c in ('mkxp-z','mkxp'):
-            if shutil.which(c): return [c],c
     return None,None
 
 def main():
@@ -63,15 +90,30 @@ def main():
     result['runtime']=runtime
     if not cmd:
         result['status']='NO_CURRENT_RUNTIME_PATH_IN_CI'
+        result['playability_class']='PLAYABILITY_UNKNOWN'
         (out/'playability_smoke.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
         return 0
+    if runtime == 'Wine/original Windows launcher':
+        result['wine32_ready']=ensure_wine32(result['notes'])
+        if not result['wine32_ready']:
+            result['status']='CI_RUNTIME_SETUP_FAILED'
+            result['playability_class']='PLAYABILITY_UNKNOWN'
+            (out/'playability_smoke.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+            print(json.dumps(result,ensure_ascii=False,indent=2)); return 0
     display=':99'
-    env=os.environ.copy(); env.update({'DISPLAY':display,'WINEDEBUG':'-all','WINEDLLOVERRIDES':'winemenubuilder.exe=d','SDL_AUDIODRIVER':'dummy'})
+    prefix=(out/'wineprefix').resolve()
+    env=os.environ.copy(); env.update({'DISPLAY':display,'WINEDEBUG':'-all','WINEDLLOVERRIDES':'winemenubuilder.exe=d','SDL_AUDIODRIVER':'dummy','WINEPREFIX':str(prefix)})
     xvfb=subprocess.Popen(['Xvfb',display,'-screen','0','1280x720x24','-nolisten','tcp'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     proc=None
     logf=open(out/'runtime.log','w',encoding='utf-8',errors='ignore')
     try:
         time.sleep(1.5)
+        if runtime == 'Wine/original Windows launcher':
+            # Initialize the clean per-test prefix after Xvfb exists; this avoids classifying first-run Wine setup as a game crash.
+            rc,bootlog=run(['wineboot','-u'],env=env,cwd=game_root,timeout=90)
+            result['wineboot_rc']=rc
+            if rc != 0: result['notes'].append('wineboot failed: '+bootlog[-1500:])
+            time.sleep(2)
         proc=subprocess.Popen(cmd,cwd=game_root,env=env,stdout=logf,stderr=subprocess.STDOUT,text=True)
         time.sleep(12)
         alive=proc.poll() is None
@@ -83,12 +125,12 @@ def main():
             result['notes'].append(f'process exited rc={proc.returncode}')
         else:
             result['status']='BOOT_VERIFIED' if wins else 'PROCESS_ALIVE_NO_VISIBLE_WINDOW'
-            # Default RPG Maker title screens normally select New Game first. Multiple confirms also advance splash/intro text.
+            # Default RPG Maker title screens usually place New Game first. Repeated confirms also advance splash/intro screens.
             for _ in range(3): key(env,'Return'); time.sleep(2)
             time.sleep(5)
             s2=out/'02_after_confirm.png'; screenshot(env,s2)
             result['title_to_after_input_changed_pixels']=diff_pixels(s1,s2)
-            # Movement/interaction probe. This is intentionally short and non-destructive.
+            # Short, non-destructive interaction probe.
             for k in ('Down','Right','Up','Left','z','Return'):
                 key(env,k); time.sleep(0.8)
             time.sleep(3)
@@ -117,7 +159,7 @@ def main():
             try: xvfb.kill()
             except Exception: pass
         logf.close()
-    # Conservative external classification: only a live GUI boot is directly verified. Gameplay is 'likely' until image/behavior evidence is reviewed.
+    # Conservative outward label: boot/input evidence is direct; GAMEPLAY_LIKELY still needs screenshot/behavior review before claiming full gameplay verification.
     if result['status'] in ('GAMEPLAY_LIKELY','INPUT_RESPONSE_VERIFIED','BOOT_VERIFIED'):
         result['playability_class']='PLAYABILITY_VERIFIED_BOOT'
     elif result['status']=='BOOT_FAILED':
