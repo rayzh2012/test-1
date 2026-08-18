@@ -66,11 +66,13 @@ jobs:
         run: |
           set +e
           sudo apt-get update
-          sudo apt-get install -y p7zip-full xvfb xdotool scrot imagemagick
+          sudo apt-get install -y p7zip-full unar libarchive-tools xvfb xdotool scrot imagemagick
           sudo apt-get install -y wine wine64 || true
           sudo apt-get install -y easyrpg-player || true
           sudo apt-get install -y mkxp || true
           command -v 7z || true
+          command -v unar || true
+          command -v bsdtar || true
           command -v wine || true
           command -v easyrpg-player || true
           command -v mkxp || true
