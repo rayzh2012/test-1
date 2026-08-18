@@ -1,0 +1,11 @@
+{
+  "name": "怒龙战记3 V3.0",
+  "version": "V3.0",
+  "engine": "RPG Maker VX",
+  "source_run_id": 32102913249,
+  "source_artifact": "ci_smoke_nlzj3-full",
+  "archive_filename": "nlzj3.rar",
+  "expected_bytes": 248760932,
+  "expected_sha256": "761ea5dd2510ee04658751865a827f6a8a4ae644270d094a7ebd21963919c5c1",
+  "purpose": "Recollect graph evidence and run current v0.4 inference from an already captured historical full artifact; do not refetch the original mirror."
+}
