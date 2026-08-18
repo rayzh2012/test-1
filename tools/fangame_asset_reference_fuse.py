@@ -51,12 +51,14 @@ def main():
                 if not aspect_close(gs,rs,a.aspect_tolerance): continue
                 d=hamming_hex(gp['dhash64'],rr['dhash64']); same_name=basename(path)==basename(rr['reference_path'])
                 candidate={**rr,'hamming':d,'same_dimensions':gs==rs,'same_basename':same_name,'asset_category':cat}
-                if best is None or (same_name and not best['same_basename']) or (same_name==best['same_basename'] and d<best['hamming']):
-                    best=candidate
+                if best is None or (same_name and not best['same_basename']) or (same_name==best['same_basename'] and d<best['hamming']): best=candidate
         if best is not None and best['hamming']<=a.threshold:
             near+=1; near_bytes+=size; conf='HIGH' if best['same_basename'] else 'MEDIUM'
             near_high += conf=='HIGH'; near_medium += conf=='MEDIUM'
-            rows.append({'path':path,'bytes':size,'sha256':sha,'classification':'MODIFIED_RTP_LIKE','confidence':conf,'perceptual_reference_hit':best,'warning':'Same-category perceptual similarity supports RTP-like derivation. Same basename strengthens the evidence; neither level proves authorship.'})
+            rows.append({'path':path,'bytes':size,'sha256':sha,'classification':'MODIFIED_RTP_LIKE','confidence':conf,
+                         'game_image_signature':{'width':gp.get('width'),'height':gp.get('height'),'dhash64':gp.get('dhash64')},
+                         'perceptual_reference_hit':best,
+                         'warning':'Same-category perceptual similarity supports RTP-like derivation. Same basename strengthens the evidence; neither level proves authorship.'})
         else:
             unmatched+=1; unmatched_bytes+=size
             rows.append({'path':path,'bytes':size,'sha256':sha,'classification':'NO_REFERENCE_SIMILARITY_FOUND','confidence':'UNKNOWN','warning':'No exact or thresholded perceptual reference match does not prove originality.'})
