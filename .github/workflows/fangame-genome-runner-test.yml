@@ -5,6 +5,7 @@ on:
     branches: [ master ]
     paths:
       - 'tools/fangame_genome_runner.py'
+      - 'tests/test_fangame_genome_opaque.py'
       - '.github/workflows/fangame-genome-runner-test.yml'
   workflow_dispatch:
 
@@ -18,7 +19,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y p7zip-full unar libarchive-tools ruby
-          python3 -m pip install pillow
+          python3 -m pip install pillow pytest
+      - name: Run opaque-mode unit tests
+        run: python3 -m pytest -q tests/test_fangame_genome_opaque.py
       - name: Run universal Genome runner
         run: |
           python3 tools/fangame_genome_runner.py \
@@ -34,6 +37,7 @@ jobs:
           missing=[x for x in required if not (root/x).exists()]
           assert not missing, missing
           s=json.load(open(root/'genome_summary.json'))
+          assert s['content_visibility']=='INSPECTABLE'
           assert s['maps'] >= 100
           assert s['total_pipeline_wall_time_sec'] > 0
           assert 'stage_wall_time_sec' in s
