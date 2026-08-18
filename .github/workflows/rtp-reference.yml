@@ -1,0 +1,42 @@
+name: RTP Reference Corpus
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'tools/rtp_reference_build.py'
+      - '.github/workflows/rtp-reference.yml'
+  workflow_dispatch:
+
+jobs:
+  vx-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install extractor
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+      - name: Build VX hash-only reference
+        run: |
+          mkdir -p out
+          python3 tools/rtp_reference_build.py vx --out out/rtp_vx_reference.json
+      - name: Validate hash-only output
+        run: |
+          python3 - <<'PY'
+          import json
+          x=json.load(open('out/rtp_vx_reference.json'))
+          assert x['engine']=='RPG Maker VX'
+          assert x['package_bytes']>1000000
+          assert len(x['package_sha256'])==64
+          assert x['asset_files']>0, x
+          assert all('sha256' in a and 'relative_path' in a for a in x['assets'])
+          assert 'binary' not in x and 'payload' not in x
+          print({k:x[k] for k in ['package_bytes','package_sha256','asset_files','unique_asset_hashes']})
+          PY
+      - name: Upload hash-only reference
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtp-vx-hash-reference-v1
+          path: out/rtp_vx_reference.json
+          retention-days: 14
+          compression-level: 9
