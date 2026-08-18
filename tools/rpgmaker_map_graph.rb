@@ -13,7 +13,7 @@ def cond_refs(pg)
   refs['switches'] << iv(c,:@switch1_id,nil) if iv(c,:@switch1_valid,false)
   refs['switches'] << iv(c,:@switch2_id,nil) if iv(c,:@switch2_valid,false)
   refs['variables'] << iv(c,:@variable_id,nil) if iv(c,:@variable_valid,false)
-  refs.each{|_,v| v.compact!.uniq!}; refs
+  refs.each{|_,v| v.compact!; v.uniq!}; refs
 end
 
 map_files_for(root).each do |f|
@@ -33,7 +33,6 @@ map_files_for(root).each do |f|
         code=iv(cmd,:@code,0).to_i; p=iv(cmd,:@parameters,[])
         case code
         when 201
-          # Transfer Player: destination type 0 normally uses params[1]=map id.
           dest=(p[0].to_i==0 ? p[1].to_i : nil) rescue nil
           edges << {'type'=>'transfer','from_map'=>mid,'to_map'=>dest,'event_id'=>eid,'page_id'=>pidx+1,'command_index'=>cidx,'raw_parameters'=>p.map{|x| x.is_a?(String) ? utf8(x) : x}} if dest && dest>0
         when 121
