@@ -28,7 +28,7 @@ jobs:
             --target-json fangame_targets/nulong_zhanji3_v30.json \
             --outdir out/genome \
             --workdir out/work
-      - name: Verify outputs
+      - name: Verify outputs and semantic holdout
         run: |
           python3 - <<'PY'
           import json, pathlib
@@ -38,7 +38,14 @@ jobs:
           assert not missing, missing
           s=json.load(open(root/'genome_summary.json'))
           assert s['content_visibility']=='INSPECTABLE'
-          assert s['maps'] >= 100
+          assert s['maps']==139
+          assert s['explicit_sidequest_maps']==1
+          assert s['mainline_gate_maps']==2
+          assert s['optional_content_maps']==2
+          assert s['unresolved_quest_candidate_maps']==0
+          assert s['content_endpoint_maps']==1
+          assert s['release_completion_status']=='UNFINISHED_CONTENT_ENDPOINT'
+          assert s['ending_candidate_maps']==0
           assert s['total_pipeline_wall_time_sec'] > 0
           assert 'stage_wall_time_sec' in s
           print(json.dumps(s,ensure_ascii=False,indent=2))
