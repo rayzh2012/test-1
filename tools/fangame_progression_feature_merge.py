@@ -19,6 +19,7 @@ def main():
     args = ap.parse_args()
 
     record = load(args.features)
+    incoming_version = record.get("schema_version")
     progression = load(args.progression) if args.progression and Path(args.progression).exists() else {}
     observed = progression.get("observed") if isinstance(progression.get("observed"), dict) else {}
     derived = progression.get("derived") if isinstance(progression.get("derived"), dict) else {}
@@ -54,11 +55,7 @@ def main():
     )
 
     audit = record.setdefault("audit", {})
-    audit["pre_progression_feature_version"] = record.get("schema_version") if False else audit.get("pre_progression_feature_version")
-    # Preserve the actual incoming schema explicitly before replacing it.
-    incoming_version = record.get("schema_version")
-    # record schema was already changed above, so recover from the expected canonical predecessor when not present.
-    audit["pre_progression_feature_version"] = audit.get("pre_progression_feature_version") or "fangame.features.v0.4"
+    audit["pre_progression_feature_version"] = incoming_version
     audit["progression_bridge_version"] = BRIDGE_VERSION
     audit["progression_evidence_version"] = progression.get("evidence_version") if progression else None
 
