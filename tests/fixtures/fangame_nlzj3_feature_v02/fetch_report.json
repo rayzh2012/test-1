@@ -1,0 +1,19 @@
+{
+  "name": "怒龙战记3｜962旧镜像系谱",
+  "version": "2011-12 / 199-246MB lineage",
+  "engine": "RPG Maker / unknown exact RGSS generation",
+  "sources": [
+    "https://99dj.197784.com/9dj2/nulongzhanji3.rar",
+    "https://99dj.197784.com/9dj1/nulongzhanji3.rar",
+    "https://99dj.197784.com/9dj2/nlzj3.rar"
+  ],
+  "attempts": [
+    {"url": "https://99dj.197784.com/9dj2/nulongzhanji3.rar", "status": 404, "final_url": "https://99dj.197784.com/9dj2/nulongzhanji3.rar", "content_type": "text/html", "content_length": 0},
+    {"url": "https://99dj.197784.com/9dj1/nulongzhanji3.rar", "status": 404, "final_url": "https://99dj.197784.com/9dj1/nulongzhanji3.rar", "content_type": "text/html", "content_length": 0},
+    {"url": "https://99dj.197784.com/9dj2/nlzj3.rar", "status": 200, "final_url": "https://99dj.197784.com/9dj2/nlzj3.rar", "content_type": "application/x-rar-compressed", "content_length": 248760932}
+  ],
+  "success": true,
+  "file": "nlzj3.rar",
+  "bytes": 248760932,
+  "sha256": "761ea5dd2510ee04658751865a827f6a8a4ae644270d094a7ebd21963919c5c1"
+}
