@@ -10,6 +10,7 @@ on:
       - 'tools/rpgmaker_graph_normalize.py'
       - 'tools/fangame_asset_fingerprint.py'
       - 'tools/fangame_perceptual_hash.py'
+      - 'tools/fangame_narrative_infer.py'
       - '.github/workflows/fangame-genome.yml'
   workflow_dispatch:
 
@@ -47,6 +48,8 @@ jobs:
         run: ruby tools/rpgmaker_map_graph.rb "$(cat out/game_root.txt)" --out out/map_graph.json
       - name: Normalize map topology
         run: python3 tools/rpgmaker_graph_normalize.py out/map_graph.json --out out/map_graph_normalized.json
+      - name: Infer quests and release endpoint
+        run: python3 tools/fangame_narrative_infer.py --dialogue out/dialogue_corpus.json --map-graph out/map_graph.json --out out/narrative_inference.json
       - name: Fingerprint assets
         run: python3 tools/fangame_asset_fingerprint.py "$(cat out/game_root.txt)" --out out/asset_fingerprint.json
       - name: Mine perceptual image similarity
@@ -59,12 +62,13 @@ jobs:
           d=json.load(open('out/dialogue_corpus.json'))['summary']
           g=json.load(open('out/map_graph.json'))['summary']
           gn=json.load(open('out/map_graph_normalized.json'))['summary']
+          n=json.load(open('out/narrative_inference.json'))['summary']
           a=json.load(open('out/asset_fingerprint.json'))['summary']
           ph=json.load(open('out/perceptual_hash.json'))['summary']
           m=st.get('marshal_content') or {}
           maps=max(1,g.get('map_nodes',0))
           summary={
-            'schema':'fangame-genome-v0.4',
+            'schema':'fangame-genome-v0.5',
             'engine':st.get('engine'),
             'maps':g.get('map_nodes'),
             'dialogue_blocks':d.get('dialogue_blocks'),
@@ -89,6 +93,12 @@ jobs:
             'switch_ids_written':g.get('switch_ids_written'),
             'variable_ids_read':g.get('variable_ids_read'),
             'variable_ids_written':g.get('variable_ids_written'),
+            'explicit_sidequests':n.get('explicit_sidequests'),
+            'mainline_gate_candidates':n.get('mainline_gate_candidates'),
+            'generic_quest_arc_candidates':n.get('generic_quest_arc_candidates'),
+            'content_endpoints':n.get('content_endpoints'),
+            'ending_text_signals':n.get('ending_text_signals'),
+            'release_completion_status':n.get('release_completion_status'),
             'asset_files':a.get('asset_files'),
             'unique_asset_hashes':a.get('unique_content_hashes'),
             'exact_duplicate_groups':a.get('exact_duplicate_groups'),
@@ -101,7 +111,7 @@ jobs:
             'battle_calls':m.get('battle_calls'),
             'shops':m.get('shop_calls'),
             'choices':m.get('choice_options'),
-            'note':'Observed/derived genome features only. Normalized topology reduces transfer inflation. Perceptual similarity indicates visual similarity only, not authorship or RTP identity.'
+            'note':'Observed/derived genome features plus conservative narrative inference. Normalized topology reduces transfer inflation. Perceptual similarity indicates visual similarity only, not authorship or RTP identity. Narrative candidates remain INFERRED unless runtime-verified.'
           }
           json.dump(summary,open('out/genome_summary.json','w'),ensure_ascii=False,indent=2)
           print(json.dumps(summary,ensure_ascii=False,indent=2))
@@ -109,12 +119,13 @@ jobs:
       - name: Upload genome evidence
         uses: actions/upload-artifact@v4
         with:
-          name: nulong-zhanji3-genome-v04
+          name: nulong-zhanji3-genome-v05
           path: |
             out/playability_static.json
             out/dialogue_corpus.json
             out/map_graph.json
             out/map_graph_normalized.json
+            out/narrative_inference.json
             out/asset_fingerprint.json
             out/perceptual_hash.json
             out/genome_summary.json
