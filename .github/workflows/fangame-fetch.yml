@@ -10,6 +10,7 @@ on:
       - 'tools/fangame_smoke.py'
       - 'tools/fangame_review_card.py'
       - 'tools/rpgmaker_marshal_probe.rb'
+      - 'tools/rpgmaker_graph_probe.rb'
       - '.github/workflows/fangame-fetch.yml'
   workflow_dispatch:
 
@@ -79,7 +80,7 @@ jobs:
           command -v easyrpg-player || true
           command -v mkxp || true
 
-      - name: Static engine and content probe
+      - name: Static engine, content and graph probe
         if: steps.fetch.outputs.rc == '0'
         id: inspect
         continue-on-error: true
@@ -93,7 +94,7 @@ jobs:
           print(json.load(open('out/fetch_report.json'))['file'])
           PY
           )
-          python3 tools/fangame_inspect.py "out/$game" --workdir playability_work --out out/playability_static.json
+          python3 tools/fangame_inspect.py "out/$game" --workdir playability_work --out out/playability_static.json --graph-out out/rpgmaker_graph.json
 
       - name: CI boot and input smoke test
         if: steps.fetch.outputs.rc == '0' && hashFiles('out/playability_static.json') != ''
@@ -112,6 +113,7 @@ jobs:
           name: ${{ steps.fetch.outputs.base }}-playability
           path: |
             out/playability_static.json
+            out/rpgmaker_graph.json
             out/playability_smoke/**
           if-no-files-found: warn
           retention-days: 14
@@ -130,6 +132,7 @@ jobs:
           split -b 75M -d -a 3 "out/$game" "driveparts/$(basename "$game")."
           cp out/SHA256.txt out/fetch_report.json driveparts/
           [ -f out/playability_static.json ] && cp out/playability_static.json driveparts/ || true
+          [ -f out/rpgmaker_graph.json ] && cp out/rpgmaker_graph.json driveparts/ || true
           [ -f out/playability_smoke/playability_smoke.json ] && cp out/playability_smoke/playability_smoke.json driveparts/ || true
           [ -f out/playability_smoke/fangame_review_card.json ] && cp out/playability_smoke/fangame_review_card.json driveparts/ || true
           [ -f out/playability_smoke/fangame_review_card.md ] && cp out/playability_smoke/fangame_review_card.md driveparts/ || true
@@ -232,6 +235,7 @@ jobs:
             driveparts/SHA256.txt
             driveparts/fetch_report.json
             driveparts/playability_static.json
+            driveparts/rpgmaker_graph.json
             driveparts/playability_smoke.json
             driveparts/fangame_review_card.json
             driveparts/fangame_review_card.md
