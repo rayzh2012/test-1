@@ -1,0 +1,25 @@
+name: Fangame Progression Evidence Tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'tools/rpgmaker_progression_probe.rb'
+      - 'tests/test_rpgmaker_progression_probe.rb'
+      - '.github/workflows/fangame-progression-test.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'tools/rpgmaker_progression_probe.rb'
+      - 'tests/test_rpgmaker_progression_probe.rb'
+      - '.github/workflows/fangame-progression-test.yml'
+  workflow_dispatch:
+
+jobs:
+  progression-evidence-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run synthetic RPG Maker progression/economy evidence regression
+        run: ruby tests/test_rpgmaker_progression_probe.rb

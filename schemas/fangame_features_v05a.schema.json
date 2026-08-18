@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rayzh2012/test-1/schemas/fangame_features_v05a.schema.json",
+  "title": "Fangame Feature Store Record v0.5a",
+  "type": "object",
+  "required": ["schema_version", "domain", "identity", "observed", "runtime", "derived", "inferred", "ranking", "graph", "progression", "evidence", "audit"],
+  "properties": {
+    "schema_version": {"const": "fangame.features.v0.5a"},
+    "domain": {"const": "fangame"},
+    "identity": {"type": "object", "required": ["title", "archive_filename"], "additionalProperties": true},
+    "observed": {"type": "object", "additionalProperties": true},
+    "runtime": {"type": "object", "additionalProperties": true},
+    "derived": {"type": "object", "additionalProperties": true},
+    "ranking": {"type": "object", "additionalProperties": true},
+    "graph": {
+      "type": "object",
+      "required": ["status", "graph_version", "start_map_id", "summary"],
+      "properties": {
+        "status": {"enum": ["GRAPH_OBSERVED", "GRAPH_PRESENT_NO_SUMMARY", "GRAPH_UNAVAILABLE"]},
+        "graph_version": {"type": ["string", "null"]},
+        "start_map_id": {"type": ["integer", "null"]},
+        "summary": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    },
+    "progression": {
+      "type": "object",
+      "required": ["status", "evidence_version", "observed", "derived", "limitations", "load_error_count"],
+      "properties": {
+        "status": {"enum": ["PROGRESSION_OBSERVED", "PROGRESSION_PRESENT_NO_OBSERVED", "PROGRESSION_UNAVAILABLE"]},
+        "evidence_version": {"type": ["string", "null"]},
+        "observed": {"type": "object", "additionalProperties": true},
+        "derived": {"type": "object", "additionalProperties": true},
+        "limitations": {"type": "array", "items": {"type": "string"}},
+        "load_error_count": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "inferred": {
+      "type": "object",
+      "required": ["sidequest_confidence", "ending_confidence", "inference_version", "progression_inference_status"],
+      "properties": {
+        "optional_cluster_candidate_count": {"type": ["integer", "null"], "minimum": 0},
+        "optional_cluster_confidence": {"type": ["string", "null"]},
+        "optional_cluster_candidates": {"type": "array"},
+        "sidequest_candidate_count": {"type": ["integer", "null"], "minimum": 0},
+        "sidequest_confidence": {"type": ["string", "null"]},
+        "sidequest_candidates": {"type": "array"},
+        "unpromoted_optional_cluster_count": {"type": ["integer", "null"], "minimum": 0},
+        "ending_candidate_count": {"type": ["integer", "null"], "minimum": 0},
+        "distinct_terminal_cluster_count": {"type": ["integer", "null"], "minimum": 0},
+        "ending_confidence": {"type": ["string", "null"]},
+        "ending_candidates": {"type": "array"},
+        "estimated_hours_range": {"type": ["string", "null"]},
+        "grind_pressure": {"type": ["string", "null"]},
+        "progression_inference_status": {"const": "NOT_RUN_V0.5A_EVIDENCE_ONLY"},
+        "inference_version": {"type": ["string", "null"]},
+        "evidence_summary": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "graph_report": {"type": ["string", "null"]},
+        "inference_report": {"type": ["string", "null"]},
+        "progression_report": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "audit": {
+      "type": "object",
+      "required": ["generated_at_utc", "feature_emitter_version", "schema_merge_version", "inference_version", "pre_progression_feature_version", "progression_bridge_version"],
+      "properties": {
+        "generated_at_utc": {"type": "string"},
+        "feature_emitter_version": {"type": "string"},
+        "base_feature_emitter_version": {"type": ["string", "null"]},
+        "graph_bridge_version": {"type": ["string", "null"]},
+        "pre_inference_feature_version": {"type": ["string", "null"]},
+        "schema_merge_version": {"enum": ["0.4.0", "0.4.1"]},
+        "inference_version": {"type": ["string", "null"]},
+        "pre_progression_feature_version": {"const": "fangame.features.v0.4"},
+        "progression_bridge_version": {"const": "0.5a.0"},
+        "progression_evidence_version": {"type": ["string", "null"]},
+        "github_run_id": {"type": ["string", "null"]},
+        "github_sha": {"type": ["string", "null"]},
+        "source_fetch_run_id": {"type": ["string", "null"]},
+        "source_fetch_head_sha": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

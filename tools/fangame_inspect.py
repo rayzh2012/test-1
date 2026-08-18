@@ -124,8 +124,34 @@ def graph_probe(root: Path,engine: str,out_path: Path):
         except Exception as e: return {'graph_probe':False,'runner_returncode':p.returncode,'parse_error':repr(e),'runner_log_tail':p.stdout[-2000:]}
     return {'graph_probe':False,'runner_returncode':p.returncode,'runner_log_tail':p.stdout[-2000:]}
 
+def progression_probe(root: Path,engine: str,out_path: Path):
+    if engine not in ('RPG Maker XP','RPG Maker VX','RPG Maker VX Ace') or not shutil.which('ruby') or not (root/'Data').is_dir(): return None
+    script=Path(__file__).with_name('rpgmaker_progression_probe.rb').resolve()
+    if not script.exists(): return None
+    out_path.parent.mkdir(parents=True,exist_ok=True)
+    try:
+        p=subprocess.run(['ruby',str(script),str(root),'--out',str(out_path)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=180)
+    except Exception as e:
+        return {'progression_probe':False,'runner_error':repr(e)}
+    if out_path.exists():
+        try:
+            data=json.loads(out_path.read_text(encoding='utf-8')); obs=data.get('observed',{}) or {}
+            summary={
+                'maps_loaded':obs.get('maps_loaded'),
+                'maps_with_random_encounters':obs.get('maps_with_random_encounters'),
+                'random_encounter_map_ratio':obs.get('random_encounter_map_ratio'),
+                'encounter_step_stats':obs.get('encounter_step_stats'),
+                'enemy_exp_stats':obs.get('enemy_exp_stats'),
+                'enemy_gold_stats':obs.get('enemy_gold_stats'),
+                'equipment_price_stats':obs.get('equipment_price_stats'),
+                'event_commands':obs.get('event_commands')
+            }
+            return {'progression_probe':True,'runner_returncode':p.returncode,'runner_log_tail':p.stdout[-2000:],'evidence_version':data.get('evidence_version'),'summary':summary,'derived':data.get('derived',{}),'load_error_count':len(data.get('load_errors',[]) or [])}
+        except Exception as e: return {'progression_probe':False,'runner_returncode':p.returncode,'parse_error':repr(e),'runner_log_tail':p.stdout[-2000:]}
+    return {'progression_probe':False,'runner_returncode':p.returncode,'runner_log_tail':p.stdout[-2000:]}
+
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('archive'); ap.add_argument('--workdir',default='playability_work'); ap.add_argument('--out',default='playability_static.json'); ap.add_argument('--graph-out'); args=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument('archive'); ap.add_argument('--workdir',default='playability_work'); ap.add_argument('--out',default='playability_static.json'); ap.add_argument('--graph-out'); ap.add_argument('--progression-out'); args=ap.parse_args()
     src=Path(args.archive).resolve(); work=Path(args.workdir).resolve()
     if work.exists(): shutil.rmtree(work)
     ok,attempts,backend=extract_archive(src,work/'extract')
@@ -139,7 +165,7 @@ def main():
         d=(root/'www'/'data') if (root/'www'/'data').exists() else (root/'data'); data_files=list(d.glob('*.json')) if d.exists() else []; map_files=real_map_files(list(d.glob('Map*.json'))) if d.exists() else []
     map_bytes=sum(p.stat().st_size for p in map_files); data_bytes=sum(p.stat().st_size for p in data_files); img,img_b,aud,aud_b=count_assets(root); chars,cjk,words=literal_text_chars(root)
     encrypted=any((root/n).exists() for n in ('Game.rgssad','Game.rgss2a','Game.rgss3a')); clean_launcher=(root/'Game.exe').exists() or (root/'RPG_RT.exe').exists()
-    result.update({'game_root':str(root.relative_to(work/'extract')) if root != work/'extract' else '.','root_score':root_score,'engine':engine,'rgss_library':lib,'clean_launcher_present':clean_launcher,'encrypted_game_archive':encrypted,'map_count':len(map_files),'map_data_bytes':map_bytes,'data_file_count':len(data_files),'data_bytes':data_bytes,'image_count':img,'image_bytes':img_b,'audio_count':aud,'audio_bytes':aud_b,'literal_text_chars':chars,'literal_cjk_chars':cjk,'literal_latin_words':words,'content_scale':scale_label(len(map_files),map_bytes,img+aud),'text_note':'Plain-text counts are exact only for text formats. Map counts accept only numeric Map<id> data files, excluding metadata such as MapInfos. For unencrypted XP/VX/VX Ace, marshal_content adds direct event/dialogue/database metrics. Graph evidence is emitted separately when an inspectable Data directory exists. Encrypted archives remain opaque until runtime/decryption.','playability_structural':'STRUCTURAL_OK' if root_score>=8 and (clean_launcher or engine!='UNKNOWN') else 'STRUCTURAL_WEAK'})
+    result.update({'game_root':str(root.relative_to(work/'extract')) if root != work/'extract' else '.','root_score':root_score,'engine':engine,'rgss_library':lib,'clean_launcher_present':clean_launcher,'encrypted_game_archive':encrypted,'map_count':len(map_files),'map_data_bytes':map_bytes,'data_file_count':len(data_files),'data_bytes':data_bytes,'image_count':img,'image_bytes':img_b,'audio_count':aud,'audio_bytes':aud_b,'literal_text_chars':chars,'literal_cjk_chars':cjk,'literal_latin_words':words,'content_scale':scale_label(len(map_files),map_bytes,img+aud),'text_note':'Plain-text counts are exact only for text formats. Map counts accept only numeric Map<id> data files, excluding metadata such as MapInfos. For unencrypted XP/VX/VX Ace, marshal_content adds direct event/dialogue/database metrics. Graph and progression/economy evidence are emitted separately when an inspectable Data directory exists. Encrypted archives remain opaque until runtime/decryption.','playability_structural':'STRUCTURAL_OK' if root_score>=8 and (clean_launcher or engine!='UNKNOWN') else 'STRUCTURAL_WEAK'})
     mp=marshal_probe(root,work,engine)
     if mp is not None:
         result['marshal_content']=mp
@@ -147,10 +173,12 @@ def main():
             result['map_count_verified_by_marshal']=mp.get('maps_loaded'); result['story_text_chars_proxy']=mp.get('story_text_chars_proxy',0); result['system_complexity_proxy']=mp.get('system_complexity_proxy',0)
     graph_out=Path(args.graph_out).resolve() if args.graph_out else (work/'rpgmaker_graph.json')
     gp=graph_probe(root,engine,graph_out)
-    if gp is not None:
-        result['graph_evidence']=gp
-    else:
-        result['graph_evidence']={'graph_probe':False,'status':'UNAVAILABLE_FOR_ENGINE_OR_OPAQUE_DATA'}
+    if gp is not None: result['graph_evidence']=gp
+    else: result['graph_evidence']={'graph_probe':False,'status':'UNAVAILABLE_FOR_ENGINE_OR_OPAQUE_DATA'}
+    progression_out=Path(args.progression_out).resolve() if args.progression_out else (work/'rpgmaker_progression.json')
+    pp=progression_probe(root,engine,progression_out)
+    if pp is not None: result['progression_evidence']=pp
+    else: result['progression_evidence']={'progression_probe':False,'status':'UNAVAILABLE_FOR_ENGINE_OR_OPAQUE_DATA'}
     Path(args.out).write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8'); print(json.dumps(result,ensure_ascii=False,indent=2)); return 0
 
 if __name__=='__main__': raise SystemExit(main())
