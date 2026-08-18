@@ -1,15 +1,16 @@
 {
   "name": "OZ大乱斗-梦想的传说｜v2.01E",
-  "version": "v2.01E / 2011-12-15 / 725MB / 90-120h",
+  "version": "v2.01E / 2011-12-15 / exact 784,356,782-byte EXE / 90-120h",
   "engine": "RPG Maker XP / RGSS1",
-  "min_mb": 650,
-  "max_mb": 850,
-  "link_terms": ["OZ大乱斗", "梦想的传说", "梦想与传说的延续", "2.01E", "2.00e Final", "725M", "725MB", "Orsahi", "谢拉", "Snow", "完全免费", "同人原创游戏"],
-  "probe_terms": ["server_filename", "fs_id", "size", "shareid", "uk", "file_list", "1Vd6PviHHgS-4il2hxnltNA", "1jIihfoE", "OZ大乱斗"],
+  "min_mb": 700,
+  "max_mb": 800,
+  "expected_filename": "OZ 大乱斗 v 2.01E Final 版.exe",
+  "expected_bytes": 784356782,
+  "expected_fs_id": "942190251911733",
+  "link_terms": ["OZ大乱斗", "梦想的传说", "梦想与传说的延续", "2.01E", "2.01E Final", "784356782", "942190251911733", "Orsahi", "谢拉", "Snow", "完全免费", "同人原创游戏"],
+  "probe_terms": ["OZ 大乱斗 v 2.01E Final 版.exe", "server_filename", "fs_id", "size", "shareid", "uk", "file_list", "1Vd6PviHHgS-4il2hxnltNA"],
   "sources": [
     "https://pan.baidu.com/s/1Vd6PviHHgS-4il2hxnltNA",
-    "https://fuckoz.com/forum.php?mod=viewthread&page=1&tid=2",
-    "https://pan.baidu.com/s/1jIihfoE",
-    "https://rpg.blue/forum.php?mod=viewthread&tid=147721"
+    "https://fuckoz.com/forum.php?mod=viewthread&page=1&tid=2"
   ]
 }
