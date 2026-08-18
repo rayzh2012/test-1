@@ -1,0 +1,13 @@
+{
+  "name": "笑谈学校｜962中文硬盘版",
+  "version": "2010-11-06 / 117.8MB repack lineage",
+  "engine": "RPG Maker XP",
+  "min_mb": 105,
+  "max_mb": 150,
+  "link_terms": ["笑谈学校", "Jokes School", "game971"],
+  "sources": [
+    "https://www.962.net/list/3_rpg_19.html",
+    "https://www.962.net/list/3_R_71.html",
+    "https://www.962.net/tags/%D0%A6%D0%A6%EF%BF%BD%C4%BC%EF%BF%BD%EF%BF%BD%EF%BF%BD.html"
+  ]
+}
