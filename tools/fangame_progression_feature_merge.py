@@ -41,12 +41,10 @@ def main():
         "load_error_count": len(progression.get("load_errors", []) or []) if progression else 0,
     }
 
-    # v0.5a is evidence only. Never fabricate downstream policy/model outputs.
+    # v0.5a is evidence-only by contract. Policy/model outputs are deliberately cleared.
     inferred = record.setdefault("inferred", {})
-    if inferred.get("estimated_hours_range") in (None, ""):
-        inferred["estimated_hours_range"] = None
-    if inferred.get("grind_pressure") in (None, ""):
-        inferred["grind_pressure"] = None
+    inferred["estimated_hours_range"] = None
+    inferred["grind_pressure"] = None
     inferred["progression_inference_status"] = "NOT_RUN_V0.5A_EVIDENCE_ONLY"
 
     evidence = record.setdefault("evidence", {})
