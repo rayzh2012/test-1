@@ -37,12 +37,23 @@ jobs:
           echo "run_id=${run_id}" >> "$GITHUB_OUTPUT"
           echo "head_sha=${head_sha}" >> "$GITHUB_OUTPUT"
 
+          metadata_count=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and (.name | endswith("-metadata")))] | length' \
+            | awk '{sum += $1} END {print sum+0}')
+          if [ "$metadata_count" -gt 0 ]; then
+            echo "has_metadata=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_metadata=false" >> "$GITHUB_OUTPUT"
+            echo "No metadata artifacts on source run ${run_id}; treating successful Fangame Fetch as a no-op."
+          fi
+
       - name: Checkout current normalization/inference tooling
         uses: actions/checkout@v5
         with:
           ref: master
 
       - name: Download metadata evidence contracts
+        if: steps.source.outputs.has_metadata == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
@@ -53,7 +64,7 @@ jobs:
           gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" \
             --jq '.artifacts[] | select(.expired == false and (.name | endswith("-metadata"))) | [.id,.name] | @tsv' > /tmp/metadata.tsv
           if [ ! -s /tmp/metadata.tsv ]; then
-            echo "No *-metadata artifacts found on source run ${SOURCE_RUN_ID}" >&2
+            echo "Expected *-metadata artifacts on source run ${SOURCE_RUN_ID}, but none were downloadable" >&2
             exit 2
           fi
           while IFS=$'\t' read -r artifact_id artifact_name; do
@@ -71,6 +82,7 @@ jobs:
           done < /tmp/metadata.tsv
 
       - name: Emit canonical v0.5b feature records
+        if: steps.source.outputs.has_metadata == 'true'
         env:
           SOURCE_FETCH_RUN_ID: ${{ steps.source.outputs.run_id }}
           SOURCE_FETCH_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
@@ -134,6 +146,7 @@ jobs:
           done
 
       - name: Validate v0.5b feature records
+        if: steps.source.outputs.has_metadata == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -158,6 +171,7 @@ jobs:
           PY
 
       - name: Build analytical Feature Store assets
+        if: steps.source.outputs.has_metadata == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -181,6 +195,7 @@ jobs:
           PY
 
       - name: Upload canonical Feature Store
+        if: steps.source.outputs.has_metadata == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: fangame-feature-store-${{ steps.source.outputs.run_id }}
