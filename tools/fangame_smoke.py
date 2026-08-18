@@ -34,10 +34,13 @@ def ensure_virtual_audio(notes):
     try: runtime.chmod(0o700)
     except Exception: pass
     env=os.environ.copy(); env['XDG_RUNTIME_DIR']=str(runtime)
-    run(['pulseaudio','-k'],env=env,timeout=10)
-    rc,log=run(['pulseaudio','--start','--exit-idle-time=-1','--log-target=stderr'],env=env,timeout=30)
-    notes.append(f'pulseaudio start rc={rc}')
-    if rc != 0 and 'Daemon startup successful' not in log: notes.append(log[-1500:])
+    subprocess.run(['pulseaudio','-k'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=10,check=False)
+    try:
+        # Do not capture daemon stderr through a pipe: a background daemon can keep that pipe open.
+        p=subprocess.run(['pulseaudio','--start','--exit-idle-time=-1'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=30,check=False)
+        notes.append(f'pulseaudio start rc={p.returncode}')
+    except Exception as e:
+        notes.append('pulseaudio start error: '+repr(e)); return False,None
     time.sleep(1)
     rc,info=run(['pactl','info'],env=env,timeout=10)
     if rc != 0:
@@ -123,35 +126,41 @@ def main():
     display=':99'; prefix=(extract.parent/'wineprefix').resolve()
     if prefix.exists(): shutil.rmtree(prefix)
     env=os.environ.copy(); env.update(audio_env); env.update({'DISPLAY':display,'WINEDEBUG':'-all','WINEDLLOVERRIDES':'winemenubuilder.exe=d','WINEPREFIX':str(prefix)})
-    xvfb=subprocess.Popen(['Xvfb',display,'-screen','0','1280x720x24','-nolisten','tcp'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-    proc=None; logf=open(out/'runtime.log','w',encoding='utf-8',errors='ignore')
+    xvfb=None; proc=None; logf=None
     try:
+        # Setup is inside the guarded block so even Xvfb/log failures still emit a diagnostic JSON.
+        xvfb=subprocess.Popen(['Xvfb',display,'-screen','0','1280x720x24','-nolisten','tcp'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        logf=open(out/'runtime.log','w',encoding='utf-8',errors='ignore')
         time.sleep(1.5)
         if runtime == 'Wine/original Windows launcher':
             rc,bootlog=run(['wineboot','-u'],env=env,cwd=game_root,timeout=90); result['wineboot_rc']=rc
             if rc != 0: result['notes'].append('wineboot failed: '+bootlog[-1500:])
             time.sleep(2)
         proc=subprocess.Popen(cmd,cwd=game_root,env=env,stdout=logf,stderr=subprocess.STDOUT,text=True); time.sleep(12)
-        alive=proc.poll() is None; wins=windows(env); result['process_alive_boot']=alive; result['visible_windows_boot']=len(wins); result['window_titles']=window_titles(env,wins)
+        alive=proc.poll() is None; wins_boot=windows(env); result['process_alive_boot']=alive; result['visible_windows_boot']=len(wins_boot); result['window_titles']=window_titles(env,wins_boot)
         s1=out/'01_boot.png'; screenshot(env,s1)
         if not alive:
             result['status']='BOOT_FAILED'; result['notes'].append(f'process exited rc={proc.returncode}')
         else:
-            result['status']='BOOT_VERIFIED' if wins else 'PROCESS_ALIVE_NO_VISIBLE_WINDOW'
-            if wins: result['stage_evidence'].append('VISIBLE_GAME_WINDOW')
+            result['status']='BOOT_VERIFIED' if wins_boot else 'PROCESS_ALIVE_NO_VISIBLE_WINDOW'
+            if wins_boot: result['stage_evidence'].append('VISIBLE_GAME_WINDOW_AT_BOOT')
             key(env,'Return'); time.sleep(6)
             s2=out/'02_after_confirm.png'; screenshot(env,s2); d1=diff_pixels(s1,s2); result['boot_to_confirm_changed_pixels']=d1
             alive_after_confirm=proc.poll() is None; result['process_alive_after_confirm']=alive_after_confirm
+            wins_confirm=windows(env); result['visible_windows_after_confirm']=len(wins_confirm)
             if alive_after_confirm:
                 if (d1 or 0)>1000: result['stage_evidence'].append('CONFIRM_CAUSED_LARGE_VISUAL_CHANGE')
+                if wins_confirm and not wins_boot: result['stage_evidence'].append('VISIBLE_GAME_WINDOW_APPEARED_AFTER_CONFIRM')
                 for k in ('Right','Down','Left','Up'): key(env,k); time.sleep(1.0)
                 time.sleep(4); s3=out/'03_after_movement.png'; screenshot(env,s3); d2=diff_pixels(s2,s3); result['confirm_to_movement_changed_pixels']=d2
                 still=proc.poll() is None; result['process_alive_after_inputs']=still
-                if still and wins and (d1 or 0)>1000 and (d2 or 0)>300:
+                wins_input=windows(env); result['visible_windows_after_inputs']=len(wins_input)
+                has_window=bool(wins_boot or wins_confirm or wins_input)
+                if still and has_window and (d1 or 0)>1000 and (d2 or 0)>300:
                     result['status']='INPUT_FLOW_VERIFIED'; result['stage_evidence'].append('ARROW_INPUTS_CAUSED_LARGE_VISUAL_CHANGE')
-                elif still and wins and (d1 or 0)>1000:
+                elif still and has_window and (d1 or 0)>1000:
                     result['status']='POST_CONFIRM_RESPONSE_VERIFIED'
-                elif still and wins:
+                elif still and has_window:
                     result['status']='BOOT_VERIFIED'
             else:
                 result['status']='BOOT_VERIFIED_THEN_EXITED'; result['notes'].append('Game process exited after first confirm; inspect runtime.log/screenshots before calling gameplay broken.')
@@ -163,11 +172,14 @@ def main():
             except Exception:
                 try: proc.kill()
                 except Exception: pass
-        try: xvfb.terminate(); xvfb.wait(timeout=3)
-        except Exception:
-            try: xvfb.kill()
+        if xvfb:
+            try: xvfb.terminate(); xvfb.wait(timeout=3)
+            except Exception:
+                try: xvfb.kill()
+                except Exception: pass
+        if logf:
+            try: logf.close()
             except Exception: pass
-        logf.close()
     if result['status']=='INPUT_FLOW_VERIFIED': result['playability_class']='PLAYABILITY_VERIFIED_INPUT_FLOW'
     elif result['status'] in ('POST_CONFIRM_RESPONSE_VERIFIED','BOOT_VERIFIED'): result['playability_class']='PLAYABILITY_VERIFIED_BOOT'
     elif result['status']=='BOOT_VERIFIED_THEN_EXITED': result['playability_class']='PLAYABILITY_BOOT_ONLY_NEEDS_DIAGNOSIS'
