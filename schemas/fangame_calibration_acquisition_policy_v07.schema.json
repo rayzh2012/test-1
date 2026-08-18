@@ -1,0 +1,32 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/rayzh2012/test-1/schemas/fangame_calibration_acquisition_policy_v07.schema.json",
+  "title":"Fangame Calibration Acquisition Policy v0.7",
+  "type":"object",
+  "required":["schema_version","policy_id","requirements","action_order","audit"],
+  "properties":{
+    "schema_version":{"const":"fangame.calibration.acquisition.policy.v0.7"},
+    "policy_id":{"type":"string","minLength":1},
+    "requirements":{
+      "type":"object",
+      "required":["vector_required_before_labeling","min_independence_groups_per_game","min_known_dimension_coverage","conflict_adjudication_enabled"],
+      "properties":{
+        "vector_required_before_labeling":{"type":"boolean"},
+        "min_independence_groups_per_game":{"type":"integer","minimum":1},
+        "min_known_dimension_coverage":{"type":"number","minimum":0,"maximum":1},
+        "conflict_adjudication_enabled":{"type":"boolean"}
+      },
+      "additionalProperties":false
+    },
+    "action_order":{
+      "type":"array","minItems":6,"maxItems":6,"uniqueItems":true,
+      "items":{"enum":["BACKFILL_VECTOR","ADJUDICATE_CONFLICT","ADD_FIRST_LABEL","ADD_INDEPENDENT_LABEL","FILL_UNKNOWN_DIMENSIONS","NO_ACTION"]}
+    },
+    "audit":{
+      "type":"object","required":["policy_version","rationale"],
+      "properties":{"policy_version":{"type":"string"},"rationale":{"type":"string"}},
+      "additionalProperties":false
+    }
+  },
+  "additionalProperties":false
+}
