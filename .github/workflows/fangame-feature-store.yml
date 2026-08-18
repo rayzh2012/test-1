@@ -1,0 +1,115 @@
+name: Fangame Feature Store
+
+on:
+  workflow_run:
+    workflows: ["Fangame Fetch"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Completed Fangame Fetch run ID to normalize"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  normalize:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve source run
+        id: source
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run_id=${{ inputs.source_run_id }}" >> "$GITHUB_OUTPUT"
+            echo "head_sha=" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
+            echo "head_sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.source.outputs.head_sha || github.ref }}
+
+      - name: Download metadata evidence contracts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p feature_input feature_records
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false and (.name | endswith("-metadata"))) | [.id,.name] | @tsv' > /tmp/metadata.tsv
+          if [ ! -s /tmp/metadata.tsv ]; then
+            echo "No *-metadata artifacts found on source run ${SOURCE_RUN_ID}" >&2
+            exit 2
+          fi
+          while IFS=$'\t' read -r artifact_id artifact_name; do
+            base="${artifact_name%-metadata}"
+            dest="feature_input/${base}"
+            mkdir -p "$dest"
+            curl -fL \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+              -o "/tmp/${artifact_id}.zip"
+            unzip -q -o "/tmp/${artifact_id}.zip" -d "$dest"
+            echo "Downloaded ${artifact_name} -> ${dest}"
+          done < /tmp/metadata.tsv
+
+      - name: Emit canonical feature records
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in feature_input/*; do
+            [ -d "$d" ] || continue
+            base=$(basename "$d")
+            out="feature_records/${base}"
+            mkdir -p "$out"
+            args=(--fetch "$d/fetch_report.json" --out "$out/fangame_features.json")
+            [ -f "$d/playability_static.json" ] && args+=(--static "$d/playability_static.json")
+            [ -f "$d/playability_smoke.json" ] && args+=(--smoke "$d/playability_smoke.json")
+            [ -f "$d/fangame_review_card.json" ] && args+=(--review "$d/fangame_review_card.json")
+            [ -f "$d/SHA256.txt" ] && args+=(--sha256 "$d/SHA256.txt")
+            [ -f "fangame_targets/${base}.json" ] && args+=(--target "fangame_targets/${base}.json")
+            python3 tools/fangame_feature_emitter.py "${args[@]}"
+            cp schemas/fangame_features.schema.json "$out/"
+          done
+
+      - name: Build analytical Feature Store assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/fangame_feature_batch.py feature_records \
+            --ndjson fangame_feature_store.ndjson \
+            --csv fangame_feature_store.csv
+          python3 - <<'PY'
+          import csv,json,pathlib
+          p=pathlib.Path('fangame_feature_store.csv')
+          rows=list(csv.DictReader(p.open(encoding='utf-8-sig')))
+          assert rows, 'feature store is empty'
+          required={'schema_version','identity.title','identity.archive_filename','audit.feature_emitter_version'}
+          missing=required-set(rows[0])
+          assert not missing, f'missing required flattened columns: {missing}'
+          print(json.dumps({'records':len(rows),'required_columns_ok':True},ensure_ascii=False))
+          PY
+
+      - name: Upload canonical Feature Store
+        uses: actions/upload-artifact@v4
+        with:
+          name: fangame-feature-store-${{ steps.source.outputs.run_id }}
+          path: |
+            feature_records/**/fangame_features.json
+            feature_records/**/fangame_features.schema.json
+            fangame_feature_store.ndjson
+            fangame_feature_store.csv
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
