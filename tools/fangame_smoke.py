@@ -11,21 +11,16 @@ def run(cmd, env=None, cwd=None, timeout=30):
         return 999,repr(e)
 
 def ensure_wine32(notes):
-    """Hosted Ubuntu runners often ship only 64-bit Wine. Old RPG Maker launchers are 32-bit.
-    Bootstrap i386 support only inside CI before classifying a game as boot-broken.
-    """
     if not shutil.which('wine') or not shutil.which('dpkg') or not shutil.which('sudo'):
         return False
-    rc,out=run(['dpkg','--print-foreign-architectures'],timeout=10)
+    _,out=run(['dpkg','--print-foreign-architectures'],timeout=10)
     if 'i386' not in out.split():
         rc,log=run(['sudo','dpkg','--add-architecture','i386'],timeout=30)
         notes.append(f'wine32 add-architecture rc={rc}')
         if rc != 0:
             notes.append(log[-1200:]); return False
-    # Check whether the package is already installed.
     rc,_=run(['dpkg-query','-W','-f=${Status}','wine32:i386'],timeout=10)
-    if rc == 0:
-        return True
+    if rc == 0: return True
     rc,log=run(['sudo','apt-get','update'],timeout=180)
     notes.append(f'wine32 apt-update rc={rc}')
     if rc != 0:
@@ -52,9 +47,9 @@ def diff_pixels(a,b):
     try: return int(float(raw[-1])) if raw else None
     except Exception: return None
 
-def key(env,key):
+def key(env,keyname):
     if not shutil.which('xdotool'): return False
-    subprocess.run(['xdotool','key','--clearmodifiers',key],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    subprocess.run(['xdotool','key','--clearmodifiers',keyname],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     return True
 
 def windows(env):
@@ -62,10 +57,17 @@ def windows(env):
     p=subprocess.run(['xdotool','search','--onlyvisible','--name','.'],env=env,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
     return [x for x in p.stdout.split() if x.strip()]
 
+def window_titles(env, ids):
+    out=[]
+    for wid in ids:
+        p=subprocess.run(['xdotool','getwindowname',wid],env=env,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
+        title=p.stdout.strip()
+        if title: out.append(title)
+    return out
+
 def choose_command(root: Path, engine: str):
     if engine == 'RPG Maker 2000/2003' and shutil.which('easyrpg-player'):
         return ['easyrpg-player','--window'], 'EasyRPG Player'
-    # Prefer a current native RGSS interpreter when it is actually installed.
     if engine in ('RPG Maker XP','RPG Maker VX','RPG Maker VX Ace'):
         for c in ('mkxp-z','mkxp'):
             if shutil.which(c): return [c],c
@@ -75,77 +77,81 @@ def choose_command(root: Path, engine: str):
         return ['wine',exe.name], 'Wine/original Windows launcher'
     return None,None
 
+def generate_review(args, out):
+    script=Path(__file__).with_name('fangame_review_card.py').resolve()
+    if not script.exists(): return
+    smoke=out/'playability_smoke.json'
+    fetch=Path(args.static).resolve().parent/'fetch_report.json'
+    cmd=['python3',str(script),'--static',str(Path(args.static).resolve()),'--smoke',str(smoke),'--out-json',str(out/'fangame_review_card.json'),'--out-md',str(out/'fangame_review_card.md')]
+    if fetch.exists(): cmd += ['--target',str(fetch)]
+    run(cmd,timeout=30)
+
+def write_result(args,out,result):
+    (out/'playability_smoke.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    generate_review(args,out)
+    print(json.dumps(result,ensure_ascii=False,indent=2))
+
 def main():
     ap=argparse.ArgumentParser()
-    ap.add_argument('--static',required=True,help='playability_static.json')
-    ap.add_argument('--extract-root',required=True,help='directory containing extracted archive')
+    ap.add_argument('--static',required=True)
+    ap.add_argument('--extract-root',required=True)
     ap.add_argument('--outdir',default='playability_smoke')
     args=ap.parse_args()
     st=json.loads(Path(args.static).read_text(encoding='utf-8'))
-    extract=Path(args.extract_root).resolve()
-    game_root=(extract/st.get('game_root','.')).resolve()
-    out=Path(args.outdir); out.mkdir(parents=True,exist_ok=True)
-    result={'engine':st.get('engine'),'game_root':str(game_root),'status':'NOT_RUN','runtime':None,'process_alive_boot':False,'visible_windows_boot':0,'title_to_after_input_changed_pixels':None,'after_input_to_movement_changed_pixels':None,'notes':[]}
-    cmd,runtime=choose_command(game_root,st.get('engine','UNKNOWN'))
-    result['runtime']=runtime
+    extract=Path(args.extract_root).resolve(); game_root=(extract/st.get('game_root','.')).resolve()
+    out=Path(args.outdir).resolve(); out.mkdir(parents=True,exist_ok=True)
+    result={'engine':st.get('engine'),'game_root':str(game_root),'status':'NOT_RUN','runtime':None,'process_alive_boot':False,'visible_windows_boot':0,'window_titles':[],'boot_to_confirm_changed_pixels':None,'confirm_to_movement_changed_pixels':None,'notes':[]}
+    cmd,runtime=choose_command(game_root,st.get('engine','UNKNOWN')); result['runtime']=runtime
     if not cmd:
-        result['status']='NO_CURRENT_RUNTIME_PATH_IN_CI'
-        result['playability_class']='PLAYABILITY_UNKNOWN'
-        (out/'playability_smoke.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
-        return 0
+        result['status']='NO_CURRENT_RUNTIME_PATH_IN_CI'; result['playability_class']='PLAYABILITY_UNKNOWN'; write_result(args,out,result); return 0
     if runtime == 'Wine/original Windows launcher':
         result['wine32_ready']=ensure_wine32(result['notes'])
         if not result['wine32_ready']:
-            result['status']='CI_RUNTIME_SETUP_FAILED'
-            result['playability_class']='PLAYABILITY_UNKNOWN'
-            (out/'playability_smoke.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
-            print(json.dumps(result,ensure_ascii=False,indent=2)); return 0
+            result['status']='CI_RUNTIME_SETUP_FAILED'; result['playability_class']='PLAYABILITY_UNKNOWN'; write_result(args,out,result); return 0
     display=':99'
-    prefix=(out/'wineprefix').resolve()
+    # Keep Wine's C: drive OUTSIDE the artifact directory; Wine maps z: to host / and artifact upload must never recurse through it.
+    prefix=(extract.parent/'wineprefix').resolve()
+    if prefix.exists(): shutil.rmtree(prefix)
     env=os.environ.copy(); env.update({'DISPLAY':display,'WINEDEBUG':'-all','WINEDLLOVERRIDES':'winemenubuilder.exe=d','SDL_AUDIODRIVER':'dummy','WINEPREFIX':str(prefix)})
     xvfb=subprocess.Popen(['Xvfb',display,'-screen','0','1280x720x24','-nolisten','tcp'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-    proc=None
-    logf=open(out/'runtime.log','w',encoding='utf-8',errors='ignore')
+    proc=None; logf=open(out/'runtime.log','w',encoding='utf-8',errors='ignore')
     try:
         time.sleep(1.5)
         if runtime == 'Wine/original Windows launcher':
-            # Initialize the clean per-test prefix after Xvfb exists; this avoids classifying first-run Wine setup as a game crash.
-            rc,bootlog=run(['wineboot','-u'],env=env,cwd=game_root,timeout=90)
-            result['wineboot_rc']=rc
+            rc,bootlog=run(['wineboot','-u'],env=env,cwd=game_root,timeout=90); result['wineboot_rc']=rc
             if rc != 0: result['notes'].append('wineboot failed: '+bootlog[-1500:])
             time.sleep(2)
         proc=subprocess.Popen(cmd,cwd=game_root,env=env,stdout=logf,stderr=subprocess.STDOUT,text=True)
         time.sleep(12)
-        alive=proc.poll() is None
-        wins=windows(env)
-        result['process_alive_boot']=alive; result['visible_windows_boot']=len(wins)
+        alive=proc.poll() is None; wins=windows(env)
+        result['process_alive_boot']=alive; result['visible_windows_boot']=len(wins); result['window_titles']=window_titles(env,wins)
         s1=out/'01_boot.png'; screenshot(env,s1)
         if not alive:
-            result['status']='BOOT_FAILED'
-            result['notes'].append(f'process exited rc={proc.returncode}')
+            result['status']='BOOT_FAILED'; result['notes'].append(f'process exited rc={proc.returncode}')
         else:
             result['status']='BOOT_VERIFIED' if wins else 'PROCESS_ALIVE_NO_VISIBLE_WINDOW'
-            # Default RPG Maker title screens usually place New Game first. Repeated confirms also advance splash/intro screens.
-            for _ in range(3): key(env,'Return'); time.sleep(2)
-            time.sleep(5)
+            # One confirm at a time. Do not spam Enter/Z: that can accidentally select Quit or mask a post-title crash.
+            key(env,'Return'); time.sleep(6)
             s2=out/'02_after_confirm.png'; screenshot(env,s2)
-            result['title_to_after_input_changed_pixels']=diff_pixels(s1,s2)
-            # Short, non-destructive interaction probe.
-            for k in ('Down','Right','Up','Left','z','Return'):
-                key(env,k); time.sleep(0.8)
-            time.sleep(3)
-            s3=out/'03_after_movement.png'; screenshot(env,s3)
-            result['after_input_to_movement_changed_pixels']=diff_pixels(s2,s3)
-            still=proc.poll() is None
-            result['process_alive_after_inputs']=still
-            d1=result['title_to_after_input_changed_pixels'] or 0
-            d2=result['after_input_to_movement_changed_pixels'] or 0
-            if still and wins and d1>1000 and d2>300:
-                result['status']='GAMEPLAY_LIKELY'
-            elif still and wins and d1>1000:
-                result['status']='INPUT_RESPONSE_VERIFIED'
-            elif still and wins:
-                result['status']='BOOT_VERIFIED'
+            d1=diff_pixels(s1,s2); result['boot_to_confirm_changed_pixels']=d1
+            alive_after_confirm=proc.poll() is None; result['process_alive_after_confirm']=alive_after_confirm
+            if alive_after_confirm:
+                # Arrow-only movement probe is safer than interaction keys.
+                for k in ('Right','Down','Left','Up'):
+                    key(env,k); time.sleep(1.0)
+                time.sleep(4)
+                s3=out/'03_after_movement.png'; screenshot(env,s3)
+                d2=diff_pixels(s2,s3); result['confirm_to_movement_changed_pixels']=d2
+                still=proc.poll() is None; result['process_alive_after_inputs']=still
+                if still and wins and (d1 or 0)>1000 and (d2 or 0)>300:
+                    result['status']='GAMEPLAY_LIKELY'
+                elif still and wins and (d1 or 0)>1000:
+                    result['status']='INPUT_RESPONSE_VERIFIED'
+                elif still and wins:
+                    result['status']='BOOT_VERIFIED'
+            else:
+                result['status']='BOOT_VERIFIED_THEN_EXITED'
+                result['notes'].append('Game process exited after first confirm; inspect runtime.log/screenshots before calling gameplay broken.')
     except Exception as e:
         result['status']='SMOKE_ERROR'; result['notes'].append(repr(e))
     finally:
@@ -159,15 +165,12 @@ def main():
             try: xvfb.kill()
             except Exception: pass
         logf.close()
-    # Conservative outward label: boot/input evidence is direct; GAMEPLAY_LIKELY still needs screenshot/behavior review before claiming full gameplay verification.
-    if result['status'] in ('GAMEPLAY_LIKELY','INPUT_RESPONSE_VERIFIED','BOOT_VERIFIED'):
-        result['playability_class']='PLAYABILITY_VERIFIED_BOOT'
-    elif result['status']=='BOOT_FAILED':
-        result['playability_class']='PLAYABILITY_UNKNOWN_OR_BROKEN_ON_CI'
-    else:
-        result['playability_class']='PLAYABILITY_UNKNOWN'
-    (out/'playability_smoke.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(json.dumps(result,ensure_ascii=False,indent=2))
+    if result['status']=='GAMEPLAY_LIKELY': result['playability_class']='PLAYABILITY_GAMEPLAY_LIKELY'
+    elif result['status'] in ('INPUT_RESPONSE_VERIFIED','BOOT_VERIFIED'): result['playability_class']='PLAYABILITY_VERIFIED_BOOT'
+    elif result['status']=='BOOT_VERIFIED_THEN_EXITED': result['playability_class']='PLAYABILITY_BOOT_ONLY_NEEDS_DIAGNOSIS'
+    elif result['status']=='BOOT_FAILED': result['playability_class']='PLAYABILITY_UNKNOWN_OR_BROKEN_ON_CI'
+    else: result['playability_class']='PLAYABILITY_UNKNOWN'
+    write_result(args,out,result)
     return 0
 
 if __name__=='__main__': raise SystemExit(main())
