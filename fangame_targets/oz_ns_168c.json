@@ -4,12 +4,12 @@
   "engine": "RPG Maker XP / RGSS1",
   "min_mb": 1100,
   "max_mb": 1600,
-  "link_terms": ["OZ大乱斗", "OZ大乱斗-NS", "1.68c", "1.30G", "1.30GB", "谢拉", "卡姗娜", "NEXT STORY", "完整版", "完全免费", "同人游戏"],
-  "probe_terms": ["6fEfQrz6Zn22", "1J1zqx_PNoK8CZgzE4GTyjg", "1.68c", "完整版", "下载", "cloud.189.cn", "pan.baidu.com"],
+  "link_terms": ["OZ大乱斗", "OZ大乱斗-NS", "OZ大乱斗NS 1.68 c.exe", "1.68c", "1.30G", "1.30GB", "谢拉", "卡姗娜", "NEXT STORY", "完整版", "完全免费", "同人游戏"],
+  "probe_terms": ["OZ大乱斗NS 1.68 c.exe", "server_filename", "fs_id", "size", "shareid", "share_id", "uk", "yunData", "file_list", "1J1zqx_PNoK8CZgzE4GTyjg", "6fEfQrz6Zn22"],
   "sources": [
+    "https://pan.baidu.com/s/1J1zqx_PNoK8CZgzE4GTyjg",
     "https://cloud.189.cn/t/6fEfQrz6Zn22",
     "https://fuckoz.com/thread-3-1-1.html",
-    "https://rpg.blue/thread-229910-1-1.html",
-    "https://pan.baidu.com/s/1J1zqx_PNoK8CZgzE4GTyjg"
+    "https://rpg.blue/thread-229910-1-1.html"
   ]
 }
