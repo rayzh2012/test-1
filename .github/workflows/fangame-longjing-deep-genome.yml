@@ -29,7 +29,7 @@ jobs:
       - name: Fetch historical public v1.64 package and verify identity
         run: |
           mkdir -p out work
-          gdown --id 1k2oyWvYp6qoElokjcdBj2Uh6aR1fc54O -O work/longjing-v1.64.exe
+          gdown 1k2oyWvYp6qoElokjcdBj2Uh6aR1fc54O -O work/longjing-v1.64.exe
           echo 'aee1a96dd72c5f083c72e5cfc81e45b33c25adf9deeb78dfc87ca0c09b4a0416  work/longjing-v1.64.exe' | sha256sum -c -
           stat -c '%n %s bytes' work/longjing-v1.64.exe
 
@@ -108,50 +108,31 @@ jobs:
               cmds=m.get('event_commands') or 0
               return {
                 'engine':st.get('engine'),
-                'maps':maps,
-                'events':events,
-                'event_pages':pages,
-                'event_commands':cmds,
+                'maps':maps,'events':events,'event_pages':pages,'event_commands':cmds,
                 'events_per_map':round(events/maps,3) if maps else None,
                 'event_pages_per_map':round(pages/maps,3) if maps else None,
                 'commands_per_map':round(cmds/maps,3) if maps else None,
                 'commands_per_event':round(cmds/events,3) if events else None,
-                'dialogue_blocks':d.get('dialogue_blocks'),
-                'dialogue_chars':d.get('dialogue_chars'),
+                'dialogue_blocks':d.get('dialogue_blocks'),'dialogue_chars':d.get('dialogue_chars'),
                 'dialogue_chars_per_map':round((d.get('dialogue_chars') or 0)/maps,3) if maps else None,
-                'choices':m.get('choice_options'),
-                'explicit_battle_calls':m.get('battle_calls'),
-                'shops':m.get('shop_calls'),
-                'transfers':m.get('map_transfers'),
-                'switch_ops':m.get('switch_ops'),
-                'variable_ops':m.get('variable_ops'),
-                'common_events':m.get('common_events'),
-                'actors':m.get('actors'),'classes':m.get('classes'),'skills':m.get('skills'),'items':m.get('items'),
-                'weapons':m.get('weapons'),'armors':m.get('armors'),'enemies':m.get('enemies'),'troops':m.get('troops'),'states':m.get('states'),
-                'images':st.get('image_count'),'audio':st.get('audio_count'),
-                'raw_transfer_edges':g.get('transfer_edges'),
-                'normalized_edges':gn.get('normalized_undirected_edges'),
+                'choices':m.get('choice_options'),'explicit_battle_calls':m.get('battle_calls'),'shops':m.get('shop_calls'),
+                'transfers':m.get('map_transfers'),'switch_ops':m.get('switch_ops'),'variable_ops':m.get('variable_ops'),
+                'common_events':m.get('common_events'),'actors':m.get('actors'),'classes':m.get('classes'),'skills':m.get('skills'),
+                'items':m.get('items'),'weapons':m.get('weapons'),'armors':m.get('armors'),'enemies':m.get('enemies'),
+                'troops':m.get('troops'),'states':m.get('states'),'images':st.get('image_count'),'audio':st.get('audio_count'),
+                'raw_transfer_edges':g.get('transfer_edges'),'normalized_edges':gn.get('normalized_undirected_edges'),
                 'normalized_branching_maps':gn.get('normalized_branching_maps_degree_ge_3'),
-                'connected_components':gn.get('connected_component_count'),
-                'largest_component_size':gn.get('largest_component_size'),
-                'sidequest_candidate_maps':ci.get('sidequest_candidate_maps'),
-                'explicit_sidequest_maps':ci.get('explicit_sidequest_maps'),
-                'mainline_gate_maps':ci.get('mainline_gate_maps'),
-                'optional_content_maps':ci.get('optional_content_maps'),
-                'ending_candidate_maps':ci.get('ending_candidate_maps'),
-                'release_completion_status':ci.get('release_completion_status'),
-                'random_encounter_maps':pr.get('maps_with_random_encounters'),
-                'random_encounter_map_ratio':pr.get('random_encounter_map_ratio'),
-                'encounter_step_stats':pr.get('encounter_step_stats'),
-                'enemy_exp_stats':pr.get('enemy_exp_stats'),
-                'enemy_gold_stats':pr.get('enemy_gold_stats'),
-                'equipment_price_stats':pr.get('equipment_price_stats'),
-                'progression_event_commands':pr.get('event_commands'),
-                'marshal_load_errors':m.get('load_errors',[]),
+                'connected_components':gn.get('connected_component_count'),'largest_component_size':gn.get('largest_component_size'),
+                'sidequest_candidate_maps':ci.get('sidequest_candidate_maps'),'explicit_sidequest_maps':ci.get('explicit_sidequest_maps'),
+                'mainline_gate_maps':ci.get('mainline_gate_maps'),'optional_content_maps':ci.get('optional_content_maps'),
+                'ending_candidate_maps':ci.get('ending_candidate_maps'),'release_completion_status':ci.get('release_completion_status'),
+                'random_encounter_maps':pr.get('maps_with_random_encounters'),'random_encounter_map_ratio':pr.get('random_encounter_map_ratio'),
+                'encounter_step_stats':pr.get('encounter_step_stats'),'enemy_exp_stats':pr.get('enemy_exp_stats'),
+                'enemy_gold_stats':pr.get('enemy_gold_stats'),'equipment_price_stats':pr.get('equipment_price_stats'),
+                'progression_event_commands':pr.get('event_commands'),'marshal_load_errors':m.get('load_errors',[]),
               }
           games={'longjing_v1.64':load_game('longjing'),'nulong_v3.0':load_game('nulong')}
-          a,b=games['longjing_v1.64'],games['nulong_v3.0']
-          ratios={}
+          a,b=games['longjing_v1.64'],games['nulong_v3.0']; ratios={}
           for k in ['maps','events','event_pages','event_commands','events_per_map','event_pages_per_map','commands_per_map','dialogue_chars_per_map','choices','explicit_battle_calls','shops']:
               av,bv=a.get(k),b.get(k)
               ratios[k+'_longjing_over_nulong']=round(av/bv,4) if isinstance(av,(int,float)) and isinstance(bv,(int,float)) and bv else None
