@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rayzh2012/test-1/schemas/fangame_features.schema.json",
+  "title": "Fangame Feature Store Record",
+  "type": "object",
+  "required": ["schema_version", "domain", "identity", "observed", "runtime", "derived", "inferred", "ranking", "evidence", "audit"],
+  "properties": {
+    "schema_version": {"const": "fangame.features.v0.2"},
+    "domain": {"const": "fangame"},
+    "identity": {
+      "type": "object",
+      "required": ["title", "archive_filename"],
+      "properties": {
+        "game_id": {"type": ["string", "null"]},
+        "title": {"type": ["string", "null"]},
+        "version": {"type": ["string", "null"]},
+        "engine": {"type": ["string", "null"]},
+        "archive_filename": {"type": ["string", "null"]},
+        "package_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "sha256": {"type": ["string", "null"]},
+        "lineage": {"type": ["string", "null"]},
+        "source": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "observed": {
+      "type": "object",
+      "properties": {
+        "extract_ok": {"type": ["boolean", "null"]},
+        "structural_status": {"type": ["string", "null"]},
+        "encrypted_game_archive": {"type": ["boolean", "null"]},
+        "clean_launcher_present": {"type": ["boolean", "null"]},
+        "maps": {"type": ["integer", "null"], "minimum": 0},
+        "events": {"type": ["integer", "null"], "minimum": 0},
+        "event_pages": {"type": ["integer", "null"], "minimum": 0},
+        "event_commands": {"type": ["integer", "null"], "minimum": 0},
+        "dialogue_lines": {"type": ["integer", "null"], "minimum": 0},
+        "dialogue_chars": {"type": ["integer", "null"], "minimum": 0},
+        "choices": {"type": ["integer", "null"], "minimum": 0},
+        "common_events": {"type": ["integer", "null"], "minimum": 0},
+        "transfers": {"type": ["integer", "null"], "minimum": 0},
+        "battle_calls": {"type": ["integer", "null"], "minimum": 0},
+        "shops": {"type": ["integer", "null"], "minimum": 0},
+        "switches": {"type": ["integer", "null"], "minimum": 0},
+        "variables": {"type": ["integer", "null"], "minimum": 0},
+        "actors": {"type": ["integer", "null"], "minimum": 0},
+        "classes": {"type": ["integer", "null"], "minimum": 0},
+        "skills": {"type": ["integer", "null"], "minimum": 0},
+        "items": {"type": ["integer", "null"], "minimum": 0},
+        "weapons": {"type": ["integer", "null"], "minimum": 0},
+        "armors": {"type": ["integer", "null"], "minimum": 0},
+        "enemies": {"type": ["integer", "null"], "minimum": 0},
+        "troops": {"type": ["integer", "null"], "minimum": 0},
+        "states": {"type": ["integer", "null"], "minimum": 0},
+        "scripts": {"type": ["integer", "null"], "minimum": 0},
+        "image_count": {"type": ["integer", "null"], "minimum": 0},
+        "image_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "audio_count": {"type": ["integer", "null"], "minimum": 0},
+        "audio_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "content_scale": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "mechanical_status": {"type": ["string", "null"]},
+        "playability_class": {"type": ["string", "null"]},
+        "runtime_name": {"type": ["string", "null"]},
+        "process_alive_boot": {"type": ["boolean", "null"]},
+        "visible_windows_boot": {"type": ["integer", "null"], "minimum": 0},
+        "boot_to_confirm_changed_pixels": {"type": ["integer", "null"], "minimum": 0},
+        "confirm_to_movement_changed_pixels": {"type": ["integer", "null"], "minimum": 0},
+        "title_verified": {"type": ["boolean", "null"]},
+        "new_game_verified": {"type": ["boolean", "null"]},
+        "input_flow_verified": {"type": ["boolean", "null"]},
+        "map_gameplay_verified": {"type": ["boolean", "null"]},
+        "semantic_review_state": {"type": ["string", "null"]},
+        "runtime_error_class": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "derived": {
+      "type": "object",
+      "properties": {
+        "dialogue_density_per_map": {"type": ["number", "null"]},
+        "event_command_density_per_map": {"type": ["number", "null"]},
+        "choice_density_per_1000_commands": {"type": ["number", "null"]},
+        "transfer_density_per_map": {"type": ["number", "null"]},
+        "asset_count": {"type": ["integer", "null"]},
+        "system_object_count": {"type": ["integer", "null"]},
+        "content_richness_score_5": {"type": ["number", "null"], "minimum": 0, "maximum": 5}
+      },
+      "additionalProperties": true
+    },
+    "inferred": {
+      "type": "object",
+      "properties": {
+        "sidequest_candidate_count": {"type": ["integer", "string", "null"]},
+        "sidequest_confidence": {"type": ["string", "null"]},
+        "ending_candidate_count": {"type": ["integer", "string", "null"]},
+        "ending_confidence": {"type": ["string", "null"]},
+        "estimated_hours_range": {"type": ["string", "null"]},
+        "grind_pressure": {"type": ["string", "null"]},
+        "inference_version": {"type": ["string", "null"]},
+        "evidence_summary": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "ranking": {
+      "type": "object",
+      "properties": {
+        "historical_rating_5": {"type": ["number", "null"], "minimum": 0, "maximum": 5},
+        "historical_votes": {"type": ["integer", "null"], "minimum": 0},
+        "historical_downloads": {"type": ["integer", "null"], "minimum": 0},
+        "ci_playability_score_5": {"type": ["number", "null"], "minimum": 0, "maximum": 5},
+        "ai_structural_score_5": {"type": ["number", "null"], "minimum": 0, "maximum": 5},
+        "personal_fit_score_5": {"type": ["number", "null"], "minimum": 0, "maximum": 5},
+        "final_priority_score_5": {"type": ["number", "null"], "minimum": 0, "maximum": 5},
+        "verdict": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "fetch_report": {"type": ["string", "null"]},
+        "static_report": {"type": ["string", "null"]},
+        "smoke_report": {"type": ["string", "null"]},
+        "review_card": {"type": ["string", "null"]},
+        "screenshots": {"type": "array", "items": {"type": "string"}},
+        "drive_evidence_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "audit": {
+      "type": "object",
+      "required": ["generated_at_utc", "feature_emitter_version"],
+      "properties": {
+        "generated_at_utc": {"type": "string"},
+        "feature_emitter_version": {"type": "string"},
+        "inference_version": {"type": ["string", "null"]},
+        "github_run_id": {"type": ["string", "null"]},
+        "github_sha": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
