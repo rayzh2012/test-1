@@ -42,6 +42,44 @@ def label_value(rec, dim):
     return obj.get("value") if isinstance(obj, dict) else None
 
 
+def resolve_active_labels(valid):
+    by_id = {x["label_id"]: x for x in valid}
+    superseded = set()
+    supersession_errors = []
+    for rec in valid:
+        old = (rec.get("audit") or {}).get("supersedes_label_id")
+        if not old:
+            continue
+        if old == rec["label_id"]:
+            supersession_errors.append({"label_id": rec["label_id"], "error": "LABEL_CANNOT_SUPERSEDE_ITSELF"})
+            continue
+        if old not in by_id:
+            supersession_errors.append({"label_id": rec["label_id"], "error": "SUPERSEDED_LABEL_ID_NOT_FOUND", "supersedes": old})
+            continue
+        if by_id[old].get("game_id") != rec.get("game_id"):
+            supersession_errors.append({"label_id": rec["label_id"], "error": "SUPERSESSION_CROSSES_GAME_ID", "supersedes": old})
+            continue
+        superseded.add(old)
+
+    # Detect cycles/chains that loop. Chains themselves are fine: newest active label wins.
+    for rec in valid:
+        start = rec["label_id"]
+        seen = set()
+        cur = start
+        while cur in by_id:
+            if cur in seen:
+                supersession_errors.append({"label_id": start, "error": "SUPERSESSION_CYCLE"})
+                break
+            seen.add(cur)
+            nxt = (by_id[cur].get("audit") or {}).get("supersedes_label_id")
+            if not nxt:
+                break
+            cur = nxt
+
+    active = [x for x in valid if x["label_id"] not in superseded]
+    return active, sorted(superseded), supersession_errors
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--labels", required=True)
@@ -74,6 +112,8 @@ def main():
         label_ids.add(lid)
         valid.append(rec)
 
+    active, superseded_label_ids, supersession_errors = resolve_active_labels(valid)
+
     by_game = collections.defaultdict(list)
     source_types = collections.Counter()
     vector_versions = collections.Counter()
@@ -82,7 +122,7 @@ def main():
     independence_groups = collections.Counter()
     value_counts = {d: collections.Counter() for d in DIMENSIONS}
 
-    for rec in valid:
+    for rec in active:
         by_game[rec["game_id"]].append(rec)
         src = rec["evidence_source"]
         ann = rec["annotation"]
@@ -108,20 +148,18 @@ def main():
             conflict_count += 1
         game_profiles.append({
             "game_id": game_id,
-            "label_count": len(labels),
+            "active_label_count": len(labels),
             "independent_evidence_groups": len(independent),
             "independence_groups": independent,
             "source_types": types,
             "conflicting_dimensions": conflicts,
         })
 
-    # Corpus-level readiness is deliberately NOT inferred here. A separate, versioned
-    # calibration policy must define minimum sample size/diversity before model fitting.
     if not rows:
         status = "CORPUS_EMPTY"
-    elif errors or duplicate_label_ids:
+    elif errors or duplicate_label_ids or supersession_errors:
         status = "CORPUS_INVALID"
-    elif valid:
+    elif active:
         status = "CORPUS_VALID_UNGATED"
     else:
         status = "CORPUS_INVALID"
@@ -130,7 +168,10 @@ def main():
         "audit_version": AUDIT_VERSION,
         "corpus_status": status,
         "records_seen": len(rows),
-        "valid_label_records": len(valid),
+        "schema_valid_unique_label_records": len(valid),
+        "active_label_records": len(active),
+        "superseded_label_records": len(superseded_label_ids),
+        "superseded_label_ids": superseded_label_ids,
         "distinct_games": len(by_game),
         "distinct_independence_groups": len(independence_groups),
         "source_type_counts": dict(sorted(source_types.items())),
@@ -141,10 +182,11 @@ def main():
             d: {k: v for k, v in sorted(c.items()) if k is not None}
             for d, c in value_counts.items()
         },
-        "games_with_conflicting_labels": conflict_count,
+        "games_with_conflicting_active_labels": conflict_count,
         "game_profiles": game_profiles,
         "validation_errors": errors,
         "duplicate_label_ids": sorted(set(duplicate_label_ids)),
+        "supersession_errors": supersession_errors,
         "training_gate": {
             "status": "NOT_EVALUATED",
             "reason": "No calibration readiness policy supplied. Corpus validation and model-fit readiness are separate decisions.",
