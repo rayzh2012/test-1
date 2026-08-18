@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, hashlib, json, math
+import argparse, hashlib, json
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -41,16 +41,17 @@ def main():
         row={'path':rel,'kind':kind,'ext':ext,'bytes':size,'sha256':digest,'path_class':cls}
         rows.append(row); by_hash[digest].append(rel); ext_counts[ext]+=1; class_counts[cls]+=1; total_bytes+=size
     dup_groups=[{'sha256':h,'count':len(paths),'paths':paths} for h,paths in by_hash.items() if len(paths)>1]
-    dup_file_count=sum(g['count'] for g in dup_groups)
-    unique=len(by_hash); files=len(rows)
+    duplicate_member_files=sum(g['count'] for g in dup_groups)
+    unique=len(by_hash); files=len(rows); duplicate_extra_copies=max(0,files-unique)
     summary={
         'asset_files':files,'asset_bytes':total_bytes,'unique_content_hashes':unique,
-        'exact_duplicate_groups':len(dup_groups),'exact_duplicate_file_count':dup_file_count,
-        'exact_reuse_ratio':round((dup_file_count-files+unique)/files,4) if files else 0.0,
+        'exact_duplicate_groups':len(dup_groups),'exact_duplicate_member_files':duplicate_member_files,
+        'exact_duplicate_extra_copies':duplicate_extra_copies,
+        'exact_reuse_ratio':round(duplicate_extra_copies/files,4) if files else 0.0,
         'extension_counts':dict(ext_counts),'path_class_counts':dict(class_counts),
         'originality_note':'This stage measures exact in-package reuse and path classes only. It does NOT claim true originality without an external RTP/reference corpus or perceptual-near-duplicate pass.'
     }
-    out={'schema':'fangame-asset-fingerprint-v1','summary':summary,'duplicate_groups':dup_groups,'assets':rows}
+    out={'schema':'fangame-asset-fingerprint-v2','summary':summary,'duplicate_groups':dup_groups,'assets':rows}
     Path(a.out).write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(summary,ensure_ascii=False,indent=2))
 
