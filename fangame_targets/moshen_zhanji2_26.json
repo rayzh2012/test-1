@@ -8,9 +8,10 @@
   "expected_bytes": 65445765,
   "expected_fs_id": "1042945056",
   "resource_ids": ["6183", "6185"],
-  "link_terms": ["魔神战记 II", "魔神战记II", "2.6", "归隐版", "精灵使者_魔神战记IIRMver2.6归隐版.rar", "精灵使者_魔神战记II_RMv2.6归隐版.rar", "65445765", "6183", "6185", "精灵使者", "共享娱乐软件", "欢迎大家转载"],
-  "probe_terms": ["server_filename", "fs_id", "size", "shareid", "uk", "file_list", "1bnMHlkr", "1042945056", "2.6归隐版", "魔神战记"],
+  "link_terms": ["魔神战记 II", "魔神战记II", "魔神战记2", "2.6", "归隐版", "精灵使者_魔神战记IIRMver2.6归隐版.rar", "精灵使者_魔神战记II_RMv2.6归隐版.rar", "65445765", "61.0M", "6183", "6185", "精灵使者", "共享娱乐软件", "欢迎大家转载"],
+  "probe_terms": ["下载地址", "download", "downurl", "fileurl", "魔神战记", "2.6归隐", "server_filename", "fs_id", "size", "1bnMHlkr", "1042945056"],
   "sources": [
+    "https://www.fxxz.com/yx/26836.html",
     "https://pan.baidu.com/s/1bnMHlkr",
     "https://rpg.blue/thread-68669-1-1.html",
     "https://rpg.blue/thread-153776-1-1.html"
