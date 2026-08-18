@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rayzh2012/test-1/schemas/fangame_features_v04.schema.json",
+  "title": "Fangame Feature Store Record v0.4",
+  "type": "object",
+  "required": ["schema_version", "domain", "identity", "observed", "runtime", "derived", "inferred", "ranking", "graph", "evidence", "audit"],
+  "properties": {
+    "schema_version": {"const": "fangame.features.v0.4"},
+    "domain": {"const": "fangame"},
+    "identity": {"type": "object", "required": ["title", "archive_filename"], "additionalProperties": true},
+    "observed": {"type": "object", "additionalProperties": true},
+    "runtime": {"type": "object", "additionalProperties": true},
+    "derived": {"type": "object", "additionalProperties": true},
+    "ranking": {"type": "object", "additionalProperties": true},
+    "graph": {
+      "type": "object",
+      "required": ["status", "graph_version", "start_map_id", "summary"],
+      "properties": {
+        "status": {"enum": ["GRAPH_OBSERVED", "GRAPH_PRESENT_NO_SUMMARY", "GRAPH_UNAVAILABLE"]},
+        "graph_version": {"type": ["string", "null"]},
+        "start_map_id": {"type": ["integer", "null"]},
+        "summary": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    },
+    "inferred": {
+      "type": "object",
+      "required": ["sidequest_confidence", "ending_confidence", "inference_version"],
+      "properties": {
+        "sidequest_candidate_count": {"type": ["integer", "null"], "minimum": 0},
+        "sidequest_confidence": {"type": ["string", "null"]},
+        "sidequest_candidates": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+        "ending_candidate_count": {"type": ["integer", "null"], "minimum": 0},
+        "distinct_terminal_cluster_count": {"type": ["integer", "null"], "minimum": 0},
+        "ending_confidence": {"type": ["string", "null"]},
+        "ending_candidates": {"type": "array", "items": {"$ref": "#/$defs/candidate"}},
+        "estimated_hours_range": {"type": ["string", "null"]},
+        "grind_pressure": {"type": ["string", "null"]},
+        "inference_version": {"type": ["string", "null"]},
+        "evidence_summary": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "graph_report": {"type": ["string", "null"]},
+        "inference_report": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "audit": {
+      "type": "object",
+      "required": ["generated_at_utc", "feature_emitter_version", "schema_merge_version", "inference_version"],
+      "properties": {
+        "generated_at_utc": {"type": "string"},
+        "feature_emitter_version": {"type": "string"},
+        "base_feature_emitter_version": {"type": ["string", "null"]},
+        "graph_bridge_version": {"type": ["string", "null"]},
+        "pre_inference_feature_version": {"type": ["string", "null"]},
+        "schema_merge_version": {"const": "0.4.0"},
+        "inference_version": {"type": ["string", "null"]},
+        "github_run_id": {"type": ["string", "null"]},
+        "github_sha": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "candidate": {
+      "type": "object",
+      "required": ["candidate_id", "score", "confidence", "evidence_node_ids", "reason_codes"],
+      "properties": {
+        "candidate_id": {"type": ["string", "null"]},
+        "score": {"type": ["number", "null"]},
+        "confidence": {"type": ["string", "null"]},
+        "maps": {"type": ["array", "null"], "items": {"type": "integer"}},
+        "source_map_id": {"type": ["integer", "null"]},
+        "state_keys": {"type": ["array", "null"], "items": {"type": "string"}},
+        "signal_types": {"type": ["array", "null"], "items": {"type": "string"}},
+        "evidence_node_ids": {"type": ["array", "null"], "items": {"type": "string"}},
+        "reason_codes": {"type": ["array", "null"], "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

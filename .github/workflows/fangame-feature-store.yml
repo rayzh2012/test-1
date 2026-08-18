@@ -23,18 +23,24 @@ jobs:
       - name: Resolve source run
         id: source
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "run_id=${{ inputs.source_run_id }}" >> "$GITHUB_OUTPUT"
-            echo "head_sha=" >> "$GITHUB_OUTPUT"
+            run_id="${{ inputs.source_run_id }}"
+            head_sha=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.head_sha // ""')
           else
-            echo "run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
-            echo "head_sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            run_id="${{ github.event.workflow_run.id }}"
+            head_sha="${{ github.event.workflow_run.head_sha }}"
           fi
+          echo "run_id=${run_id}" >> "$GITHUB_OUTPUT"
+          echo "head_sha=${head_sha}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v5
+      - name: Checkout current normalization/inference tooling
+        uses: actions/checkout@v5
         with:
-          ref: ${{ steps.source.outputs.head_sha || github.ref }}
+          ref: master
 
       - name: Download metadata evidence contracts
         env:
@@ -64,7 +70,10 @@ jobs:
             echo "Downloaded ${artifact_name} -> ${dest}"
           done < /tmp/metadata.tsv
 
-      - name: Emit canonical feature records
+      - name: Emit canonical v0.4 feature records
+        env:
+          SOURCE_FETCH_RUN_ID: ${{ steps.source.outputs.run_id }}
+          SOURCE_FETCH_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -73,6 +82,7 @@ jobs:
             base=$(basename "$d")
             out="feature_records/${base}"
             mkdir -p "$out"
+
             args=(--fetch "$d/fetch_report.json" --out "$out/fangame_features.json")
             [ -f "$d/playability_static.json" ] && args+=(--static "$d/playability_static.json")
             [ -f "$d/playability_smoke.json" ] && args+=(--smoke "$d/playability_smoke.json")
@@ -81,28 +91,50 @@ jobs:
             [ -f "fangame_targets/${base}.json" ] && args+=(--target "fangame_targets/${base}.json")
             python3 tools/fangame_feature_emitter.py "${args[@]}"
 
-            merge_args=(--features "$out/fangame_features.json" --out "$out/fangame_features.json")
-            [ -f "$d/rpgmaker_graph.json" ] && merge_args+=(--graph "$d/rpgmaker_graph.json")
-            python3 tools/fangame_graph_feature_merge.py "${merge_args[@]}"
-            cp schemas/fangame_features_v03.schema.json "$out/fangame_features.schema.json"
+            graph_merge=(--features "$out/fangame_features.json" --out "$out/fangame_features.json")
+            if [ -f "$d/rpgmaker_graph.json" ]; then
+              cp "$d/rpgmaker_graph.json" "$out/rpgmaker_graph.json"
+              graph_merge+=(--graph "$out/rpgmaker_graph.json")
+            fi
+            python3 tools/fangame_graph_feature_merge.py "${graph_merge[@]}"
+
+            inference_merge=(--features "$out/fangame_features.json" --out "$out/fangame_features.json")
+            if [ -f "$out/rpgmaker_graph.json" ]; then
+              python3 tools/fangame_graph_inference.py --graph "$out/rpgmaker_graph.json" --out "$out/fangame_inference.json"
+              inference_merge+=(--inference "$out/fangame_inference.json")
+            fi
+            python3 tools/fangame_inference_feature_merge.py "${inference_merge[@]}"
+
+            python3 - "$out/fangame_features.json" <<'PY'
+          import json, os, pathlib, sys
+          p=pathlib.Path(sys.argv[1])
+          rec=json.loads(p.read_text(encoding='utf-8'))
+          audit=rec.setdefault('audit',{})
+          audit['source_fetch_run_id']=os.environ.get('SOURCE_FETCH_RUN_ID')
+          audit['source_fetch_head_sha']=os.environ.get('SOURCE_FETCH_HEAD_SHA') or None
+          p.write_text(json.dumps(rec,ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
+
+            cp schemas/fangame_features_v04.schema.json "$out/fangame_features.schema.json"
           done
 
-      - name: Validate v0.3 feature records
+      - name: Validate v0.4 feature records
         shell: bash
         run: |
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check --quiet jsonschema
           python3 - <<'PY'
           import json, pathlib, jsonschema
-          schema=json.loads(pathlib.Path('schemas/fangame_features_v03.schema.json').read_text(encoding='utf-8'))
+          schema=json.loads(pathlib.Path('schemas/fangame_features_v04.schema.json').read_text(encoding='utf-8'))
           files=list(pathlib.Path('feature_records').glob('*/fangame_features.json'))
           assert files, 'no canonical feature records'
           for f in files:
               rec=json.loads(f.read_text(encoding='utf-8'))
               jsonschema.validate(rec,schema)
-              assert rec['schema_version']=='fangame.features.v0.3'
-              assert 'graph' in rec
-          print(json.dumps({'records':len(files),'schema':'fangame.features.v0.3','validated':True}))
+              assert rec['schema_version']=='fangame.features.v0.4'
+              assert 'graph' in rec and 'inferred' in rec
+              assert rec['audit'].get('source_fetch_run_id')
+          print(json.dumps({'records':len(files),'schema':'fangame.features.v0.4','validated':True}))
           PY
 
       - name: Build analytical Feature Store assets
@@ -117,7 +149,11 @@ jobs:
           p=pathlib.Path('fangame_feature_store.csv')
           rows=list(csv.DictReader(p.open(encoding='utf-8-sig')))
           assert rows, 'feature store is empty'
-          required={'schema_version','identity.title','identity.archive_filename','graph.status','audit.feature_emitter_version'}
+          required={
+            'schema_version','identity.title','identity.archive_filename','graph.status',
+            'inferred.sidequest_candidate_count','inferred.ending_candidate_count',
+            'audit.source_fetch_run_id','audit.inference_version'
+          }
           missing=required-set(rows[0])
           assert not missing, f'missing required flattened columns: {missing}'
           print(json.dumps({'records':len(rows),'required_columns_ok':True},ensure_ascii=False))
@@ -130,6 +166,8 @@ jobs:
           path: |
             feature_records/**/fangame_features.json
             feature_records/**/fangame_features.schema.json
+            feature_records/**/rpgmaker_graph.json
+            feature_records/**/fangame_inference.json
             fangame_feature_store.ndjson
             fangame_feature_store.csv
           if-no-files-found: error

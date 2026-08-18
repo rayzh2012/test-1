@@ -1,0 +1,67 @@
+{
+  "graph_version": "rpgmaker.graph.v0.3",
+  "system": {"start_map_id": 1},
+  "maps": [
+    {"map_id": 1, "name": "Start"},
+    {"map_id": 2, "name": "Town"},
+    {"map_id": 3, "name": "Optional Cave"},
+    {"map_id": 4, "name": "Final"}
+  ],
+  "event_pages": [
+    {"node_id": "map:2:event:10:page:0", "map_id": 2, "event_id": 10, "page_index": 0, "dialogue_lines": 3, "conditions": {"switches": [], "variables": [], "self_switches": []}},
+    {"node_id": "map:3:event:20:page:0", "map_id": 3, "event_id": 20, "page_index": 0, "dialogue_lines": 4, "conditions": {"switches": [{"id": 5, "expected": true}], "variables": [], "self_switches": []}},
+    {"node_id": "map:4:event:30:page:0", "map_id": 4, "event_id": 30, "page_index": 0, "dialogue_lines": 2, "conditions": {"switches": [{"id": 9, "expected": true}], "variables": [], "self_switches": []}},
+    {"node_id": "map:4:event:30:page:1", "map_id": 4, "event_id": 30, "page_index": 1, "dialogue_lines": 2, "conditions": {"switches": [{"id": 10, "expected": true}], "variables": [], "self_switches": []}}
+  ],
+  "common_events": [],
+  "map_edges": [
+    {"node_id": "map:1:event:1:page:0", "source_map_id": 1, "target_mode": "direct", "target_map_id": 2},
+    {"node_id": "map:2:event:2:page:0", "source_map_id": 2, "target_mode": "direct", "target_map_id": 4},
+    {"node_id": "map:2:event:10:page:0", "source_map_id": 2, "target_mode": "direct", "target_map_id": 3},
+    {"node_id": "map:3:event:20:page:0", "source_map_id": 3, "target_mode": "direct", "target_map_id": 2}
+  ],
+  "state_reads": [
+    {"node_id": "map:3:event:20:page:0", "map_id": 3, "state_type": "switch", "state_id": 5, "reason": "page_condition"},
+    {"node_id": "map:2:event:10:page:0", "map_id": 2, "state_type": "switch", "state_id": 6, "reason": "conditional_branch"},
+    {"node_id": "map:4:event:30:page:0", "map_id": 4, "state_type": "switch", "state_id": 9, "reason": "page_condition"},
+    {"node_id": "map:4:event:30:page:1", "map_id": 4, "state_type": "switch", "state_id": 10, "reason": "page_condition"}
+  ],
+  "state_writes": [
+    {"node_id": "map:2:event:10:page:0", "map_id": 2, "state_type": "switch", "state_id": 5, "operation": 0, "reason": "control_switches"},
+    {"node_id": "map:3:event:20:page:0", "map_id": 3, "state_type": "switch", "state_id": 6, "operation": 0, "reason": "control_switches"}
+  ],
+  "common_event_edges": [],
+  "conditional_branches": [
+    {"node_id": "map:2:event:10:page:0", "map_id": 2}
+  ],
+  "choice_nodes": [
+    {"node_id": "map:2:event:10:page:0", "map_id": 2, "options": ["Help", "Ignore"]}
+  ],
+  "battle_nodes": [
+    {"node_id": "map:3:event:20:page:0", "map_id": 3}
+  ],
+  "shop_nodes": [],
+  "terminal_signals": [
+    {"node_id": "map:4:event:30:page:0", "map_id": 4, "type": "terminal_text_signal", "text": "ENDING A"},
+    {"node_id": "map:4:event:30:page:0", "map_id": 4, "type": "return_to_title"},
+    {"node_id": "map:4:event:30:page:1", "map_id": 4, "type": "terminal_text_signal", "text": "ENDING B"},
+    {"node_id": "map:4:event:30:page:1", "map_id": 4, "type": "return_to_title"},
+    {"node_id": "map:3:event:99:page:0", "map_id": 3, "type": "game_over"}
+  ],
+  "summary": {
+    "maps_loaded": 4,
+    "event_page_nodes": 4,
+    "direct_map_edges": 4,
+    "weak_component_count": 1,
+    "conditional_branch_nodes": 1,
+    "choice_nodes": 1,
+    "battle_call_nodes": 1,
+    "switch_read_ids": 4,
+    "switch_write_ids": 2,
+    "local_switch_ids": 4,
+    "shared_switch_ids": 0,
+    "terminal_signal_nodes": 5,
+    "start_map_id": 1,
+    "load_error_count": 0
+  }
+}
