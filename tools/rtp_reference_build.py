@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Build a hash-only RPG Maker RTP reference index from official downloads.
+"""Build a non-redistributive RPG Maker RTP reference index from official downloads.
 
-The RTP binaries/assets are temporary inputs only. This tool does NOT redistribute RTP
-content. It emits package provenance plus hashes/relative paths for reference matching.
+RTP binaries/assets are temporary inputs only. Output contains provenance, cryptographic
+hashes, paths and compact perceptual image signatures; no RTP binary content is stored.
 Official installer EXEs are unpacked, never executed.
 """
 import argparse, hashlib, json, shutil, subprocess, tempfile, urllib.request
 from pathlib import Path
+from PIL import Image
 
 ASSET_EXTS={'.png','.jpg','.jpeg','.bmp','.gif','.ogg','.mp3','.wav','.wma','.mid','.midi'}
+IMAGE_EXTS={'.png','.jpg','.jpeg','.bmp','.gif','.webp'}
 OFFICIAL={
  'vxace': {'engine':'RPG Maker VX Ace','url':'https://cdn.tkool.jp/updata/rtp/vxace_rtp100.zip','version':'1.00'},
  'vx': {'engine':'RPG Maker VX','url':'https://cdn.tkool.jp/updata/rtp/vx_rtp202.zip','version':'2.02'},
@@ -61,6 +63,26 @@ def recursive_extract(root, max_depth=2):
         if new==0: break
     return logs
 
+def asset_category(rel):
+    parts=[x.lower() for x in Path(rel).parts]
+    for root in ('graphics','audio'):
+        idxs=[i for i,x in enumerate(parts) if x==root]
+        if idxs:
+            i=idxs[-1]
+            return root + ('/'+parts[i+1] if i+1<len(parts) else '')
+    return 'other'
+
+def image_signature(p,hash_size=8):
+    with Image.open(p) as src:
+        width,height=src.size
+        im=src.convert('L').resize((hash_size+1,hash_size))
+        px=list(im.getdata()); bits=0
+        for y in range(hash_size):
+            row=y*(hash_size+1)
+            for x in range(hash_size):
+                bits=(bits<<1) | (1 if px[row+x] > px[row+x+1] else 0)
+        return {'width':width,'height':height,'dhash64':f'{bits:016x}'}
+
 def build(engine_key,out_path):
     src=OFFICIAL[engine_key]
     with tempfile.TemporaryDirectory(prefix='rtp-ref-') as td:
@@ -72,26 +94,32 @@ def build(engine_key,out_path):
         ok,outer_attempts=extract_one(pkg,ext)
         if not ok: raise RuntimeError('outer ZIP extract failed: '+json.dumps(outer_attempts))
         nested=recursive_extract(ext)
-        assets=[]
+        assets=[]; image_signature_errors=[]
         for p in ext.rglob('*'):
             if p.is_file() and p.suffix.lower() in ASSET_EXTS:
                 try:
                     rel=str(p.relative_to(ext)).replace('\\','/')
-                    assets.append({'relative_path':rel,'bytes':p.stat().st_size,'sha256':sha256_file(p),'ext':p.suffix.lower()})
+                    row={'relative_path':rel,'bytes':p.stat().st_size,'sha256':sha256_file(p),'ext':p.suffix.lower(),'asset_category':asset_category(rel)}
+                    if p.suffix.lower() in IMAGE_EXTS:
+                        try: row.update(image_signature(p))
+                        except Exception as e: image_signature_errors.append({'relative_path':rel,'error':type(e).__name__})
+                    assets.append(row)
                 except OSError: pass
         hashes={}
         for a in assets: hashes.setdefault(a['sha256'],[]).append(a['relative_path'])
+        image_sigs=sum(1 for a in assets if a.get('dhash64'))
         out={
-          'schema':'rpgmaker-rtp-reference-v1',
+          'schema':'rpgmaker-rtp-reference-v2',
           'engine_key':engine_key,'engine':src['engine'],'rtp_version':src['version'],
           'official_url':src['url'],'official_terms_url':'https://rpgmakerofficial.com/support/rtp/',
           'package_bytes':pkg_size,'package_sha256':pkg_hash,
-          'asset_files':len(assets),'unique_asset_hashes':len(hashes),
+          'asset_files':len(assets),'unique_asset_hashes':len(hashes),'image_perceptual_signatures':image_sigs,
+          'image_signature_errors':image_signature_errors,
           'assets':assets,'outer_extract_attempts':outer_attempts,'nested_extract_log':nested,
-          'redistribution_policy':'HASH_ONLY_OUTPUT; RTP binary/assets are temporary and are not stored or redistributed.'
+          'redistribution_policy':'FINGERPRINT_ONLY_OUTPUT; RTP binary/assets are temporary and are not stored or redistributed.'
         }
         Path(out_path).write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8')
-        print(json.dumps({k:out[k] for k in ['engine','rtp_version','package_bytes','package_sha256','asset_files','unique_asset_hashes']},ensure_ascii=False,indent=2))
+        print(json.dumps({k:out[k] for k in ['engine','rtp_version','package_bytes','package_sha256','asset_files','unique_asset_hashes','image_perceptual_signatures']},ensure_ascii=False,indent=2))
 
 if __name__=='__main__':
     ap=argparse.ArgumentParser(); ap.add_argument('engine',choices=OFFICIAL); ap.add_argument('--out',required=True)
