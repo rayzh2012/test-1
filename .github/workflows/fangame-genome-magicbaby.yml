@@ -1,0 +1,123 @@
+name: Fangame Genome Magic Baby
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - '.github/workflows/fangame-genome-magicbaby.yml'
+      - 'tools/rpgmaker_marshal_lib.rb'
+      - 'tools/rpgmaker_dialogue_extract.rb'
+      - 'tools/rpgmaker_map_graph.rb'
+      - 'tools/rpgmaker_graph_normalize.py'
+      - 'tools/fangame_asset_fingerprint.py'
+      - 'tools/fangame_perceptual_hash.py'
+      - 'tools/fangame_quest_ending_infer.py'
+  workflow_dispatch:
+
+jobs:
+  genome-benchmark-magicbaby:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install archive tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools ruby
+          python3 -m pip install pillow
+      - name: Fetch benchmark package
+        run: |
+          rm -rf out genome_work && mkdir -p out
+          python3 tools/fangame_fetcher.py fangame_targets/magic_baby_120.json -o out
+      - name: Extract and identify game root
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('out/fetch_report.json'))['file'])
+          PY
+          )
+          python3 tools/fangame_inspect.py "out/$game" --workdir genome_work --out out/playability_static.json
+          python3 - <<'PY' > out/game_root.txt
+          import json, pathlib
+          st=json.load(open('out/playability_static.json'))
+          print((pathlib.Path('genome_work/extract')/st['game_root']).resolve())
+          PY
+      - name: Extract dialogue corpus
+        run: ruby tools/rpgmaker_dialogue_extract.rb "$(cat out/game_root.txt)" --out out/dialogue_corpus.json
+      - name: Export map and state graph
+        run: ruby tools/rpgmaker_map_graph.rb "$(cat out/game_root.txt)" --out out/map_graph.json
+      - name: Normalize map topology
+        run: python3 tools/rpgmaker_graph_normalize.py out/map_graph.json --out out/map_graph_normalized.json
+      - name: Fingerprint assets
+        run: python3 tools/fangame_asset_fingerprint.py "$(cat out/game_root.txt)" --out out/asset_fingerprint.json
+      - name: Mine perceptual image similarity
+        run: python3 tools/fangame_perceptual_hash.py "$(cat out/game_root.txt)" --threshold 6 --out out/perceptual_hash.json
+      - name: Infer quest and ending candidates
+        run: python3 tools/fangame_quest_ending_infer.py out/map_graph.json out/dialogue_corpus.json out/map_graph_normalized.json --out out/quest_ending_candidates.json
+      - name: Build genome summary
+        run: |
+          python3 - <<'PY'
+          import json
+          st=json.load(open('out/playability_static.json'))
+          d=json.load(open('out/dialogue_corpus.json'))['summary']
+          g=json.load(open('out/map_graph.json'))['summary']
+          gn=json.load(open('out/map_graph_normalized.json'))['summary']
+          a=json.load(open('out/asset_fingerprint.json'))['summary']
+          ph=json.load(open('out/perceptual_hash.json'))['summary']
+          qe=json.load(open('out/quest_ending_candidates.json'))['summary']
+          m=st.get('marshal_content') or {}
+          maps=max(1,g.get('map_nodes',0))
+          summary={
+            'schema':'fangame-genome-v0.5',
+            'title':'魔力宝贝单机版 1.20 解密版',
+            'engine':st.get('engine'),
+            'maps':g.get('map_nodes'),
+            'dialogue_blocks':d.get('dialogue_blocks'),
+            'dialogue_chars':d.get('dialogue_chars'),
+            'dialogue_density_chars_per_map':round(d.get('dialogue_chars',0)/maps,2),
+            'unique_dialogue_blocks':d.get('unique_dialogue_blocks'),
+            'duplicate_dialogue_blocks':d.get('duplicate_dialogue_blocks'),
+            'raw_transfer_commands':g.get('transfer_edges'),
+            'raw_branching_maps':g.get('branching_maps'),
+            'unique_directed_edges':gn.get('unique_directed_edges'),
+            'normalized_undirected_edges':gn.get('normalized_undirected_edges'),
+            'normalized_branching_maps_degree_ge_3':gn.get('normalized_branching_maps_degree_ge_3'),
+            'normalized_leaf_maps_degree_1':gn.get('normalized_leaf_maps_degree_1'),
+            'connected_component_count':gn.get('connected_component_count'),
+            'largest_component_size':gn.get('largest_component_size'),
+            'switch_ids_read':g.get('switch_ids_read'),
+            'switch_ids_written':g.get('switch_ids_written'),
+            'variable_ids_read':g.get('variable_ids_read'),
+            'variable_ids_written':g.get('variable_ids_written'),
+            'asset_files':a.get('asset_files'),
+            'unique_asset_hashes':a.get('unique_content_hashes'),
+            'exact_reuse_ratio':a.get('exact_reuse_ratio'),
+            'perceptual_image_files':ph.get('image_files'),
+            'near_duplicate_pairs':ph.get('near_duplicate_pairs'),
+            'near_duplicate_clusters':ph.get('near_duplicate_clusters'),
+            'perceptual_cluster_member_files':ph.get('cluster_member_files'),
+            'quest_candidate_events':qe.get('quest_candidate_events'),
+            'ending_candidate_events':qe.get('ending_candidate_events'),
+            'battle_calls':m.get('battle_calls'),
+            'shops':m.get('shop_calls'),
+            'choices':m.get('choice_options'),
+            'note':'Observed/derived features. Quest/ending counts are heuristic candidates only.'
+          }
+          json.dump(summary,open('out/genome_summary.json','w'),ensure_ascii=False,indent=2)
+          print(json.dumps(summary,ensure_ascii=False,indent=2))
+          PY
+      - name: Upload genome evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: magic-baby-120-genome-v05
+          path: |
+            out/playability_static.json
+            out/dialogue_corpus.json
+            out/map_graph.json
+            out/map_graph_normalized.json
+            out/asset_fingerprint.json
+            out/perceptual_hash.json
+            out/quest_ending_candidates.json
+            out/genome_summary.json
+          retention-days: 14
+          compression-level: 6
