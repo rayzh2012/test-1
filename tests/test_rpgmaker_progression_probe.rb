@@ -76,7 +76,7 @@ Dir.mktmpdir('rpgmaker-progression-fixture') do |td|
     nil,obj(RPG::Class,exp_basis:300,exp_inflation:35)
   ])
   dump(File.join(data,'Actors.rvdata'),[
-    nil,obj(RPG::Actor,initial_level:1,final_level:99)
+    nil,obj(RPG::Actor,initial_level:1,final_level:99,exp_basis:500,exp_inflation:45)
   ])
   dump(File.join(data,'CommonEvents.rvdata'),[
     nil,obj(RPG::CommonEvent,id:1,list:[cmd(315,[0,1,0,0,50])])
@@ -98,6 +98,11 @@ Dir.mktmpdir('rpgmaker-progression-fixture') do |td|
   assert(o['enemy_gold_stats']['median']==30.0,'enemy gold median')
   assert(o['equipment_price_stats']['median']==400.0,'equipment median price')
   assert(o['class_exp_basis_stats']['median']==300.0,'class exp basis')
+  assert(o['actor_exp_basis_stats']['median']==500.0,'actor exp basis')
+  assert(o['progression_exp_basis_stats']['median']==400.0,'combined progression exp basis')
+  assert(o['class_exp_inflation_stats']['median']==35.0,'class exp inflation')
+  assert(o['actor_exp_inflation_stats']['median']==45.0,'actor exp inflation')
+  assert(o['progression_exp_inflation_stats']['median']==40.0,'combined progression exp inflation')
   assert(o['actor_initial_level_stats']['median']==1.0,'initial level')
   assert(o['actor_final_level_stats']['median']==99.0,'final level')
 
@@ -111,7 +116,8 @@ Dir.mktmpdir('rpgmaker-progression-fixture') do |td|
   assert(c['transfer_ops']==1,'transfer')
 
   assert((d['median_equipment_price_to_enemy_gold_ratio']-(400.0/30.0)).abs<1e-9,'economy proxy')
-  assert((d['median_class_exp_basis_to_enemy_exp_ratio']-4.0).abs<1e-9,'progression proxy')
+  assert((d['median_class_exp_basis_to_enemy_exp_ratio']-4.0).abs<1e-9,'class progression proxy')
+  assert((d['median_progression_exp_basis_to_enemy_exp_ratio']-(400.0/75.0)).abs<1e-9,'combined progression proxy')
   assert(g['load_errors'].empty?,'load errors')
 
   puts JSON.pretty_generate({'status'=>'PASS','observed'=>o,'derived'=>d})
