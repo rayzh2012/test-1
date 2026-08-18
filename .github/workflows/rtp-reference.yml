@@ -1,0 +1,71 @@
+name: RTP Reference Corpus
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'tools/rtp_reference_build.py'
+      - 'tools/fangame_asset_reference_match.py'
+      - '.github/workflows/rtp-reference.yml'
+  workflow_dispatch:
+
+jobs:
+  vx-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install extractors
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full unar libarchive-tools innoextract
+      - name: Build VX hash-only reference
+        run: |
+          mkdir -p out
+          python3 tools/rtp_reference_build.py vx --out out/rtp_vx_reference.json
+      - name: Validate hash-only output
+        run: |
+          python3 - <<'PY'
+          import json
+          x=json.load(open('out/rtp_vx_reference.json'))
+          assert x['engine']=='RPG Maker VX'
+          assert x['package_bytes']>1000000
+          assert len(x['package_sha256'])==64
+          assert x['asset_files']>0 and x['unique_asset_hashes']>0, x
+          assert all('sha256' in a and 'relative_path' in a for a in x['assets'])
+          assert 'binary' not in x and 'payload' not in x
+          print({k:x[k] for k in ['package_bytes','package_sha256','asset_files','unique_asset_hashes']})
+          PY
+      - name: Fetch benchmark game
+        run: python3 tools/fangame_fetcher.py fangame_targets/nulong_zhanji3_v30.json -o out/game
+      - name: Extract benchmark game
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('out/game/fetch_report.json'))['file'])
+          PY
+          )
+          python3 tools/fangame_inspect.py "out/game/$game" --workdir out/game_work --out out/game_static.json
+          python3 - <<'PY' > out/game_root.txt
+          import json, pathlib
+          st=json.load(open('out/game_static.json'))
+          print((pathlib.Path('out/game_work/extract')/st['game_root']).resolve())
+          PY
+      - name: Fingerprint and match benchmark assets
+        run: |
+          python3 tools/fangame_asset_fingerprint.py "$(cat out/game_root.txt)" --out out/game_assets.json
+          python3 tools/fangame_asset_reference_match.py out/game_assets.json out/rtp_vx_reference.json --out out/game_rtp_match.json
+          python3 - <<'PY'
+          import json
+          s=json.load(open('out/game_rtp_match.json'))['summary']
+          assert s['game_asset_files']>0
+          assert s['exact_reference_match_files']>0, s
+          print(json.dumps(s,ensure_ascii=False,indent=2))
+          PY
+      - name: Upload hash-only evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtp-vx-hash-reference-v1
+          path: |
+            out/rtp_vx_reference.json
+            out/game_rtp_match.json
+          retention-days: 14
+          compression-level: 9
