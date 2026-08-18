@@ -8,6 +8,7 @@ DATA_PATTERNS = {
     'RPG Maker VX Ace': ('*.rvdata2', 'Map*.rvdata2'),
     'RPG Maker 2000/2003': ('*.ldb', 'Map*.lmu'),
 }
+REAL_MAP_RE = re.compile(r'^Map\d+\.(?:rxdata|rvdata|rvdata2|lmu|json)$', re.I)
 
 def extract_archive(src: Path, dst: Path):
     attempts=[]; candidates=[]
@@ -61,6 +62,7 @@ def detect_engine(root: Path):
     return 'UNKNOWN',lib
 
 def files_matching(root: Path, pattern: str): return [p for p in root.rglob(pattern) if p.is_file()]
+def real_map_files(paths): return [p for p in paths if REAL_MAP_RE.fullmatch(p.name)]
 
 def count_assets(root: Path):
     exts_img={'.png','.jpg','.jpeg','.bmp','.gif','.webp'}; exts_audio={'.ogg','.mp3','.wav','.wma','.mid','.midi','.m4a','.opus'}
@@ -132,12 +134,12 @@ def main():
         result.update({'engine':'UNKNOWN','playability_structural':'FAILED_EXTRACT'}); Path(args.out).write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8'); return 2
     root,root_score=find_game_root(work/'extract'); engine,lib=detect_engine(root); pattern=DATA_PATTERNS.get(engine); data_files=[]; map_files=[]
     if pattern:
-        data_files=files_matching(root,pattern[0]); map_files=files_matching(root,pattern[1])
+        data_files=files_matching(root,pattern[0]); map_files=real_map_files(files_matching(root,pattern[1]))
     elif engine.startswith('RPG Maker MV'):
-        d=(root/'www'/'data') if (root/'www'/'data').exists() else (root/'data'); data_files=list(d.glob('*.json')) if d.exists() else []; map_files=list(d.glob('Map*.json')) if d.exists() else []
+        d=(root/'www'/'data') if (root/'www'/'data').exists() else (root/'data'); data_files=list(d.glob('*.json')) if d.exists() else []; map_files=real_map_files(list(d.glob('Map*.json'))) if d.exists() else []
     map_bytes=sum(p.stat().st_size for p in map_files); data_bytes=sum(p.stat().st_size for p in data_files); img,img_b,aud,aud_b=count_assets(root); chars,cjk,words=literal_text_chars(root)
     encrypted=any((root/n).exists() for n in ('Game.rgssad','Game.rgss2a','Game.rgss3a')); clean_launcher=(root/'Game.exe').exists() or (root/'RPG_RT.exe').exists()
-    result.update({'game_root':str(root.relative_to(work/'extract')) if root != work/'extract' else '.','root_score':root_score,'engine':engine,'rgss_library':lib,'clean_launcher_present':clean_launcher,'encrypted_game_archive':encrypted,'map_count':len(map_files),'map_data_bytes':map_bytes,'data_file_count':len(data_files),'data_bytes':data_bytes,'image_count':img,'image_bytes':img_b,'audio_count':aud,'audio_bytes':aud_b,'literal_text_chars':chars,'literal_cjk_chars':cjk,'literal_latin_words':words,'content_scale':scale_label(len(map_files),map_bytes,img+aud),'text_note':'Plain-text counts are exact only for text formats. For unencrypted XP/VX/VX Ace, marshal_content adds direct event/dialogue/database metrics. Graph evidence is emitted separately when an inspectable Data directory exists. Encrypted archives remain opaque until runtime/decryption.','playability_structural':'STRUCTURAL_OK' if root_score>=8 and (clean_launcher or engine!='UNKNOWN') else 'STRUCTURAL_WEAK'})
+    result.update({'game_root':str(root.relative_to(work/'extract')) if root != work/'extract' else '.','root_score':root_score,'engine':engine,'rgss_library':lib,'clean_launcher_present':clean_launcher,'encrypted_game_archive':encrypted,'map_count':len(map_files),'map_data_bytes':map_bytes,'data_file_count':len(data_files),'data_bytes':data_bytes,'image_count':img,'image_bytes':img_b,'audio_count':aud,'audio_bytes':aud_b,'literal_text_chars':chars,'literal_cjk_chars':cjk,'literal_latin_words':words,'content_scale':scale_label(len(map_files),map_bytes,img+aud),'text_note':'Plain-text counts are exact only for text formats. Map counts accept only numeric Map<id> data files, excluding metadata such as MapInfos. For unencrypted XP/VX/VX Ace, marshal_content adds direct event/dialogue/database metrics. Graph evidence is emitted separately when an inspectable Data directory exists. Encrypted archives remain opaque until runtime/decryption.','playability_structural':'STRUCTURAL_OK' if root_score>=8 and (clean_launcher or engine!='UNKNOWN') else 'STRUCTURAL_WEAK'})
     mp=marshal_probe(root,work,engine)
     if mp is not None:
         result['marshal_content']=mp
