@@ -53,10 +53,11 @@ jobs:
           cabextract -q -d work/longjing_extract work/longjing_payload.cab
           test -f work/longjing_extract/Data/Scripts.rvdata2
           test -f work/longjing_extract/Game.ini
-          maps=$(find work/longjing_extract/Data -maxdepth 1 -type f -name 'Map*.rvdata2' | wc -l)
+          maps=$(find work/longjing_extract/Data -maxdepth 1 -type f -regextype posix-extended -regex '.*/Map[0-9]+\.rvdata2' | wc -l)
           files=$(find work/longjing_extract -type f | wc -l)
-          echo "maps=$maps files=$files"
+          echo "numeric_maps=$maps files=$files"
           test "$maps" -eq 199
+          test "$files" -eq 845
           (cd work/longjing_extract && zip -qr ../longjing_payload.zip .)
 
       - name: Run Dragon Crystal through reusable Genome
