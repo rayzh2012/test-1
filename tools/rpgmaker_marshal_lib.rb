@@ -57,7 +57,23 @@ end
 
 def utf8(v)
   return '' if v.nil?
-  v.to_s.encode('UTF-8',invalid: :replace,undef: :replace,replace: '')
+  s=v.to_s.dup
+  # Marshal strings from Chinese RPG Maker projects are often ASCII-8BIT bytes
+  # carrying a legacy Windows code page. Prefer a valid declared UTF-8 string,
+  # then try common East Asian encodings deterministically.
+  u=s.dup.force_encoding(Encoding::UTF_8)
+  return u if u.valid_encoding?
+  ['GB18030','Big5','Windows-31J','Shift_JIS'].each do |enc_name|
+    begin
+      enc=Encoding.find(enc_name)
+      candidate=s.dup.force_encoding(enc)
+      next unless candidate.valid_encoding?
+      return candidate.encode(Encoding::UTF_8)
+    rescue Encoding::ConverterNotFoundError, Encoding::InvalidByteSequenceError, Encoding::UndefinedConversionError
+      next
+    end
+  end
+  s.force_encoding(Encoding::BINARY).encode(Encoding::UTF_8,invalid: :replace,undef: :replace,replace: '�')
 rescue
   v.to_s
 end
