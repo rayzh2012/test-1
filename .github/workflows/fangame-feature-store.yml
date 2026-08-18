@@ -80,8 +80,30 @@ jobs:
             [ -f "$d/SHA256.txt" ] && args+=(--sha256 "$d/SHA256.txt")
             [ -f "fangame_targets/${base}.json" ] && args+=(--target "fangame_targets/${base}.json")
             python3 tools/fangame_feature_emitter.py "${args[@]}"
-            cp schemas/fangame_features.schema.json "$out/"
+
+            merge_args=(--features "$out/fangame_features.json" --out "$out/fangame_features.json")
+            [ -f "$d/rpgmaker_graph.json" ] && merge_args+=(--graph "$d/rpgmaker_graph.json")
+            python3 tools/fangame_graph_feature_merge.py "${merge_args[@]}"
+            cp schemas/fangame_features_v03.schema.json "$out/fangame_features.schema.json"
           done
+
+      - name: Validate v0.3 feature records
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --quiet jsonschema
+          python3 - <<'PY'
+          import json, pathlib, jsonschema
+          schema=json.loads(pathlib.Path('schemas/fangame_features_v03.schema.json').read_text(encoding='utf-8'))
+          files=list(pathlib.Path('feature_records').glob('*/fangame_features.json'))
+          assert files, 'no canonical feature records'
+          for f in files:
+              rec=json.loads(f.read_text(encoding='utf-8'))
+              jsonschema.validate(rec,schema)
+              assert rec['schema_version']=='fangame.features.v0.3'
+              assert 'graph' in rec
+          print(json.dumps({'records':len(files),'schema':'fangame.features.v0.3','validated':True}))
+          PY
 
       - name: Build analytical Feature Store assets
         shell: bash
@@ -95,7 +117,7 @@ jobs:
           p=pathlib.Path('fangame_feature_store.csv')
           rows=list(csv.DictReader(p.open(encoding='utf-8-sig')))
           assert rows, 'feature store is empty'
-          required={'schema_version','identity.title','identity.archive_filename','audit.feature_emitter_version'}
+          required={'schema_version','identity.title','identity.archive_filename','graph.status','audit.feature_emitter_version'}
           missing=required-set(rows[0])
           assert not missing, f'missing required flattened columns: {missing}'
           print(json.dumps({'records':len(rows),'required_columns_ok':True},ensure_ascii=False))
