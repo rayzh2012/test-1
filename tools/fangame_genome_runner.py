@@ -23,24 +23,24 @@ def main():
     ap.add_argument('--perceptual-threshold',type=int,default=6)
     ap.add_argument('--skip-perceptual',action='store_true')
     a=ap.parse_args()
-    out=Path(a.outdir).resolve(); work=Path(a.workdir).resolve()
+    out=Path(a.outdir).resolve(); work=Path(a.workdir).resolve(); fetch_dir=work/'fetch'
     shutil.rmtree(out,ignore_errors=True); shutil.rmtree(work,ignore_errors=True)
-    out.mkdir(parents=True); work.mkdir(parents=True)
+    out.mkdir(parents=True); work.mkdir(parents=True); fetch_dir.mkdir(parents=True)
     audit=[]
 
     if a.target_json:
-        s=run([sys.executable,str(ROOT/'tools/fangame_fetcher.py'),a.target_json,'-o',str(out)])
+        s=run([sys.executable,str(ROOT/'tools/fangame_fetcher.py'),a.target_json,'-o',str(fetch_dir)])
         audit.append({'stage':'fetch',**s}); require(s,'fetch')
-        report=json.loads((out/'fetch_report.json').read_text(encoding='utf-8'))
-        package=out/report['file']
+        report=json.loads((fetch_dir/'fetch_report.json').read_text(encoding='utf-8'))
+        package=fetch_dir/report['file']
     else:
         package=Path(a.package).resolve()
 
     static=out/'playability_static.json'
-    s=run([sys.executable,str(ROOT/'tools/fangame_inspect.py'),str(package),'--workdir',str(work),'--out',str(static)])
+    s=run([sys.executable,str(ROOT/'tools/fangame_inspect.py'),str(package),'--workdir',str(work/'inspect'),'--out',str(static)])
     audit.append({'stage':'inspect',**s}); require(s,'inspect')
     st=json.loads(static.read_text(encoding='utf-8'))
-    game_root=(work/'extract'/st['game_root']).resolve()
+    game_root=(work/'inspect'/'extract'/st['game_root']).resolve()
 
     stages=[
       ('dialogue',['ruby',str(ROOT/'tools/rpgmaker_dialogue_extract.rb'),str(game_root),'--out',str(out/'dialogue_corpus.json')]),
@@ -66,7 +66,7 @@ def main():
     ph=json.loads((out/'perceptual_hash.json').read_text(encoding='utf-8'))['summary'] if (out/'perceptual_hash.json').exists() else {}
     m=st.get('marshal_content') or {}; maps=max(1,g.get('map_nodes',0) or 0)
     summary={
-      'schema':'fangame-genome-runner-v1','engine':st.get('engine'),'game_root':st.get('game_root'),
+      'schema':'fangame-genome-runner-v1.1','engine':st.get('engine'),'game_root':st.get('game_root'),
       'maps':g.get('map_nodes'),'dialogue_blocks':d.get('dialogue_blocks'),'dialogue_chars':d.get('dialogue_chars'),
       'dialogue_density_chars_per_map':round(d.get('dialogue_chars',0)/maps,2),
       'raw_transfer_commands':g.get('transfer_edges'),'normalized_undirected_edges':gn.get('normalized_undirected_edges'),
@@ -77,7 +77,7 @@ def main():
       'battle_calls':m.get('battle_calls'),'shops':m.get('shop_calls'),'choices':m.get('choice_options'),
       'total_pipeline_wall_time_sec':round(sum(x['wall_time_sec'] for x in audit),3),
       'stage_wall_time_sec':{x['stage']:x['wall_time_sec'] for x in audit},
-      'note':'Reusable runner. Inferred quest/ending counts are candidates, not official counts; pipeline time is measured as evaluation cost.'
+      'note':'Reusable runner. Fetch/cache payload stays outside evidence outdir. Inferred quest/ending counts are candidates, not official counts; pipeline time is measured as evaluation cost.'
     }
     (out/'genome_summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     (out/'genome_audit.json').write_text(json.dumps({'schema':'fangame-genome-audit-v1','stages':audit},ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
