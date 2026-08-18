@@ -41,13 +41,13 @@ def extract_links(base, text, terms=None):
     ]
     for p in js_patterns:
         for val in re.findall(p,text,re.I): found.append((val,'','js'))
-    for p in (r'src=["\']([^"\']+)["\']',r'https?://[^\s"\'<>]+'):
+    for p in (r'src=["\']([^"\']+)["\']',r'(?:https?|ftp)://[^\s"\'<>]+'):
         for m in re.findall(p,text,re.I):
             if isinstance(m,tuple): m=m[0]
             found.append((m,'','raw'))
     for val in re.findall(r'["\']([^"\']{3,500})["\']',text):
         lv=val.lower()
-        if any(x in lv for x in ('download','downurl','down.php','fileurl','getfile','.rar','.zip','.7z','.exe')):
+        if any(x in lv for x in ('download','downurl','down.php','fileurl','getfile','.rar','.zip','.7z','.exe','ftp://')):
             found.append((val,'','quoted'))
     scored=[]; emitted=set()
     for raw,label,kind in found:
@@ -92,6 +92,11 @@ def fetch_http(session,url,outdir,min_mb,report,link_terms=None,max_mb=None,prob
         u=q.pop(0)
         if u in seen: continue
         seen.add(u)
+        if u.lower().startswith('ftp://'):
+            report['attempts'].append({'url':u,'dispatch':'ftp_transport_from_discovered_link'})
+            got=fetch_ftp(u,outdir,min_mb,report,max_mb)
+            if got: return got
+            continue
         try:
             r=session.get(u,timeout=45,allow_redirects=True,stream=True)
             ct=(r.headers.get('content-type') or '').lower()
