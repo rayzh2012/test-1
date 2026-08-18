@@ -219,6 +219,10 @@ armor_prices=positive_field(armors,:@price)
 equipment_prices=weapon_prices+armor_prices
 class_exp_basis=positive_field(classes,:@exp_basis)
 class_exp_inflation=positive_field(classes,:@exp_inflation)
+actor_exp_basis=positive_field(actors,:@exp_basis)
+actor_exp_inflation=positive_field(actors,:@exp_inflation)
+progression_exp_basis=class_exp_basis+actor_exp_basis
+progression_exp_inflation=class_exp_inflation+actor_exp_inflation
 actor_initial_levels=positive_field(actors,:@initial_level)
 actor_final_levels=positive_field(actors,:@final_level)
 
@@ -228,8 +232,10 @@ median_enemy_gold=stats(enemy_gold)['median']
 median_equip=stats(equipment_prices)['median']
 price_gold_ratio=(median_enemy_gold && median_enemy_gold>0 && median_equip) ? median_equip/median_enemy_gold : nil
 median_enemy_exp=stats(enemy_exp)['median']
-median_exp_basis=stats(class_exp_basis)['median']
-exp_basis_ratio=(median_enemy_exp && median_enemy_exp>0 && median_exp_basis) ? median_exp_basis/median_enemy_exp : nil
+median_class_exp_basis=stats(class_exp_basis)['median']
+class_exp_basis_ratio=(median_enemy_exp && median_enemy_exp>0 && median_class_exp_basis) ? median_class_exp_basis/median_enemy_exp : nil
+median_progression_exp_basis=stats(progression_exp_basis)['median']
+progression_exp_basis_ratio=(median_enemy_exp && median_enemy_exp>0 && median_progression_exp_basis) ? median_progression_exp_basis/median_enemy_exp : nil
 
 out={
   'evidence_version'=>EVIDENCE_VERSION,
@@ -249,6 +255,10 @@ out={
     'equipment_price_stats'=>stats(equipment_prices),
     'class_exp_basis_stats'=>stats(class_exp_basis),
     'class_exp_inflation_stats'=>stats(class_exp_inflation),
+    'actor_exp_basis_stats'=>stats(actor_exp_basis),
+    'actor_exp_inflation_stats'=>stats(actor_exp_inflation),
+    'progression_exp_basis_stats'=>stats(progression_exp_basis),
+    'progression_exp_inflation_stats'=>stats(progression_exp_inflation),
     'actor_initial_level_stats'=>stats(actor_initial_levels),
     'actor_final_level_stats'=>stats(actor_final_levels),
     'event_commands'=>command_summary,
@@ -256,12 +266,14 @@ out={
   },
   'derived'=>{
     'median_equipment_price_to_enemy_gold_ratio'=>price_gold_ratio,
-    'median_class_exp_basis_to_enemy_exp_ratio'=>exp_basis_ratio
+    'median_class_exp_basis_to_enemy_exp_ratio'=>class_exp_basis_ratio,
+    'median_progression_exp_basis_to_enemy_exp_ratio'=>progression_exp_basis_ratio
   },
   'limitations'=>[
     'Enemy EXP/Gold are per database enemy, not per actual troop encounter.',
     'Equipment price / enemy gold ratio is an economy proxy, not fights-to-buy.',
-    'Class exp_basis / enemy EXP ratio is a progression proxy, not battles-to-level.',
+    'EXP basis/inflation fields are preserved from both Class and Actor records because RPG Maker generations and scripts may place progression data differently.',
+    'Progression EXP-basis / enemy-EXP ratio is a coarse proxy, not battles-to-level.',
     'Encounter step semantics vary by engine and scripts; values are preserved as evidence, not converted directly into grind scores.',
     'Custom scripts can override default economy, encounters, EXP curves, recovery, and rewards.'
   ],
