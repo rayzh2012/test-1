@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+import argparse, json, os, shutil, subprocess, time
+from pathlib import Path
+
+
+def run(cmd, env=None, cwd=None, timeout=30):
+    try:
+        p=subprocess.run(cmd,env=env,cwd=cwd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=timeout)
+        return p.returncode,p.stdout[-6000:]
+    except Exception as e:
+        return 999,repr(e)
+
+def ensure_wine32(notes):
+    if not shutil.which('wine') or not shutil.which('dpkg') or not shutil.which('sudo'): return False
+    _,out=run(['dpkg','--print-foreign-architectures'],timeout=10)
+    if 'i386' not in out.split():
+        rc,log=run(['sudo','dpkg','--add-architecture','i386'],timeout=30); notes.append(f'wine32 add-architecture rc={rc}')
+        if rc != 0: notes.append(log[-1200:]); return False
+    rc,_=run(['dpkg-query','-W','-f=${Status}','wine32:i386'],timeout=10)
+    if rc == 0: return True
+    rc,log=run(['sudo','apt-get','update'],timeout=180); notes.append(f'wine32 apt-update rc={rc}')
+    if rc != 0: notes.append(log[-1200:]); return False
+    rc,log=run(['sudo','apt-get','install','-y','wine32:i386'],timeout=300); notes.append(f'wine32 install rc={rc}')
+    if rc != 0: notes.append(log[-2000:]); return False
+    return True
+
+def ensure_virtual_audio(notes):
+    if not shutil.which('pulseaudio') or not shutil.which('pactl'):
+        if not shutil.which('sudo'): return False,None
+        rc,log=run(['sudo','apt-get','install','-y','pulseaudio','pulseaudio-utils'],timeout=240)
+        notes.append(f'pulseaudio install rc={rc}')
+        if rc != 0: notes.append(log[-1500:]); return False,None
+    runtime=Path('/tmp/fangame-pulse-runtime'); runtime.mkdir(parents=True,exist_ok=True)
+    try: runtime.chmod(0o700)
+    except Exception: pass
+    env=os.environ.copy(); env['XDG_RUNTIME_DIR']=str(runtime)
+    subprocess.run(['pulseaudio','-k'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=10,check=False)
+    try:
+        # Do not capture daemon stderr through a pipe: a background daemon can keep that pipe open.
+        p=subprocess.run(['pulseaudio','--start','--exit-idle-time=-1'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=30,check=False)
+        notes.append(f'pulseaudio start rc={p.returncode}')
+    except Exception as e:
+        notes.append('pulseaudio start error: '+repr(e)); return False,None
+    time.sleep(1)
+    rc,info=run(['pactl','info'],env=env,timeout=10)
+    if rc != 0:
+        notes.append('pactl info failed: '+info[-1200:]); return False,None
+    rc,_=run(['pactl','load-module','module-null-sink','sink_name=fangame_ci','sink_properties=device.description=FangameCI'],env=env,timeout=10)
+    notes.append(f'null-sink load rc={rc}')
+    rc,setlog=run(['pactl','set-default-sink','fangame_ci'],env=env,timeout=10)
+    if rc != 0:
+        notes.append('set-default-sink failed: '+setlog[-1000:]); return False,None
+    server=None
+    for line in info.splitlines():
+        if line.lower().startswith('server string:'):
+            server=line.split(':',1)[1].strip(); break
+    notes.append('virtual audio ready')
+    return True,{'XDG_RUNTIME_DIR':str(runtime), **({'PULSE_SERVER':server} if server else {})}
+
+def screenshot(env, path):
+    if shutil.which('scrot'):
+        rc,log=run(['scrot','-o',str(path)],env=env,timeout=10); return rc==0 and path.exists(),log
+    if shutil.which('import'):
+        rc,log=run(['import','-window','root',str(path)],env=env,timeout=10); return rc==0 and path.exists(),log
+    return False,'no screenshot tool'
+
+def diff_pixels(a,b):
+    if not (a.exists() and b.exists()) or not shutil.which('compare'): return None
+    p=subprocess.run(['compare','-metric','AE',str(a),str(b),'null:'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    raw=(p.stderr or p.stdout).strip().splitlines()
+    try: return int(float(raw[-1])) if raw else None
+    except Exception: return None
+
+def key(env,keyname):
+    if not shutil.which('xdotool'): return False
+    subprocess.run(['xdotool','key','--clearmodifiers',keyname],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); return True
+
+def windows(env):
+    if not shutil.which('xdotool'): return []
+    p=subprocess.run(['xdotool','search','--onlyvisible','--name','.'],env=env,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
+    return [x for x in p.stdout.split() if x.strip()]
+
+def window_titles(env, ids):
+    out=[]
+    for wid in ids:
+        p=subprocess.run(['xdotool','getwindowname',wid],env=env,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
+        if p.stdout.strip(): out.append(p.stdout.strip())
+    return out
+
+def choose_command(root: Path, engine: str):
+    if engine == 'RPG Maker 2000/2003' and shutil.which('easyrpg-player'): return ['easyrpg-player','--window'], 'EasyRPG Player'
+    if engine in ('RPG Maker XP','RPG Maker VX','RPG Maker VX Ace'):
+        for c in ('mkxp-z','mkxp'):
+            if shutil.which(c): return [c],c
+    exe=root/'Game.exe'
+    if not exe.exists(): exe=root/'RPG_RT.exe'
+    if exe.exists() and shutil.which('wine'): return ['wine',exe.name], 'Wine/original Windows launcher'
+    return None,None
+
+def generate_review(args, out):
+    script=Path(__file__).with_name('fangame_review_card.py').resolve()
+    if not script.exists(): return
+    smoke=out/'playability_smoke.json'; fetch=Path(args.static).resolve().parent/'fetch_report.json'
+    cmd=['python3',str(script),'--static',str(Path(args.static).resolve()),'--smoke',str(smoke),'--out-json',str(out/'fangame_review_card.json'),'--out-md',str(out/'fangame_review_card.md')]
+    if fetch.exists(): cmd += ['--target',str(fetch)]
+    run(cmd,timeout=30)
+
+def write_result(args,out,result):
+    (out/'playability_smoke.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8'); generate_review(args,out); print(json.dumps(result,ensure_ascii=False,indent=2))
+
+def main():
+    ap=argparse.ArgumentParser(); ap.add_argument('--static',required=True); ap.add_argument('--extract-root',required=True); ap.add_argument('--outdir',default='playability_smoke'); args=ap.parse_args()
+    st=json.loads(Path(args.static).read_text(encoding='utf-8')); extract=Path(args.extract_root).resolve(); game_root=(extract/st.get('game_root','.')).resolve(); out=Path(args.outdir).resolve(); out.mkdir(parents=True,exist_ok=True)
+    result={'engine':st.get('engine'),'game_root':str(game_root),'status':'NOT_RUN','runtime':None,'process_alive_boot':False,'visible_windows_boot':0,'window_titles':[],'boot_to_confirm_changed_pixels':None,'confirm_to_movement_changed_pixels':None,'stage_evidence':[],'semantic_visual_review_required_for':['TITLE_VERIFIED','NEW_GAME_VERIFIED','MAP_GAMEPLAY_VERIFIED'],'notes':[]}
+    cmd,runtime=choose_command(game_root,st.get('engine','UNKNOWN')); result['runtime']=runtime
+    if not cmd:
+        result['status']='NO_CURRENT_RUNTIME_PATH_IN_CI'; result['playability_class']='PLAYABILITY_UNKNOWN'; write_result(args,out,result); return 0
+    audio_env={}
+    if runtime == 'Wine/original Windows launcher':
+        result['wine32_ready']=ensure_wine32(result['notes'])
+        if not result['wine32_ready']:
+            result['status']='CI_RUNTIME_SETUP_FAILED'; result['playability_class']='PLAYABILITY_UNKNOWN'; write_result(args,out,result); return 0
+        result['virtual_audio_ready'],audio_env=ensure_virtual_audio(result['notes'])
+        if not result['virtual_audio_ready']:
+            result['status']='CI_AUDIO_SETUP_FAILED'; result['playability_class']='PLAYABILITY_UNKNOWN'; write_result(args,out,result); return 0
+    display=':99'; prefix=(extract.parent/'wineprefix').resolve()
+    if prefix.exists(): shutil.rmtree(prefix)
+    env=os.environ.copy(); env.update(audio_env); env.update({'DISPLAY':display,'WINEDEBUG':'-all','WINEDLLOVERRIDES':'winemenubuilder.exe=d','WINEPREFIX':str(prefix)})
+    xvfb=None; proc=None; logf=None
+    try:
+        # Setup is inside the guarded block so even Xvfb/log failures still emit a diagnostic JSON.
+        xvfb=subprocess.Popen(['Xvfb',display,'-screen','0','1280x720x24','-nolisten','tcp'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        logf=open(out/'runtime.log','w',encoding='utf-8',errors='ignore')
+        time.sleep(1.5)
+        if runtime == 'Wine/original Windows launcher':
+            rc,bootlog=run(['wineboot','-u'],env=env,cwd=game_root,timeout=90); result['wineboot_rc']=rc
+            if rc != 0: result['notes'].append('wineboot failed: '+bootlog[-1500:])
+            time.sleep(2)
+        proc=subprocess.Popen(cmd,cwd=game_root,env=env,stdout=logf,stderr=subprocess.STDOUT,text=True); time.sleep(12)
+        alive=proc.poll() is None; wins_boot=windows(env); result['process_alive_boot']=alive; result['visible_windows_boot']=len(wins_boot); result['window_titles']=window_titles(env,wins_boot)
+        s1=out/'01_boot.png'; screenshot(env,s1)
+        if not alive:
+            result['status']='BOOT_FAILED'; result['notes'].append(f'process exited rc={proc.returncode}')
+        else:
+            result['status']='BOOT_VERIFIED' if wins_boot else 'PROCESS_ALIVE_NO_VISIBLE_WINDOW'
+            if wins_boot: result['stage_evidence'].append('VISIBLE_GAME_WINDOW_AT_BOOT')
+            key(env,'Return'); time.sleep(6)
+            s2=out/'02_after_confirm.png'; screenshot(env,s2); d1=diff_pixels(s1,s2); result['boot_to_confirm_changed_pixels']=d1
+            alive_after_confirm=proc.poll() is None; result['process_alive_after_confirm']=alive_after_confirm
+            wins_confirm=windows(env); result['visible_windows_after_confirm']=len(wins_confirm)
+            if alive_after_confirm:
+                if (d1 or 0)>1000: result['stage_evidence'].append('CONFIRM_CAUSED_LARGE_VISUAL_CHANGE')
+                if wins_confirm and not wins_boot: result['stage_evidence'].append('VISIBLE_GAME_WINDOW_APPEARED_AFTER_CONFIRM')
+                for k in ('Right','Down','Left','Up'): key(env,k); time.sleep(1.0)
+                time.sleep(4); s3=out/'03_after_movement.png'; screenshot(env,s3); d2=diff_pixels(s2,s3); result['confirm_to_movement_changed_pixels']=d2
+                still=proc.poll() is None; result['process_alive_after_inputs']=still
+                wins_input=windows(env); result['visible_windows_after_inputs']=len(wins_input)
+                has_window=bool(wins_boot or wins_confirm or wins_input)
+                if still and has_window and (d1 or 0)>1000 and (d2 or 0)>300:
+                    result['status']='INPUT_FLOW_VERIFIED'; result['stage_evidence'].append('ARROW_INPUTS_CAUSED_LARGE_VISUAL_CHANGE')
+                elif still and has_window and (d1 or 0)>1000:
+                    result['status']='POST_CONFIRM_RESPONSE_VERIFIED'
+                elif still and has_window:
+                    result['status']='BOOT_VERIFIED'
+            else:
+                result['status']='BOOT_VERIFIED_THEN_EXITED'; result['notes'].append('Game process exited after first confirm; inspect runtime.log/screenshots before calling gameplay broken.')
+    except Exception as e:
+        result['status']='SMOKE_ERROR'; result['notes'].append(repr(e))
+    finally:
+        if proc and proc.poll() is None:
+            try: proc.terminate(); proc.wait(timeout=3)
+            except Exception:
+                try: proc.kill()
+                except Exception: pass
+        if xvfb:
+            try: xvfb.terminate(); xvfb.wait(timeout=3)
+            except Exception:
+                try: xvfb.kill()
+                except Exception: pass
+        if logf:
+            try: logf.close()
+            except Exception: pass
+    if result['status']=='INPUT_FLOW_VERIFIED': result['playability_class']='PLAYABILITY_VERIFIED_INPUT_FLOW'
+    elif result['status'] in ('POST_CONFIRM_RESPONSE_VERIFIED','BOOT_VERIFIED'): result['playability_class']='PLAYABILITY_VERIFIED_BOOT'
+    elif result['status']=='BOOT_VERIFIED_THEN_EXITED': result['playability_class']='PLAYABILITY_BOOT_ONLY_NEEDS_DIAGNOSIS'
+    elif result['status']=='BOOT_FAILED': result['playability_class']='PLAYABILITY_UNKNOWN_OR_BROKEN_ON_CI'
+    else: result['playability_class']='PLAYABILITY_UNKNOWN'
+    write_result(args,out,result); return 0
+
+if __name__=='__main__': raise SystemExit(main())

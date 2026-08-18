@@ -6,6 +6,11 @@ on:
     paths:
       - 'fangame_targets/**.json'
       - 'tools/fangame_fetcher.py'
+      - 'tools/fangame_inspect.py'
+      - 'tools/fangame_smoke.py'
+      - 'tools/fangame_review_card.py'
+      - 'tools/rpgmaker_marshal_probe.rb'
+      - '.github/workflows/fangame-fetch.yml'
   workflow_dispatch:
 
 jobs:
@@ -26,7 +31,7 @@ jobs:
           if event=='pull_request':
               base=os.environ.get('GITHUB_BASE_REF','master')
               p=subprocess.run(['git','diff','--name-only',f'origin/{base}...HEAD','--','fangame_targets/*.json'],capture_output=True,text=True)
-              files=[x.strip() for x in p.stdout.splitlines() if x.strip().endswith('.json')]
+              files=[x.strip() for x in p.stdout.splitlines() if x.strip().endswith('.json') and os.path.exists(x.strip())]
           else:
               files=glob.glob('fangame_targets/*.json')
           print('targets='+json.dumps(files,ensure_ascii=False))
@@ -49,20 +54,86 @@ jobs:
         run: |
           set +e
           base=$(basename '${{ matrix.target }}' .json)
-          rm -rf out driveparts && mkdir -p out
+          rm -rf out driveparts playability_work && mkdir -p out
           python3 tools/fangame_fetcher.py '${{ matrix.target }}' -o out
           rc=$?
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           echo "base=$base" >> "$GITHUB_OUTPUT"
           exit 0
+
+      - name: Install playability probe dependencies
+        if: steps.fetch.outputs.rc == '0'
+        shell: bash
+        run: |
+          set +e
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools xvfb xdotool scrot imagemagick fonts-noto-cjk locales pulseaudio pulseaudio-utils
+          sudo locale-gen zh_CN.UTF-8 || true
+          sudo apt-get install -y wine wine64 || true
+          sudo apt-get install -y easyrpg-player || true
+          sudo apt-get install -y mkxp || true
+          command -v 7z || true
+          command -v unar || true
+          command -v bsdtar || true
+          command -v wine || true
+          command -v easyrpg-player || true
+          command -v mkxp || true
+
+      - name: Static engine and content probe
+        if: steps.fetch.outputs.rc == '0'
+        id: inspect
+        continue-on-error: true
+        shell: bash
+        env:
+          LANG: zh_CN.UTF-8
+          LC_ALL: zh_CN.UTF-8
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('out/fetch_report.json'))['file'])
+          PY
+          )
+          python3 tools/fangame_inspect.py "out/$game" --workdir playability_work --out out/playability_static.json
+
+      - name: CI boot and input smoke test
+        if: steps.fetch.outputs.rc == '0' && hashFiles('out/playability_static.json') != ''
+        continue-on-error: true
+        shell: bash
+        env:
+          LANG: zh_CN.UTF-8
+          LC_ALL: zh_CN.UTF-8
+        run: |
+          python3 tools/fangame_smoke.py --static out/playability_static.json --extract-root playability_work/extract --outdir out/playability_smoke
+
+      - name: Upload playability evidence
+        if: steps.fetch.outputs.rc == '0' && hashFiles('out/playability_static.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.fetch.outputs.base }}-playability
+          path: |
+            out/playability_static.json
+            out/playability_smoke/**
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 6
+
       - name: Split large archives for Drive connector
         if: steps.fetch.outputs.rc == '0'
         shell: bash
         run: |
           mkdir -p driveparts
-          game=$(find out -maxdepth 1 -type f ! -name 'fetch_report.json' ! -name 'SHA256.txt' | head -1)
-          split -b 75M -d -a 3 "$game" "driveparts/$(basename "$game")."
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('out/fetch_report.json'))['file'])
+          PY
+          )
+          split -b 75M -d -a 3 "out/$game" "driveparts/$(basename "$game")."
           cp out/SHA256.txt out/fetch_report.json driveparts/
+          [ -f out/playability_static.json ] && cp out/playability_static.json driveparts/ || true
+          [ -f out/playability_smoke/playability_smoke.json ] && cp out/playability_smoke/playability_smoke.json driveparts/ || true
+          [ -f out/playability_smoke/fangame_review_card.json ] && cp out/playability_smoke/fangame_review_card.json driveparts/ || true
+          [ -f out/playability_smoke/fangame_review_card.md ] && cp out/playability_smoke/fangame_review_card.md driveparts/ || true
+
       - name: Upload full result
         if: steps.fetch.outputs.rc == '0'
         uses: actions/upload-artifact@v4
@@ -71,6 +142,7 @@ jobs:
           path: out/*
           retention-days: 7
           compression-level: 0
+
       - name: Upload Drive part 000
         if: steps.fetch.outputs.rc == '0' && hashFiles('driveparts/*.000') != ''
         uses: actions/upload-artifact@v4
@@ -159,6 +231,11 @@ jobs:
           path: |
             driveparts/SHA256.txt
             driveparts/fetch_report.json
+            driveparts/playability_static.json
+            driveparts/playability_smoke.json
+            driveparts/fangame_review_card.json
+            driveparts/fangame_review_card.md
+          if-no-files-found: warn
           retention-days: 7
       - name: Upload failure report
         if: steps.fetch.outputs.rc != '0'
