@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rayzh2012/test-1/schemas/fangame_grind_label_v05c.schema.json",
+  "title": "Fangame Grind Calibration Label v0.5c",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "label_id",
+    "game_id",
+    "feature_vector_version",
+    "evidence_source",
+    "annotation",
+    "dimensions",
+    "overall_grind_burden",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {"const": "fangame.grind.label.v0.5c"},
+    "label_id": {"type": "string", "minLength": 1},
+    "game_id": {"type": "string", "minLength": 1},
+    "game_title": {"type": ["string", "null"]},
+    "feature_vector_version": {"const": "fangame.grind.vector.v0.5b"},
+    "evidence_source": {
+      "type": "object",
+      "required": ["source_id", "source_type", "independence_group", "evidence_summary"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "source_type": {
+          "enum": [
+            "HUMAN_PLAYTEST",
+            "HISTORICAL_PLAYER_REVIEW",
+            "WALKTHROUGH_GUIDE",
+            "AUTHOR_DOCUMENTATION",
+            "COMMUNITY_DISCUSSION",
+            "RESEARCHER_SYNTHESIS"
+          ]
+        },
+        "independence_group": {"type": "string", "minLength": 1},
+        "source_url": {"type": ["string", "null"]},
+        "source_date": {"type": ["string", "null"]},
+        "evidence_summary": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "annotation": {
+      "type": "object",
+      "required": ["annotator_type", "coverage", "direct_play_observation"],
+      "properties": {
+        "annotator_type": {"enum": ["USER", "HUMAN_RESEARCHER", "SOURCE_EXTRACTION"]},
+        "coverage": {"enum": ["EARLY_GAME", "MID_GAME", "LATE_GAME", "FULL_PLAYTHROUGH", "MIXED", "UNKNOWN"]},
+        "direct_play_observation": {"type": "boolean"},
+        "notes": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "dimensions": {
+      "type": "object",
+      "required": ["required_repetition", "level_pressure", "economy_pressure", "encounter_intrusion", "recovery_penalty"],
+      "properties": {
+        "required_repetition": {"$ref": "#/$defs/ordinalEvidence"},
+        "level_pressure": {"$ref": "#/$defs/ordinalEvidence"},
+        "economy_pressure": {"$ref": "#/$defs/ordinalEvidence"},
+        "encounter_intrusion": {"$ref": "#/$defs/ordinalEvidence"},
+        "recovery_penalty": {"$ref": "#/$defs/ordinalEvidence"}
+      },
+      "additionalProperties": false
+    },
+    "overall_grind_burden": {"$ref": "#/$defs/ordinalEvidence"},
+    "audit": {
+      "type": "object",
+      "required": ["created_at_utc", "label_contract_version"],
+      "properties": {
+        "created_at_utc": {"type": "string", "minLength": 1},
+        "label_contract_version": {"const": "0.5c.0"},
+        "supersedes_label_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "ordinalEvidence": {
+      "type": "object",
+      "required": ["value", "confidence", "evidence_summary"],
+      "properties": {
+        "value": {"enum": ["VERY_LOW", "LOW", "MEDIUM", "HIGH", "VERY_HIGH", "UNKNOWN"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "evidence_summary": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
