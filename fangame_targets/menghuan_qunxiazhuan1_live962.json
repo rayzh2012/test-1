@@ -1,0 +1,12 @@
+{
+  "name": "梦幻群侠传1：龙在天涯",
+  "version": "第一代完整版 / 962后代硬盘版 lineage",
+  "engine": "RPG Maker XP",
+  "min_mb": 130,
+  "sources": [
+    "https://www.962.net/rpg/24.html",
+    "https://www.962.net/k/67/",
+    "https://www.962.net/patch/21112.html",
+    "https://www.962.net/patch/12551.html"
+  ]
+}
