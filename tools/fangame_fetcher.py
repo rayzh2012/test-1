@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import argparse, hashlib, json, os, re, shutil, subprocess, sys, time
+import argparse, hashlib, json, os, re, shutil, subprocess, sys, time, zipfile
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import requests
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
-ARCHIVE_EXTS = ('.zip','.rar','.7z','.exe','.tar','.gz','.xz')
+ARCHIVE_EXTS = ('.zip','.rar','.7z','.exe','.tar','.gz','.xz','.torrent')
 
 def sha256(path):
     h=hashlib.sha256()
@@ -15,8 +15,19 @@ def sha256(path):
     return h.hexdigest()
 
 def archive_head_ok(path):
-    with open(path,'rb') as f: h=f.read(16)
+    try:
+        with open(path,'rb') as f: h=f.read(16)
+    except OSError:
+        return False
     return h.startswith(b'Rar!\x1a\x07') or h.startswith(b'PK\x03\x04') or h.startswith(b'7z\xbc\xaf\x27\x1c') or h.startswith(b'MZ')
+
+def torrent_head_ok(path, content_type=''):
+    if 'bittorrent' in content_type.lower(): return True
+    try:
+        with open(path,'rb') as f: h=f.read(4096)
+    except OSError:
+        return False
+    return h.startswith(b'd') and (b'4:info' in h or b'8:announce' in h or b'13:announce-list' in h)
 
 def extract_links(base, text):
     out=[]
@@ -36,6 +47,53 @@ def extract_links(base, text):
         if any(x in lu for x in ('javascript:','#')): score-=10
         if score>0: scored.append((score,u))
     return [u for _,u in sorted(scored,reverse=True)]
+
+def fetch_torrent(torrent_path,outdir,min_mb,report):
+    aria2=shutil.which('aria2c')
+    if not aria2 and shutil.which('sudo') and shutil.which('apt-get'):
+        try:
+            p=subprocess.run(['sudo','apt-get','update'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=240)
+            report['attempts'].append({'url':str(torrent_path),'transport':'torrent/apt-update','returncode':p.returncode,'log_tail':p.stdout[-1200:]})
+            p=subprocess.run(['sudo','apt-get','install','-y','aria2'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=240)
+            report['attempts'].append({'url':str(torrent_path),'transport':'torrent/apt-install','returncode':p.returncode,'log_tail':p.stdout[-1200:]})
+            aria2=shutil.which('aria2c')
+        except Exception as e:
+            report['attempts'].append({'url':str(torrent_path),'transport':'torrent/apt-install','error':repr(e)})
+    if not aria2:
+        report['attempts'].append({'url':str(torrent_path),'transport':'torrent','error':'aria2c unavailable'})
+        return None
+    work=Path(outdir)/'.torrent_payload'
+    shutil.rmtree(work,ignore_errors=True); work.mkdir(parents=True,exist_ok=True)
+    cmd=[aria2,'--seed-time=0','--bt-stop-timeout=180','--timeout=30','--connect-timeout=30','--max-tries=3','--retry-wait=5','--file-allocation=none','--summary-interval=10','--dir',str(work),str(torrent_path)]
+    try:
+        p=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=1200)
+        report['attempts'].append({'url':str(torrent_path),'transport':'torrent/aria2c','returncode':p.returncode,'log_tail':p.stdout[-4000:]})
+    except Exception as e:
+        report['attempts'].append({'url':str(torrent_path),'transport':'torrent/aria2c','error':repr(e)})
+        return None
+    files=[p for p in work.rglob('*') if p.is_file() and not p.name.endswith('.aria2')]
+    total=sum(p.stat().st_size for p in files)
+    report['torrent_payload']={'file_count':len(files),'total_bytes':total,'files':[{'path':str(p.relative_to(work)),'bytes':p.stat().st_size} for p in files[:500]]}
+    threshold=min_mb*1024*1024
+    good=[p for p in files if p.stat().st_size>=threshold and archive_head_ok(p)]
+    if good:
+        src=max(good,key=lambda p:p.stat().st_size)
+        dst=Path(outdir)/src.name
+        if src.resolve()!=dst.resolve(): shutil.copy2(src,dst)
+        return dst
+    if total < threshold or not files:
+        return None
+    # Reversible container for public multi-file torrent payloads when the distribution is a directory rather than one archive.
+    dst=Path(outdir)/'torrent_payload.zip'
+    manifest=[]
+    with zipfile.ZipFile(dst,'w',compression=zipfile.ZIP_STORED,allowZip64=True) as z:
+        for p in sorted(files,key=lambda x:str(x.relative_to(work)).lower()):
+            rel=str(p.relative_to(work))
+            z.write(p,rel)
+            manifest.append({'path':rel,'bytes':p.stat().st_size,'sha256':sha256(p)})
+    report['torrent_payload']['manifest']=manifest
+    report['torrent_payload']['repacked_as']=dst.name
+    return dst if dst.stat().st_size>=threshold else None
 
 def fetch_http(session,url,outdir,min_mb,report):
     q=[url]; seen=set()
@@ -64,6 +122,14 @@ def fetch_http(session,url,outdir,min_mb,report):
             with open(path,'wb') as f:
                 for chunk in r.iter_content(1024*1024):
                     if chunk: f.write(chunk); n+=len(chunk)
+            if torrent_head_ok(path,ct):
+                torrent_path=Path(outdir)/'source.torrent'
+                if path!=torrent_path:
+                    torrent_path.unlink(missing_ok=True); path.replace(torrent_path)
+                report['attempts'].append({'url':u,'transport':'torrent-metadata','bytes':torrent_path.stat().st_size,'sha256':sha256(torrent_path)})
+                result=fetch_torrent(torrent_path,outdir,min_mb,report)
+                if result: return result
+                continue
             if n < min_mb*1024*1024 or not archive_head_ok(path):
                 path.unlink(missing_ok=True)
                 continue
