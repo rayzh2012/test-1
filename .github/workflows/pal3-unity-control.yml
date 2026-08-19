@@ -1,0 +1,69 @@
+name: PAL3 Unity Source Control Audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "projects/pal3-unity/**"
+      - "tools/source_rewrite_controller.py"
+      - "skills/open-source-game-rewrite-controller/**"
+      - ".github/workflows/pal3-unity-control.yml"
+  pull_request:
+    paths:
+      - "projects/pal3-unity/**"
+      - "tools/source_rewrite_controller.py"
+      - "skills/open-source-game-rewrite-controller/**"
+      - ".github/workflows/pal3-unity-control.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-control-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v6.0.3
+
+      - name: Read PAL3 target
+        id: target
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          cfg = json.load(open("projects/pal3-unity/control.json", encoding="utf-8"))
+          print(f"repo={cfg['upstream_repository']}")
+          print(f"ref={cfg['upstream_ref']}")
+          PY
+
+      - name: Checkout pinned PAL3 upstream
+        uses: actions/checkout@v6.0.3
+        with:
+          repository: ${{ steps.target.outputs.repo }}
+          ref: ${{ steps.target.outputs.ref }}
+          path: .control/upstream
+          fetch-depth: 1
+          lfs: false
+
+      - name: Run source rewrite controller
+        run: |
+          python tools/source_rewrite_controller.py audit \
+            --config projects/pal3-unity/control.json \
+            --workspace .control/upstream \
+            --out out/pal3-unity
+
+      - name: Publish audit summary
+        if: always()
+        run: |
+          if [ -f out/pal3-unity/source_control_report.md ]; then
+            cat out/pal3-unity/source_control_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload control evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pal3-unity-source-control
+          path: out/pal3-unity/
+          if-no-files-found: error

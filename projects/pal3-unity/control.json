@@ -1,0 +1,32 @@
+{
+  "schema_version": "source_rewrite_control.v0.1",
+  "project_id": "pal3-unity",
+  "title": "PAL3 Unity open-source rewrite",
+  "upstream_repository": "0x7c13/Pal3.Unity",
+  "upstream_ref": "cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "upstream_default_branch": "main",
+  "engine": "Unity",
+  "engine_version": "6000.5.0f1",
+  "source_roots": [
+    "Assets/Scripts"
+  ],
+  "focus_roots": [
+    "Assets/Scripts/Pal3.Game",
+    "Assets/Scripts/Pal3.Core",
+    "Assets/Scripts/Engine",
+    "Assets/Scripts/Build"
+  ],
+  "patch_dir": "patches",
+  "upstream_build_entrypoints": [
+    ".github/workflows/build-pal3-mono-ios.yml",
+    ".github/workflows/build-pal3a-mono-ios.yml"
+  ],
+  "policy": {
+    "control_plane_repository": "rayzh2012/test-1",
+    "upstream_write_mode": "read_only",
+    "change_model": "ordered_patch_stack",
+    "proprietary_game_data": "external_user_supplied_only_never_commit",
+    "observed_inferred_separation": true,
+    "cursor_required": false
+  }
+}
