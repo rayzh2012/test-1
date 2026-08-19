@@ -1,0 +1,12 @@
+{
+  "name": "van Baarda 1904 Het Loda'sch",
+  "citation": "M.J. van Baarda, Het Lóda’sch, BKI 56 (1904), 317-496",
+  "file_name": "1904_van_Baarda_Het_Lodasch_BKI56.pdf",
+  "allowed_types": ["pdf"],
+  "min_bytes": 100000,
+  "sources": [
+    "https://brill.com/view/journals/bki/56/1/article-p330_9.pdf",
+    "http://www.kitlvjournals.nl/index.php/btlv/article/viewFile/6762/7529",
+    "https://doi.org/10.1163/22134379-90002009"
+  ]
+}

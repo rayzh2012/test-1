@@ -1,0 +1,11 @@
+{
+  "name": "de Vries 1927 Bij de Berg-Alfoeren op West-Seran",
+  "citation": "Gijsbert de Vries, Bij de Berg-Alfoeren op West-Seran, 1927",
+  "file_name": "1927_de_Vries_Bij_de_Berg_Alfoeren_op_West_Seran.pdf",
+  "allowed_types": ["pdf"],
+  "min_bytes": 100000,
+  "sources": [
+    "https://openlibrary.org/works/OL44774311W/Bij_de_Berg-Alfoeren_op_West-Seran",
+    "https://glottolog.org/resource/reference/id/161900"
+  ]
+}
