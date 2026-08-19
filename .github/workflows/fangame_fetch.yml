@@ -9,62 +9,54 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
-      - name: Fetch and split 梦幻群侠传2 immediately
+      - name: Fetch verified Magic Baby Memorial package
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf out && mkdir -p out/parts
-          python3 tools/fangame_fetcher.py fangame_targets/menghuan_qunxiazhuan2_live962.json -o out
-          game=$(python3 - <<'PY'
-          import json
-          print(json.load(open('out/fetch_report.json'))['file'])
-          PY
-          )
-          cp out/SHA256.txt out/parts/
-          cp out/fetch_report.json out/parts/
-          split -b 75M -d -a 3 "out/$game" "out/parts/$game.part"
-          printf '%s\n' "$game" > out/parts/ORIGINAL_FILENAME.txt
-          rm "out/$game"
-          ls -lah out/parts
-      - name: Upload part000
-        if: hashFiles('out/parts/*.part000') != ''
+          mkdir -p out
+          curl -fL --retry 3 --connect-timeout 20 --max-time 900 \
+            -A 'Mozilla/5.0' \
+            -o out/mlbbhjdjb.rar \
+            'https://99dj.197784.com/9dj2/mlbbhjdjb.rar'
+          test $(stat -c%s out/mlbbhjdjb.rar) -gt 50000000
+          sha256sum out/mlbbhjdjb.rar | tee out/SHA256.txt
+          file out/mlbbhjdjb.rar
+          split -b 80M -d -a 2 out/mlbbhjdjb.rar out/mlbbhjdjb.rar.part
+          cat > out/README_合并.txt <<'EOF'
+          魔力宝贝纪念版 2012 全剧情版
+          将三个分卷放在同一目录后合并：
+          macOS/Linux: cat mlbbhjdjb.rar.part00 mlbbhjdjb.rar.part01 mlbbhjdjb.rar.part02 > mlbbhjdjb.rar
+          Windows CMD: copy /b mlbbhjdjb.rar.part00+mlbbhjdjb.rar.part01+mlbbhjdjb.rar.part02 mlbbhjdjb.rar
+          完整RAR SHA256: 683190cf5ae8f1bd746691cdc0c3c6828b28128bc7cd6e0d63a5961e1456c1c4
+          EOF
+          rm out/mlbbhjdjb.rar
+          ls -lah out
+      - name: Upload part00
         uses: actions/upload-artifact@v4
-        with: {name: 'menghuan2-fast-part000', path: 'out/parts/*.part000', retention-days: 7, compression-level: 0}
-      - name: Upload part001
-        if: hashFiles('out/parts/*.part001') != ''
+        with:
+          name: mlbbhjdjb-rar-part00
+          path: out/mlbbhjdjb.rar.part00
+          compression-level: 0
+          retention-days: 7
+      - name: Upload part01
         uses: actions/upload-artifact@v4
-        with: {name: 'menghuan2-fast-part001', path: 'out/parts/*.part001', retention-days: 7, compression-level: 0}
-      - name: Upload part002
-        if: hashFiles('out/parts/*.part002') != ''
+        with:
+          name: mlbbhjdjb-rar-part01
+          path: out/mlbbhjdjb.rar.part01
+          compression-level: 0
+          retention-days: 7
+      - name: Upload part02
         uses: actions/upload-artifact@v4
-        with: {name: 'menghuan2-fast-part002', path: 'out/parts/*.part002', retention-days: 7, compression-level: 0}
-      - name: Upload part003
-        if: hashFiles('out/parts/*.part003') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'menghuan2-fast-part003', path: 'out/parts/*.part003', retention-days: 7, compression-level: 0}
-      - name: Upload part004
-        if: hashFiles('out/parts/*.part004') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'menghuan2-fast-part004', path: 'out/parts/*.part004', retention-days: 7, compression-level: 0}
-      - name: Upload part005
-        if: hashFiles('out/parts/*.part005') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'menghuan2-fast-part005', path: 'out/parts/*.part005', retention-days: 7, compression-level: 0}
-      - name: Upload part006
-        if: hashFiles('out/parts/*.part006') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'menghuan2-fast-part006', path: 'out/parts/*.part006', retention-days: 7, compression-level: 0}
-      - name: Upload part007
-        if: hashFiles('out/parts/*.part007') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'menghuan2-fast-part007', path: 'out/parts/*.part007', retention-days: 7, compression-level: 0}
+        with:
+          name: mlbbhjdjb-rar-part02
+          path: out/mlbbhjdjb.rar.part02
+          compression-level: 0
+          retention-days: 7
       - name: Upload metadata
         uses: actions/upload-artifact@v4
         with:
-          name: menghuan2-fast-metadata
+          name: mlbbhjdjb-metadata
           path: |
-            out/parts/SHA256.txt
-            out/parts/fetch_report.json
-            out/parts/ORIGINAL_FILENAME.txt
+            out/SHA256.txt
+            out/README_合并.txt
           retention-days: 7
