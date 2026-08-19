@@ -1,0 +1,11 @@
+{
+  "name": "格斗纹章",
+  "version": "开源免费版",
+  "engine": "RPG Maker VX",
+  "min_mb": 200,
+  "sources": [
+    "https://dl.3dmgame.com/pc/11267.html",
+    "https://mip.ali213.net/down/FightingCoatofArmsG.html",
+    "https://rpg.blue/forum.php?mod=viewthread&tid=277104"
+  ]
+}
