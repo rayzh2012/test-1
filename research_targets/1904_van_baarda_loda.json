@@ -5,6 +5,7 @@
   "allowed_types": ["pdf"],
   "min_bytes": 100000,
   "sources": [
+    "https://brill.com/view/journals/bki/56/1/article-p330_9.pdf",
     "http://www.kitlvjournals.nl/index.php/btlv/article/viewFile/6762/7529",
     "https://doi.org/10.1163/22134379-90002009"
   ]
