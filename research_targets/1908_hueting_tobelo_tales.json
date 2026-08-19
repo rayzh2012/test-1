@@ -5,6 +5,7 @@
   "allowed_types": ["pdf"],
   "min_bytes": 100000,
   "sources": [
+    "https://brill.com/view/journals/bki/61/1/article-p1_2.pdf",
     "https://doi.org/10.1163/22134379-90001891"
   ]
 }
