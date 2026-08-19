@@ -1,12 +1,14 @@
 {
   "name": "魔力宝贝-重温传说中的勇者",
-  "version": "1.15C 终结版",
+  "version": "1.15C 终结版 / 2018未加密稳定补档",
   "engine": "RPG Maker XP",
   "min_mb": 100,
   "sources": [
-    "ftp://ftp2.66rpg.com/web3/200610/cgoffline115c.rar",
+    "https://pan.baidu.com/s/1aEq4Aaszr0c6eLyne8j5sQ",
+    "https://rpg.blue/thread-406537-1-1.html",
+    "https://rpg.blue/thread-163548-1-1.html",
+    "https://rpg.blue/thread-31318-1-1.html",
     "http://u.115.com/file/f3fcc95289",
-    "https://www.gamersky.com/Soft/200611/6891.shtml",
-    "https://rpg.blue/thread-406537-1-1.html"
+    "https://www.gamersky.com/Soft/200611/6891.shtml"
   ]
 }
