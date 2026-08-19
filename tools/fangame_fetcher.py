@@ -107,7 +107,9 @@ def fetch_http(session,url,outdir,min_mb,report):
             cl=int(r.headers.get('content-length') or 0)
             report['attempts'].append({'url':u,'status':r.status_code,'final_url':r.url,'content_type':ct,'content_length':cl})
             if r.status_code!=200: continue
-            if 'text/html' in ct or cl==0 and r.url.lower().endswith(('.html','.htm','.php','.page','/')):
+            html_suffix=r.url.lower().endswith(('.html','.htm','.php','.page','/'))
+            htmlish='text/html' in ct or (cl==0 and html_suffix and (not ct or ct.startswith('text/')))
+            if htmlish:
                 text=r.content.decode(r.encoding or 'utf-8','ignore')
                 q.extend(x for x in extract_links(r.url,text) if x not in seen)
                 continue
