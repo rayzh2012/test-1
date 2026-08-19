@@ -1,0 +1,17 @@
+{
+  "name": "仙剑奇侠传续传：宿命篇",
+  "version": "Holiday / RM2003 lineage",
+  "engine": "RPG Maker 2003",
+  "min_mb": 100,
+  "sources": [
+    "https://games.sina.com.cn/downgames/demo/pcgames/2005-08-16/141291888.shtml",
+    "https://mip.ali213.net/down/PALSuMing.html",
+    "https://www.ali213.net/zt/chinesepaladinsm/",
+    "https://rpg.blue/thread-153776-1-1.html",
+    "https://rpg.blue/thread-128518-1-1.html"
+  ],
+  "identity_notes": [
+    "Project1 historical exact filename: game018_仙剑续传宿命篇2003.rar",
+    "Do not accept xianjianqixiazhuanwaizhuansumingjue.rar; that is 创毅制作群《仙剑奇侠传外传：宿命诀》, a separate title already rescued."
+  ]
+}
