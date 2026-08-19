@@ -1,0 +1,10 @@
+{
+  "name": "Sundermann 1886 Niassische Erzählungen in TBG 31",
+  "citation": "H. Sundermann, Niassische Erzählungen, Tijdschrift voor Indische taal-, land- en volkenkunde 31 (1886), 315-326",
+  "file_name": "1886_TBG31_Tijdschrift_voor_Indische_taal_land_en_volkenkunde_full.pdf",
+  "allowed_types": ["pdf"],
+  "min_bytes": 1000000,
+  "sources": [
+    "https://kitlv-docs.library.leiden.edu/open/Metamorfoze/TBG/MMKITLV01_PDF_TS2332_1886_31.pdf"
+  ]
+}
