@@ -1,0 +1,69 @@
+name: Research Archive Fetch
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'research_targets/**.json'
+      - 'tools/research_fetcher.py'
+      - '.github/workflows/research-fetch.yml'
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v5
+        with: {fetch-depth: 0}
+      - id: targets
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import glob,json,os,subprocess
+          if os.environ.get('GITHUB_EVENT_NAME')=='pull_request':
+              base=os.environ.get('GITHUB_BASE_REF','master')
+              p=subprocess.run(['git','diff','--name-only',f'origin/{base}...HEAD','--','research_targets/*.json'],capture_output=True,text=True)
+              files=[x.strip() for x in p.stdout.splitlines() if x.strip().endswith('.json') and os.path.exists(x.strip())]
+          else: files=glob.glob('research_targets/*.json')
+          print('targets='+json.dumps(files,ensure_ascii=False))
+          PY
+
+  fetch:
+    needs: discover
+    if: needs.discover.outputs.targets != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: {target: "${{ fromJSON(needs.discover.outputs.targets) }}"}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch and verify source
+        id: fetch
+        shell: bash
+        run: |
+          set +e
+          base=$(basename '${{ matrix.target }}' .json)
+          rm -rf out && mkdir out
+          python3 tools/research_fetcher.py '${{ matrix.target }}' -o out
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload source bundle
+        if: steps.fetch.outputs.rc == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.fetch.outputs.base }}-source
+          path: out/*
+          retention-days: 14
+          compression-level: 0
+      - name: Upload failure report
+        if: steps.fetch.outputs.rc != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.fetch.outputs.base }}-failed
+          path: out/fetch_report.json
+          retention-days: 14
