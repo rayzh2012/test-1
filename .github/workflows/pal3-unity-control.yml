@@ -8,6 +8,12 @@ on:
       - "tools/source_rewrite_controller.py"
       - "skills/open-source-game-rewrite-controller/**"
       - ".github/workflows/pal3-unity-control.yml"
+  pull_request:
+    paths:
+      - "projects/pal3-unity/**"
+      - "tools/source_rewrite_controller.py"
+      - "skills/open-source-game-rewrite-controller/**"
+      - ".github/workflows/pal3-unity-control.yml"
 
 permissions:
   contents: read
