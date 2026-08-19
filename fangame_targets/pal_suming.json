@@ -1,13 +1,12 @@
 {
-  "name": "仙剑奇侠传续传：宿命篇",
-  "version": "完全版 / 962硬盘版 lineage",
-  "engine": "RPG Maker 2003",
+  "name": "仙剑奇侠传外传：宿命诀",
+  "version": "2008完整版 / 962后代完整包 lineage",
+  "engine": "RPG Maker XP lineage / packaged build",
   "min_mb": 700,
   "sources": [
-    "https://www.962.net/rpg/394.html",
-    "https://www.962.net/k/xjsj/",
-    "https://games.sina.com.cn/downgames/demo/pcgames/2005-08-16/141291888.shtml",
-    "https://www.ali213.net/zt/chinesepaladinsm/",
-    "https://mip.ali213.net/down/PALSuMing.html"
+    "https://www.962.net/rpg/807.html",
+    "https://games.sina.com.cn/downgames/demo/pcgames/2008-11-15/1940120935.shtml",
+    "https://rpg.blue/thread-153776-1-1.html",
+    "https://www.gamersky.com/Soft/200811/16671.shtml"
   ]
 }
