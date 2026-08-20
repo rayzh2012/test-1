@@ -1,0 +1,332 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillInfoMapper.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillInfoMapper.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillInfoMapper.cs
+@@ -0,0 +1,327 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity GDB SkillInfo -> combat-domain projection.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Linq;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Core.DataReader.Gdb;
++
++    public enum GdbSkillMappingIssueSeverity
++    {
++        Info = 0,
++        Warning,
++        Blocking,
++    }
++
++    public sealed class GdbSkillMappingIssue
++    {
++        public GdbSkillMappingIssueSeverity Severity { get; }
++        public string Code { get; }
++        public string Field { get; }
++        public string Message { get; }
++
++        public GdbSkillMappingIssue(
++            GdbSkillMappingIssueSeverity severity,
++            string code,
++            string field,
++            string message)
++        {
++            Severity = severity;
++            Code = code ?? throw new ArgumentNullException(nameof(code));
++            Field = field ?? throw new ArgumentNullException(nameof(field));
++            Message = message ?? throw new ArgumentNullException(nameof(message));
++        }
++    }
++
++    public sealed class GdbSkillMappingResult
++    {
++        private readonly ElementType[] _sourceElements;
++        private readonly GdbSkillMappingIssue[] _issues;
++
++        public SkillInfo Source { get; }
++        public SkillDefinition? Definition { get; }
++        public IReadOnlyList<ElementType> SourceElements => _sourceElements;
++        public IReadOnlyList<GdbSkillMappingIssue> Issues => _issues;
++        public bool HasBlockingIssues =>
++            _issues.Any(issue => issue.Severity == GdbSkillMappingIssueSeverity.Blocking);
++        public bool IsExecutionReady => Definition != null && !HasBlockingIssues;
++
++        public GdbSkillMappingResult(
++            SkillInfo source,
++            SkillDefinition? definition,
++            IEnumerable<ElementType> sourceElements,
++            IEnumerable<GdbSkillMappingIssue> issues)
++        {
++            Source = source;
++            Definition = definition;
++            _sourceElements = sourceElements?.ToArray()
++                ?? throw new ArgumentNullException(nameof(sourceElements));
++            _issues = issues?.ToArray()
++                ?? throw new ArgumentNullException(nameof(issues));
++        }
++    }
++
++    /// <summary>
++    /// Projects real GDB SkillInfo into the current combat-domain contract without silently
++    /// collapsing source semantics. The original SkillInfo is retained in every mapping result.
++    /// Fields that cannot yet be represented are emitted as structured issues.
++    /// </summary>
++    public static class GdbSkillInfoMapper
++    {
++        public static GdbSkillMappingResult Map(
++            SkillInfo source,
++            SkillVisualArchetype visualArchetype,
++            string visualProfileKey)
++        {
++            if (string.IsNullOrWhiteSpace(visualProfileKey))
++            {
++                throw new ArgumentException("A visual profile key is required.", nameof(visualProfileKey));
++            }
++
++            ElementType[] elements = MapElements(source.ElementAttributes);
++            List<GdbSkillMappingIssue> issues = AuditUnsupportedSemantics(source, elements);
++
++            if (source.Id == 0 ||
++                string.IsNullOrWhiteSpace(source.Name) ||
++                source.TargetRangeType == TargetRangeType.None ||
++                elements.Length > 1 ||
++                source.MpConsumeImpactType != AttributeImpactType.Absolute ||
++                source.SpConsumeImpactType != AttributeImpactType.Absolute ||
++                source.SpecialConsumeType != -1 ||
++                source.SpecialSkillId != 0 ||
++                source.SuccessRateLevel != 0)
++            {
++                return new GdbSkillMappingResult(source, null, elements, issues);
++            }
++
++            List<SkillEffectDefinition> effects = MapEffects(source, issues);
++            if (effects.Count == 0 || issues.Any(
++                    issue => issue.Severity == GdbSkillMappingIssueSeverity.Blocking))
++            {
++                return new GdbSkillMappingResult(source, null, elements, issues);
++            }
++
++            SkillDefinition definition = new(
++                id: source.Id,
++                name: source.Name,
++                type: source.Type,
++                element: elements.Length == 1 ? elements[0] : ElementType.None,
++                targetRange: source.TargetRangeType,
++                mpCost: source.MpConsumeValue,
++                spCost: source.SpConsumeValue,
++                visualArchetype,
++                visualProfileKey,
++                effects);
++
++            return new GdbSkillMappingResult(source, definition, elements, issues);
++        }
++
++        private static ElementType[] MapElements(HashSet<ObjectElementType>? sourceElements)
++        {
++            if (sourceElements == null || sourceElements.Count == 0)
++            {
++                return Array.Empty<ElementType>();
++            }
++
++            return sourceElements
++                .Select(MapElement)
++                .Distinct()
++                .OrderBy(element => (int)element)
++                .ToArray();
++        }
++
++        private static ElementType MapElement(ObjectElementType element)
++        {
++            return element switch
++            {
++                ObjectElementType.Water => ElementType.Water,
++                ObjectElementType.Fire => ElementType.Fire,
++                ObjectElementType.Wind => ElementType.Wind,
++                ObjectElementType.Thunder => ElementType.Thunder,
++                ObjectElementType.Earth => ElementType.Earth,
++                _ => throw new ArgumentOutOfRangeException(nameof(element), element, "Unknown GDB element."),
++            };
++        }
++
++        private static List<SkillEffectDefinition> MapEffects(
++            SkillInfo source,
++            List<GdbSkillMappingIssue> issues)
++        {
++            List<SkillEffectDefinition> effects = new();
++
++            if (source.AttributeImpacts != null)
++            {
++                foreach ((ActorAttributeType attributeType, AttributeImpact impact) in
++                         source.AttributeImpacts.OrderBy(pair => (int)pair.Key))
++                {
++                    effects.Add(SkillEffectDefinition.ForAttribute(
++                        attributeType,
++                        impact.Type,
++                        impact.Value));
++                }
++            }
++
++            if (source.CombatStateImpactTypes != null)
++            {
++                foreach ((ActorCombatStateType stateType, CombatStateImpactType impactType) in
++                         source.CombatStateImpactTypes.OrderBy(pair => (int)pair.Key))
++                {
++                    if (impactType == CombatStateImpactType.None)
++                    {
++                        issues.Add(new GdbSkillMappingIssue(
++                            GdbSkillMappingIssueSeverity.Blocking,
++                            "NO_OP_COMBAT_STATE_NOT_REPRESENTABLE",
++                            nameof(SkillInfo.CombatStateImpactTypes),
++                            $"Combat state {stateType} has a None impact and is retained only in Source."));
++                        continue;
++                    }
++
++                    effects.Add(SkillEffectDefinition.ForCombatState(stateType, impactType));
++                }
++            }
++
++            if (effects.Count == 0)
++            {
++                issues.Add(new GdbSkillMappingIssue(
++                    GdbSkillMappingIssueSeverity.Blocking,
++                    "NO_RUNTIME_EFFECTS",
++                    "AttributeImpacts/CombatStateImpactTypes",
++                    "The source skill contains no runtime effects representable by the current SkillDefinition."));
++            }
++
++            return effects;
++        }
++
++        private static List<GdbSkillMappingIssue> AuditUnsupportedSemantics(
++            SkillInfo source,
++            ElementType[] elements)
++        {
++            List<GdbSkillMappingIssue> issues = new();
++
++            if (source.Id == 0)
++            {
++                issues.Add(Block("INVALID_ID", nameof(SkillInfo.Id),
++                    "SkillDefinition requires a non-zero skill ID."));
++            }
++
++            if (string.IsNullOrWhiteSpace(source.Name))
++            {
++                issues.Add(Block("MISSING_NAME", nameof(SkillInfo.Name),
++                    "SkillDefinition requires a non-empty name."));
++            }
++
++            if (source.TargetRangeType == TargetRangeType.None)
++            {
++                issues.Add(Block("MISSING_TARGET_RANGE", nameof(SkillInfo.TargetRangeType),
++                    "SkillDefinition requires an explicit target range."));
++            }
++
++            if (elements.Length > 1)
++            {
++                issues.Add(Block("MULTI_ELEMENT_NOT_REPRESENTABLE", nameof(SkillInfo.ElementAttributes),
++                    "Current SkillDefinition stores only one element. All source elements are preserved in SourceElements."));
++            }
++
++            if (source.MpConsumeImpactType != AttributeImpactType.Absolute)
++            {
++                issues.Add(Block("MP_CONSUMPTION_TYPE_NOT_REPRESENTABLE", nameof(SkillInfo.MpConsumeImpactType),
++                    $"Current runtime supports absolute MP cost only; source type is {source.MpConsumeImpactType}."));
++            }
++
++            if (source.SpConsumeImpactType != AttributeImpactType.Absolute)
++            {
++                issues.Add(Block("SP_CONSUMPTION_TYPE_NOT_REPRESENTABLE", nameof(SkillInfo.SpConsumeImpactType),
++                    $"Current runtime supports absolute SP cost only; source type is {source.SpConsumeImpactType}."));
++            }
++
++            if (source.SpecialConsumeType != -1)
++            {
++                issues.Add(Block("SPECIAL_CONSUMPTION_NOT_REPRESENTABLE", nameof(SkillInfo.SpecialConsumeType),
++                    "Special resource consumption is retained in Source but not projected into SkillDefinition."));
++            }
++
++            if (source.SpecialSkillId != 0)
++            {
++                issues.Add(Block("SPECIAL_SKILL_BEHAVIOR_NOT_REPRESENTABLE", nameof(SkillInfo.SpecialSkillId),
++                    "Special skill behavior is retained in Source but not projected into SkillDefinition."));
++            }
++
++            if (source.SuccessRateLevel != 0)
++            {
++                issues.Add(Block("SUCCESS_RATE_NOT_REPRESENTABLE", nameof(SkillInfo.SuccessRateLevel),
++                    "Success-rate semantics are retained in Source but not projected into SkillDefinition."));
++            }
++
++            AddMetadataIssueIf(
++                issues,
++                source.ApplicableActors != null && source.ApplicableActors.Count > 0,
++                "APPLICABLE_ACTORS_METADATA",
++                nameof(SkillInfo.ApplicableActors));
++
++            AddMetadataIssueIf(
++                issues,
++                source.Level != 0 || source.RequiredActorLevel != 0 ||
++                source.MagicLevel != 0 || source.NextLevelSkillId != 0 ||
++                HasValues(source.TimesBeforeLevelUp),
++                "LEVEL_PROGRESSION_METADATA",
++                "Level/TimesBeforeLevelUp/RequiredActorLevel/MagicLevel/NextLevelSkillId");
++
++            AddMetadataIssueIf(
++                issues,
++                source.IsUsableOutsideCombat != 0,
++                "OUT_OF_COMBAT_USAGE_METADATA",
++                nameof(SkillInfo.IsUsableOutsideCombat));
++
++            AddMetadataIssueIf(
++                issues,
++                HasValues(source.CompositeSkillIds) ||
++                HasValues(source.CompositeRequiredSkillIds) ||
++                HasValues(source.CompositeRequiredSkillLevels) ||
++                HasValues(source.CompositeRequiredCurrentSkillLevels) ||
++                HasValues(source.CompositeRequiredActorLevels),
++                "COMPOSITE_SKILL_METADATA",
++                "CompositeSkill*");
++
++            AddMetadataIssueIf(
++                issues,
++                source.CanTriggerComboSkill != 0,
++                "COMBO_TRIGGER_METADATA",
++                nameof(SkillInfo.CanTriggerComboSkill));
++
++            return issues;
++        }
++
++        private static GdbSkillMappingIssue Block(string code, string field, string message)
++        {
++            return new GdbSkillMappingIssue(
++                GdbSkillMappingIssueSeverity.Blocking,
++                code,
++                field,
++                message);
++        }
++
++        private static void AddMetadataIssueIf(
++            List<GdbSkillMappingIssue> issues,
++            bool condition,
++            string code,
++            string field)
++        {
++            if (!condition) return;
++
++            issues.Add(new GdbSkillMappingIssue(
++                GdbSkillMappingIssueSeverity.Info,
++                code,
++                field,
++                "Source metadata is preserved in the retained SkillInfo but is not projected into SkillDefinition yet."));
++        }
++
++        private static bool HasValues<T>(T[]? values)
++        {
++            return values != null && values.Length > 0;
++        }
++    }
++}
