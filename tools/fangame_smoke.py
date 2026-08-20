@@ -21,14 +21,10 @@ def ensure_wine32(notes):
         notes.append(f'wine32 add-architecture rc={rc}')
         if rc != 0:
             notes.append(log[-1500:]); return False
-    # Refresh package metadata because i386 may just have been enabled.
     rc, log = run(['sudo', 'apt-get', 'update'], timeout=180)
     notes.append(f'wine32 apt-update rc={rc}')
     if rc != 0:
         notes.append(log[-1500:]); return False
-    # libasound2-plugins:i386 supplies the 32-bit ALSA->Pulse bridge needed by
-    # old RGSS/DirectSound games on headless runners. Without it, Wine can
-    # display a game-titled error dialog while DirectXAudio has actually failed.
     pkgs = ['wine32:i386', 'libasound2-plugins:i386', 'libpulse0:i386']
     rc, log = run(['sudo', 'apt-get', 'install', '-y', *pkgs], timeout=360)
     notes.append(f'wine32/audio install rc={rc}')
@@ -78,7 +74,6 @@ def ensure_virtual_audio(notes):
 
 
 def configure_wine_audio(env, cwd, notes):
-    # Force Wine to use Pulse instead of silently selecting a non-existent ALSA card.
     rc, log = run(['wine', 'reg', 'add', r'HKCU\Software\Wine\Drivers', '/v', 'Audio',
                    '/t', 'REG_SZ', '/d', 'pulse', '/f'], env=env, cwd=cwd, timeout=30)
     notes.append(f'wine force-pulse rc={rc}')
@@ -159,6 +154,74 @@ def write_result(args, out, result):
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
+def capture(env, out, name):
+    path = out / name
+    ok, log = screenshot(env, path)
+    return path if ok else None, log
+
+
+def probe_map_like_input(env, out, proc, base_frame):
+    """Collect conservative map-like movement evidence without declaring semantics.
+
+    A menu cursor can also produce a small pixel diff. To reduce that false positive,
+    require local responses on both horizontal and vertical axes plus a roughly
+    reversible round trip. Final MAP_GAMEPLAY_VERIFIED still requires semantic
+    screenshot review outside this mechanical probe.
+    """
+    evidence = {
+        'idle_stability_changed_pixels': None,
+        'steps': [],
+        'localized_step_count': 0,
+        'horizontal_localized_count': 0,
+        'vertical_localized_count': 0,
+        'roundtrip_changed_pixels': None,
+        'candidate': False,
+        'candidate_reason': 'INSUFFICIENT_MAP_LIKE_BEHAVIOR',
+    }
+    time.sleep(2.0)
+    idle, _ = capture(env, out, '21_probe_idle.png')
+    if idle:
+        evidence['idle_stability_changed_pixels'] = diff_pixels(base_frame, idle)
+        prev = idle
+    else:
+        prev = base_frame
+
+    sequence = ('Right', 'Right', 'Left', 'Left', 'Down', 'Down', 'Up', 'Up')
+    for i, k in enumerate(sequence, 22):
+        if proc.poll() is not None:
+            evidence['candidate_reason'] = 'PROCESS_EXITED_DURING_MOVEMENT_PROBE'
+            return evidence
+        key(env, k); time.sleep(0.9)
+        frame, _ = capture(env, out, f'{i:02d}_probe_{k.lower()}.png')
+        d = diff_pixels(prev, frame) if frame else None
+        local = d is not None and 40 <= d <= 60000
+        evidence['steps'].append({'key': k, 'changed_pixels': d, 'localized_change': local})
+        if local:
+            evidence['localized_step_count'] += 1
+            if k in ('Left', 'Right'): evidence['horizontal_localized_count'] += 1
+            if k in ('Up', 'Down'): evidence['vertical_localized_count'] += 1
+        if frame: prev = frame
+
+    evidence['roundtrip_changed_pixels'] = diff_pixels(base_frame, prev)
+    idle_delta = evidence['idle_stability_changed_pixels']
+    stable = idle_delta is not None and idle_delta <= 12000
+    reversible = (evidence['roundtrip_changed_pixels'] is not None and
+                  evidence['roundtrip_changed_pixels'] <= 40000)
+    axis_support = (evidence['horizontal_localized_count'] >= 2 and
+                    evidence['vertical_localized_count'] >= 2)
+    enough_steps = evidence['localized_step_count'] >= 4
+    if stable and reversible and axis_support and enough_steps and proc.poll() is None and windows(env):
+        evidence['candidate'] = True
+        evidence['candidate_reason'] = 'STABLE_BIDIRECTIONAL_LOCALIZED_ROUNDTRIP'
+    elif not stable:
+        evidence['candidate_reason'] = 'SCREEN_NOT_STABLE_BEFORE_MOVEMENT'
+    elif not axis_support:
+        evidence['candidate_reason'] = 'NO_LOCALIZED_RESPONSE_ON_BOTH_AXES'
+    elif not reversible:
+        evidence['candidate_reason'] = 'INPUT_SEQUENCE_NOT_ROUGHLY_REVERSIBLE'
+    return evidence
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--static', required=True)
@@ -172,7 +235,9 @@ def main():
     result = {'engine': st.get('engine'), 'game_root': str(game_root), 'status': 'NOT_RUN',
               'runtime': None, 'process_alive_boot': False, 'visible_windows_boot': 0,
               'window_titles': [], 'boot_to_confirm_changed_pixels': None,
-              'confirm_to_movement_changed_pixels': None, 'stage_evidence': [],
+              'confirm_to_movement_changed_pixels': None, 'confirm_probe': [],
+              'map_gameplay_candidate': False, 'map_gameplay_probe': None,
+              'stage_evidence': [],
               'semantic_visual_review_required_for': ['TITLE_VERIFIED','NEW_GAME_VERIFIED','MAP_GAMEPLAY_VERIFIED'],
               'notes': []}
     cmd, runtime = choose_command(game_root, st.get('engine', 'UNKNOWN')); result['runtime'] = runtime
@@ -212,35 +277,64 @@ def main():
         alive = proc.poll() is None; wins_boot = windows(env)
         result['process_alive_boot'] = alive; result['visible_windows_boot'] = len(wins_boot)
         result['window_titles'] = window_titles(env, wins_boot)
-        s1 = out / '01_boot.png'; screenshot(env, s1)
+        s1, _ = capture(env, out, '01_boot.png')
         if not alive:
             result['status'] = 'BOOT_FAILED'; result['notes'].append(f'process exited rc={proc.returncode}')
         else:
-            # A visible window alone is not boot verification: old RGSS can show a
-            # game-titled DirectX/Audio error dialog. Require post-confirm survival.
             result['status'] = 'WINDOW_VISIBLE_BOOT' if wins_boot else 'PROCESS_ALIVE_NO_VISIBLE_WINDOW'
             if wins_boot: result['stage_evidence'].append('VISIBLE_WINDOW_AT_BOOT_UNVERIFIED')
-            key(env, 'Return'); time.sleep(6)
-            s2 = out / '02_after_confirm.png'; screenshot(env, s2)
-            d1 = diff_pixels(s1, s2); result['boot_to_confirm_changed_pixels'] = d1
+
+            # Preserve the original first-confirm evidence for backward comparability.
+            key(env, 'Return'); time.sleep(4)
+            s2, _ = capture(env, out, '02_after_confirm.png')
+            d1 = diff_pixels(s1, s2) if s1 and s2 else None
+            result['boot_to_confirm_changed_pixels'] = d1
             alive2 = proc.poll() is None; result['process_alive_after_confirm'] = alive2
             wins2 = windows(env); result['visible_windows_after_confirm'] = len(wins2)
             if not alive2:
                 result['status'] = 'WINDOW_THEN_EXITED_AFTER_CONFIRM'
-                result['notes'].append('Process exited after first confirm; a startup/error dialog is possible. Do not call this boot verified without semantic screenshot review.')
+                result['notes'].append('Process exited after first confirm; startup/error dialog possible.')
             else:
                 if (d1 or 0) > 1000: result['stage_evidence'].append('CONFIRM_CAUSED_LARGE_VISUAL_CHANGE')
-                for k in ('Right', 'Down', 'Left', 'Up'):
-                    key(env, k); time.sleep(1.0)
-                time.sleep(4)
-                s3 = out / '03_after_movement.png'; screenshot(env, s3)
-                d2 = diff_pixels(s2, s3); result['confirm_to_movement_changed_pixels'] = d2
+
+                # Advance through title/instruction/dialogue screens while retaining every
+                # frame. This is intentionally bounded; it never claims a semantic stage.
+                prev = s2
+                last = s2
+                for n in range(2, 13):
+                    if proc.poll() is not None: break
+                    key(env, 'Return'); time.sleep(1.8)
+                    frame, _ = capture(env, out, f'{n+1:02d}_after_confirm_{n:02d}.png')
+                    d = diff_pixels(prev, frame) if prev and frame else None
+                    result['confirm_probe'].append({'confirm_index': n, 'changed_pixels': d})
+                    if frame:
+                        prev = frame; last = frame
+
+                result['process_alive_after_confirm_probe'] = proc.poll() is None
+                result['visible_windows_after_confirm_probe'] = len(windows(env))
+                if result['process_alive_after_confirm_probe'] and last:
+                    result['map_gameplay_probe'] = probe_map_like_input(env, out, proc, last)
+                    result['map_gameplay_candidate'] = bool(result['map_gameplay_probe']['candidate'])
+                    movement_deltas = [x.get('changed_pixels') for x in result['map_gameplay_probe']['steps']
+                                       if x.get('changed_pixels') is not None]
+                    result['confirm_to_movement_changed_pixels'] = max(movement_deltas) if movement_deltas else None
+                    if result['map_gameplay_candidate']:
+                        result['stage_evidence'].append('MAP_GAMEPLAY_CANDIDATE_BEHAVIOR')
+                    elif movement_deltas:
+                        result['stage_evidence'].append('DIRECTIONAL_INPUT_PROBED')
+
                 alive3 = proc.poll() is None; result['process_alive_after_inputs'] = alive3
                 wins3 = windows(env); result['visible_windows_after_inputs'] = len(wins3)
                 has_window = bool(wins2 or wins3)
-                if alive3 and has_window and (d1 or 0) > 1000 and (d2 or 0) > 300:
-                    result['status'] = 'INPUT_FLOW_VERIFIED'; result['stage_evidence'].append('ARROW_INPUTS_CAUSED_LARGE_VISUAL_CHANGE')
-                elif alive3 and has_window and (d1 or 0) > 1000:
+                any_confirm_change = ((d1 or 0) > 1000 or
+                                      any((x.get('changed_pixels') or 0) > 1000 for x in result['confirm_probe']))
+                any_input_change = bool(result['map_gameplay_probe'] and
+                                        any((x.get('changed_pixels') or 0) > 300
+                                            for x in result['map_gameplay_probe']['steps']))
+                if alive3 and has_window and any_confirm_change and any_input_change:
+                    result['status'] = 'INPUT_FLOW_VERIFIED'
+                    result['stage_evidence'].append('ARROW_INPUTS_CAUSED_VISUAL_CHANGE')
+                elif alive3 and has_window and any_confirm_change:
                     result['status'] = 'POST_CONFIRM_RESPONSE_VERIFIED'
                 elif alive3 and has_window:
                     result['status'] = 'WINDOW_ALIVE_AFTER_CONFIRM'
