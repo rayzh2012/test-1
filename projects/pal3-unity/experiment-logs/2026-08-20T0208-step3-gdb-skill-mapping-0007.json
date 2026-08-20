@@ -4,7 +4,7 @@
   "roadmap_step": 3,
   "title": "Real GDB SkillInfo loss-aware mapping",
   "created_at": "2026-08-20T02:08:00-04:00",
-  "status": "RUNNING",
+  "status": "VERIFYING_FINAL_HEAD",
   "base_control_ref": "master@06411cd0174cc1928aa8190e96936cf5bdd0f38a",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
   "objective": "Compile the real upstream SkillInfo schema in the fast lane and project only representable semantics into SkillDefinition while preserving and reporting every source semantic that the current runtime domain cannot safely represent.",
@@ -14,19 +14,41 @@
     "GdbSkillInfoMapper.cs",
     "GdbSkillInfoMapperTests.cs",
     "fast-tests.json real GDB source inclusion",
-    "pal3_fastlane.py define_constants support"
+    "pal3_fastlane.py define_constants support",
+    "parallel-safe human devlog entry protocol"
   ],
   "attempts": [
     {
       "attempt": 1,
-      "status": "RUNNING",
+      "status": "PASS",
       "description": "Compile upstream GdbFile.cs with PAL3 conditional symbols; map simple absolute-cost single-element skills; preserve multi-element, percentage-cost, special-consume and progression/composite semantics as retained source plus structured issues.",
       "expected_tests": "existing 39 tests plus 6 GDB mapping tests",
       "failure": null,
       "fix": null,
-      "evidence": null
+      "evidence": {
+        "fast_lane_run_id": 32338925581,
+        "artifact_id": 9395634316,
+        "artifact_sha256": "2d0981f15e85e34161c0c06c7821de0d9f79a161de4e369cc137a133280128f6",
+        "tests_total": 45,
+        "tests_executed": 45,
+        "tests_passed": 45,
+        "tests_failed": 0,
+        "tests_skipped": 0,
+        "duration_ms": 57,
+        "source_patch_replay": "PASS",
+        "real_gdb_schema_compile": "PASS",
+        "pal3_define": true
+      }
     }
   ],
-  "reusable_lessons": [],
-  "next_recommended_experiment": "If verified, inspect actual GDB SkillInfo populations or promote the most common blocking semantic into the combat domain as the next isolated step."
+  "failures": [],
+  "reusable_lessons": [
+    "Compile the real upstream schema in the fast lane rather than validating a locally copied test struct.",
+    "Do not coerce multi-element source semantics to the first element; preserve all source elements and emit a blocking mapping issue.",
+    "Do not reinterpret percentage MP/SP consumption as absolute integer cost.",
+    "Retain the original SkillInfo in MappingResult so future workers can promote currently unsupported fields without reconstructing source semantics.",
+    "Parallel human logging should use one append-only entry per experiment; aggregate blog publication should be serialized."
+  ],
+  "human_devlog_entry": "projects/pal3-unity/devlog/entries/2026-08-20T0208-step3-gdb-skill-mapping.md",
+  "next_recommended_experiment": "Inspect actual GDB SkillInfo populations or otherwise obtain representative real SkillInfo records, measure which blocking semantics occur most often, then promote the highest-value semantic into the combat domain as a separate verified slice."
 }
