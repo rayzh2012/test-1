@@ -1,0 +1,22 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260820-0121-skill-domain-0005",
+  "created_at": "2026-08-20T01:21:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Design the combat and magic implementation plan, then execute it one verified slice at a time.",
+  "normalized_action": "define_skill_domain_contract",
+  "target_surfaces": [
+    "combat-magic-roadmap.md",
+    "Combat/Domain/SkillDefinition.cs",
+    "SkillDefinitionTests.cs",
+    "fast-tests.json"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "Step 1 defines mechanics/presentation contracts only. It does not implement a concrete PAL3 spell, GDB SkillInfo mapping, Unity VFX, elemental formula fidelity, or runtime skill casting.",
+  "status": "EXECUTING"
+}
