@@ -1,0 +1,37 @@
+{
+  "schema_version": "pal3_experiment_log.v0.1",
+  "experiment_id": "pal3-exp-20260820-0558-step5c-multi-target-presentation-0012",
+  "roadmap_step": "5C",
+  "title": "Target-addressed multi-target presentation planning from resolved facts",
+  "created_at": "2026-08-20T05:58:00-04:00",
+  "status": "RUNNING",
+  "base_control_ref": "master@76f9832459c473621e0fae04541199a03845d3eb",
+  "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "objective": "Carry Step 5B multi-target resolved truth across the presentation boundary while preserving target identity and keeping presentation fully read-only.",
+  "hypothesis": "A generic planner can emit one global Cast cue plus ordered target-addressed Impact/optional Defeat cues directly from immutable resolved facts, while preserving the skill visual profile and inventing no travel/timing/spatial semantics.",
+  "claim_boundary": "No Unity VFX/playback is implemented or claimed. The planner does not select targets, spend MP, calculate damage, mutate HP/MP, infer ElementPosition geometry, or invent travel paths, timing, prefab, sound, camera or spatial sequencing.",
+  "design_constraints": [
+    "Do not modify verified Step 5B combat-domain ABI.",
+    "Reuse existing SkillPresentationCue for cue semantics.",
+    "Keep one global SkillCast cue separate from target-addressed cues.",
+    "Preserve target order and target identity from MultiTargetSkillCastResolution<TKey>.",
+    "Mirror resolved Damage amount exactly and add TargetDefeated only when the resolved target is defeated.",
+    "Reject mismatched skill IDs and duplicate target keys.",
+    "Expose all collections through read-only wrappers, not raw arrays.",
+    "Preserve VisualArchetype and VisualProfileKey without pretending they imply an unverified playback sequence.",
+    "Do not emit Travel cues in this generic multi-target slice."
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "RUNNING",
+      "description": "Add additive multi-target presentation plan types, generic planner, and eight regression tests; wire them into the existing .NET fast lane.",
+      "expected_tests": "existing 90 tests plus 8 multi-target presentation tests = 98",
+      "failure": null,
+      "fix": null,
+      "evidence": null
+    }
+  ],
+  "reusable_lessons": [],
+  "next_recommended_experiment": "If verified, Step 5 is mechanically complete at the pure-domain/presentation-contract level; proceed to Step 6 healing/support mechanics while leaving Unity playback as a separate heavy-lane adapter task."
+}
