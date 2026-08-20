@@ -1,0 +1,175 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs
+@@ -0,0 +1,47 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity combat presentation/domain integration seam.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Core
++{
++    using System;
++
++    /// <summary>
++    /// Allows one logical hit to be consumed from an animation window even when an animation
++    /// emits multiple matching frame events. Unity presentation code owns opening/closing the
++    /// window; combat-domain code remains responsible for resolving the hit itself.
++    /// </summary>
++    public sealed class SingleHitGate<TTarget> where TTarget : class
++    {
++        private TTarget _target = null!;
++        private bool _consumed;
++
++        public bool IsOpen => _target != null;
++
++        public void Open(TTarget target)
++        {
++            if (target == null) throw new ArgumentNullException(nameof(target));
++            if (IsOpen) throw new InvalidOperationException("A hit window is already open.");
++
++            _target = target;
++            _consumed = false;
++        }
++
++        public TTarget TryConsume()
++        {
++            if (!IsOpen || _consumed)
++            {
++                return null!;
++            }
++
++            _consumed = true;
++            return _target;
++        }
++
++        public void Close()
++        {
++            _target = null!;
++            _consumed = false;
++        }
++    }
++}
+diff --git a/Assets/Tests/EditMode/SingleHitGateTests.cs b/Assets/Tests/EditMode/SingleHitGateTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/SingleHitGateTests.cs
+@@ -0,0 +1,66 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Core
++{
++    using System;
++    using NUnit.Framework;
++    using Pal3.Game.GameSystems.Combat.Core;
++
++    public sealed class SingleHitGateTests
++    {
++        [Test]
++        public void OpenThenConsume_ReturnsTargetExactlyOnce()
++        {
++            object target = new();
++            SingleHitGate<object> gate = new();
++
++            gate.Open(target);
++
++            Assert.That(gate.TryConsume(), Is.SameAs(target));
++            Assert.That(gate.TryConsume(), Is.Null);
++            Assert.That(gate.IsOpen, Is.True);
++        }
++
++        [Test]
++        public void Close_ClearsCurrentWindow()
++        {
++            SingleHitGate<object> gate = new();
++            gate.Open(new object());
++
++            gate.Close();
++
++            Assert.That(gate.IsOpen, Is.False);
++            Assert.That(gate.TryConsume(), Is.Null);
++        }
++
++        [Test]
++        public void Close_AllowsNextAttackWindow()
++        {
++            object first = new();
++            object second = new();
++            SingleHitGate<object> gate = new();
++
++            gate.Open(first);
++            Assert.That(gate.TryConsume(), Is.SameAs(first));
++            gate.Close();
++            gate.Open(second);
++
++            Assert.That(gate.TryConsume(), Is.SameAs(second));
++        }
++
++        [Test]
++        public void OpenWhileWindowIsOpen_IsRejected()
++        {
++            SingleHitGate<object> gate = new();
++            gate.Open(new object());
++
++            Assert.Throws<InvalidOperationException>(() => gate.Open(new object()));
++        }
++
++        [Test]
++        public void OpenWithNullTarget_IsRejected()
++        {
++            SingleHitGate<object> gate = new();
++
++            Assert.Throws<ArgumentNullException>(() => gate.Open(null!));
++        }
++    }
++}
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs
+@@ -10,6 +10,7 @@ namespace Pal3.Game.GameSystems.Combat.Actor.Controllers
+     using Combat;
+     using Engine.Animation;
+     using Engine.Core.Implementation;
++    using Pal3.Game.GameSystems.Combat.Core;
+     using Game.Actor.Controllers;
+     using Scene;
+ 
+@@ -24,6 +25,9 @@ namespace Pal3.Game.GameSystems.Combat.Actor.Controllers
+         private CombatActor _actor;
+         private ActorActionController _actionController;
+         private ElementPosition _elementPosition;
++        private readonly SingleHitGate<CombatActorController> _normalAttackHitGate = new();
++
++        public event Action<CombatActorController, CombatActorController> NormalAttackHit;
+ 
+         public bool IsActive
+         {
+@@ -45,7 +49,11 @@ namespace Pal3.Game.GameSystems.Combat.Actor.Controllers
+         {
+             if (eventName.StartsWith(COMBAT_ANIMATION_NORMAL_ATTACK_EVENT_NAME_PREFIX, StringComparison.Ordinal))
+             {
+-                // TODO: Impl normal attack behavior
++                CombatActorController target = _normalAttackHitGate.TryConsume();
++                if (target != null)
++                {
++                    NormalAttackHit?.Invoke(this, target);
++                }
+             }
+             else if (eventName.StartsWith(COMBAT_ANIMATION_JUMP_ATTACK_EVENT_NAME_PREFIX, StringComparison.Ordinal))
+             {
+@@ -91,6 +99,7 @@ namespace Pal3.Game.GameSystems.Combat.Actor.Controllers
+                 vertexActionController.AnimationEventTriggered -= AnimationEventTriggered;
+             }
+             
++            _normalAttackHitGate.Close();
+             _actionController.DeActivate();
+         }
+ 
+@@ -120,7 +129,9 @@ namespace Pal3.Game.GameSystems.Combat.Actor.Controllers
+             _actionController.Transform.LookAt(targetElementPosition);
+             yield return Transform.MoveAsync(targetElementPosition, duration);
+             
++            _normalAttackHitGate.Open(enemyActorController);
+             yield return _actionController.PerformActionAsync(_actor.GetAttackAction());
++            _normalAttackHitGate.Close();
+ 
+             _actionController.PerformAction(_actor.GetMovementAction());
+             _actionController.Transform.LookAt(myElementPosition);

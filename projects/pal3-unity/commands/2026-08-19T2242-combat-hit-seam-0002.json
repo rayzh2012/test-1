@@ -1,0 +1,35 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260819-2242-combat-hit-seam-0002",
+  "created_at": "2026-08-19T22:42:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Try the direct ChatGPT realtime PAL3 development loop on the first real combat-animation integration seam.",
+  "normalized_action": "wire_normal_attack_animation_hit_seam",
+  "target_surfaces": [
+    "CombatActorController.AnimationEventTriggered",
+    "CombatActorController.StartNormalAttackAsync",
+    "Combat/Core/SingleHitGate.cs"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "verification": {
+    "initial_failure": "0002 unified-diff new-file hunk counts were malformed; realtime CI rejected the patch before source semantics were evaluated",
+    "repair": "Corrected only the malformed hunk counts, then made the pure hit-gate slice nullable-clean",
+    "source_audit_run": 32325982451,
+    "fastlane_run": 32325982552,
+    "fastlane_artifact_id": 9391360392,
+    "fastlane_artifact_sha256": "6a5cd72af83c9f5c038d00bc9fe0de65539bd6c994a24ff50789301e74d5489a",
+    "tests": {
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 0
+    }
+  },
+  "claim_boundary": "This patch proves animation-hit event plumbing and single-hit gating only. It does not yet prove runtime HP mutation, Unity compilation, or a complete combat loop.",
+  "status": "VERIFIED_FAST_LANE"
+}
