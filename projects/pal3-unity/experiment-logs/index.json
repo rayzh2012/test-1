@@ -34,12 +34,16 @@
     {
       "experiment_id": "pal3-exp-20260820-0229-step4a-skill-population-audit-0008",
       "roadmap_step": "4A",
-      "status": "RUNNING",
-      "terminal": false,
+      "status": "VERIFIED_WITH_DATA_INPUT_BLOCKER",
+      "terminal": true,
       "log": "projects/pal3-unity/experiment-logs/2026-08-20T0229-step4a-skill-population-audit-0008.json",
+      "human_entry": "projects/pal3-unity/devlog/entries/2026-08-20T0229-step4a-skill-population-audit.md",
       "branch": "agent/pal3-step4-skill-population-audit-0008",
-      "pull_request": null,
-      "final_fast_lane_run_id": null
+      "pull_request": 87,
+      "failed_fast_lane_run_id": 32339928133,
+      "first_passing_fast_lane_run_id": 32340164174,
+      "final_code_fast_lane_run_id": 32340164174,
+      "data_input_status": "BLOCKED_NO_LAWFUL_GDB_INPUT_IN_CONNECTED_SOURCES"
     }
   ]
 }
