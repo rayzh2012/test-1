@@ -1,0 +1,19 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatTargetResolver.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatTargetResolver.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatTargetResolver.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatTargetResolver.cs
+@@ -179,6 +179,15 @@ namespace Pal3.Game.GameSystems.Combat.Domain
+         private static void ValidateUniqueFormationCoordinates(
+             IEnumerable<CombatTargetSlot<TKey>> candidates)
+         {
++            bool duplicateKey = candidates
++                .GroupBy(slot => slot.Key, EqualityComparer<TKey>.Default)
++                .Any(group => group.Count() > 1);
++
++            if (duplicateKey)
++            {
++                throw new InvalidOperationException("Combat target keys must be unique.");
++            }
++
+             bool duplicate = candidates
+                 .GroupBy(slot => (slot.Party, slot.Row, slot.Column))
+                 .Any(group => group.Count() > 1);

@@ -23,6 +23,7 @@
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillInfoMapper.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillPopulationAudit.cs",
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatTargetResolver.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/SkillPresentationPlan.cs"
       ],
       "test_files": [
@@ -33,7 +34,8 @@
         "Assets/Tests/EditMode/SingleTargetSkillResolverTests.cs",
         "Assets/Tests/EditMode/GdbSkillInfoMapperTests.cs",
         "Assets/Tests/EditMode/GdbSkillPopulationAuditTests.cs",
-        "Assets/Tests/EditMode/GenericSkillPresentationPlannerTests.cs"
+        "Assets/Tests/EditMode/GenericSkillPresentationPlannerTests.cs",
+        "Assets/Tests/EditMode/CombatTargetResolverTests.cs"
       ]
     }
   ]

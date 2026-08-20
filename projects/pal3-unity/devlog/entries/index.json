@@ -28,6 +28,14 @@
       "first_passing_fast_lane_run_id": 32341131050,
       "hardened_fast_lane_run_id": 32341367176,
       "artifact_id": 9396458443
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0258-step5a-target-resolver-0010",
+      "roadmap_step": "5A",
+      "status": "VERIFIED",
+      "entry": "projects/pal3-unity/devlog/entries/2026-08-20T0258-step5a-target-resolver.md",
+      "first_passing_fast_lane_run_id": 32352972869,
+      "artifact_id": 9400548210
     }
   ]
 }

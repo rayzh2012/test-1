@@ -1,0 +1,28 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260820-0258-target-resolver-0010",
+  "created_at": "2026-08-20T02:58:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Continue the PAL3 combat roadmap into multi-target mechanics after the verified domain-to-presentation boundary.",
+  "normalized_action": "implement_deterministic_target_selection_without_guessing_elementposition_row_column_mapping",
+  "target_surfaces": [
+    "CombatTargetSlot",
+    "CombatTargetResolver",
+    "TargetRangeType single/all/row/column",
+    "fast-tests.json",
+    "experiment-logs",
+    "devlog/entries"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "TARGET_SELECTION_TESTS",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "Formation row/column coordinates are explicit adapter input. This step does not claim a proven mapping from PAL3 ElementPosition to row/column and does not yet apply one skill effect to multiple targets.",
+  "status": "VERIFIED",
+  "pull_request": 90,
+  "first_passing_fast_lane_run_id": 32352972869,
+  "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0258-step5a-target-resolver-0010.json"
+}

@@ -56,6 +56,17 @@
       "pull_request": 88,
       "first_passing_fast_lane_run_id": 32341131050,
       "final_code_fast_lane_run_id": 32341367176
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0258-step5a-target-resolver-0010",
+      "roadmap_step": "5A",
+      "status": "VERIFIED",
+      "terminal": true,
+      "log": "projects/pal3-unity/experiment-logs/2026-08-20T0258-step5a-target-resolver-0010.json",
+      "human_entry": "projects/pal3-unity/devlog/entries/2026-08-20T0258-step5a-target-resolver.md",
+      "branch": "agent/pal3-step5a-target-resolver-0010",
+      "pull_request": 90,
+      "first_passing_fast_lane_run_id": 32352972869
     }
   ]
 }

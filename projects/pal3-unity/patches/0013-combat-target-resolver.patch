@@ -1,0 +1,200 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatTargetResolver.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatTargetResolver.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatTargetResolver.cs
+@@ -0,0 +1,195 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity deterministic combat target selection.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Linq;
++    using Pal3.Core.Contract.Enums;
++
++    public enum CombatParty
++    {
++        First = 0,
++        Enemy,
++    }
++
++    /// <summary>
++    /// Explicit formation coordinates supplied by the runtime adapter.
++    /// The domain deliberately does not infer row/column from ElementPosition.
++    /// </summary>
++    public sealed class CombatTargetSlot<TKey> where TKey : notnull
++    {
++        public TKey Key { get; }
++        public CombatantState State { get; }
++        public CombatParty Party { get; }
++        public int Row { get; }
++        public int Column { get; }
++
++        public CombatTargetSlot(
++            TKey key,
++            CombatantState state,
++            CombatParty party,
++            int row,
++            int column)
++        {
++            Key = key;
++            State = state ?? throw new ArgumentNullException(nameof(state));
++            if (row < 0) throw new ArgumentOutOfRangeException(nameof(row));
++            if (column < 0) throw new ArgumentOutOfRangeException(nameof(column));
++
++            Party = party;
++            Row = row;
++            Column = column;
++        }
++    }
++
++    /// <summary>
++    /// Pure target-selection policy. Formation row/column coordinates are explicit input because
++    /// pinned upstream currently exposes ElementPosition slots but no proven row/column mapping.
++    /// </summary>
++    public static class CombatTargetResolver<TKey> where TKey : notnull
++    {
++        public static IReadOnlyList<TKey> Resolve(
++            TargetRangeType range,
++            IEnumerable<CombatTargetSlot<TKey>> slots)
++        {
++            if (slots == null) throw new ArgumentNullException(nameof(slots));
++            CombatTargetSlot<TKey>[] candidates = slots.ToArray();
++            ValidateUniqueFormationCoordinates(candidates);
++
++            return range switch
++            {
++                TargetRangeType.FirstPartyAll => ResolveAll(candidates, CombatParty.First),
++                TargetRangeType.EnemyPartyAll => ResolveAll(candidates, CombatParty.Enemy),
++                _ => throw new ArgumentException(
++                    $"Target range {range} requires an explicit anchor.",
++                    nameof(range)),
++            };
++        }
++
++        public static IReadOnlyList<TKey> Resolve(
++            TargetRangeType range,
++            IEnumerable<CombatTargetSlot<TKey>> slots,
++            TKey anchorKey)
++        {
++            if (slots == null) throw new ArgumentNullException(nameof(slots));
++            CombatTargetSlot<TKey>[] candidates = slots.ToArray();
++            ValidateUniqueFormationCoordinates(candidates);
++
++            return range switch
++            {
++                TargetRangeType.FirstPartySingle =>
++                    ResolveSingle(candidates, CombatParty.First, anchorKey),
++                TargetRangeType.FirstPartyAll =>
++                    ResolveAll(candidates, CombatParty.First),
++                TargetRangeType.EnemyPartySingle =>
++                    ResolveSingle(candidates, CombatParty.Enemy, anchorKey),
++                TargetRangeType.EnemyPartyAll =>
++                    ResolveAll(candidates, CombatParty.Enemy),
++                TargetRangeType.EnemyPartyOneRow =>
++                    ResolveAxis(candidates, anchorKey, useRow: true),
++                TargetRangeType.EnemyPartyOneColumn =>
++                    ResolveAxis(candidates, anchorKey, useRow: false),
++                _ => throw new NotSupportedException(
++                    $"Target range {range} is not supported by the target resolver."),
++            };
++        }
++
++        private static IReadOnlyList<TKey> ResolveSingle(
++            IReadOnlyList<CombatTargetSlot<TKey>> candidates,
++            CombatParty requiredParty,
++            TKey anchorKey)
++        {
++            CombatTargetSlot<TKey> anchor = RequireAnchor(candidates, anchorKey);
++            if (anchor.Party != requiredParty)
++            {
++                throw new InvalidOperationException(
++                    $"Anchor belongs to {anchor.Party}, expected {requiredParty}.");
++            }
++            if (!anchor.State.IsAlive)
++            {
++                throw new InvalidOperationException("A defeated combatant cannot be targeted.");
++            }
++
++            return Array.AsReadOnly(new[] { anchor.Key });
++        }
++
++        private static IReadOnlyList<TKey> ResolveAll(
++            IEnumerable<CombatTargetSlot<TKey>> candidates,
++            CombatParty party)
++        {
++            TKey[] keys = OrderFormation(candidates
++                    .Where(slot => slot.Party == party && slot.State.IsAlive))
++                .Select(slot => slot.Key)
++                .ToArray();
++
++            return Array.AsReadOnly(keys);
++        }
++
++        private static IReadOnlyList<TKey> ResolveAxis(
++            IReadOnlyList<CombatTargetSlot<TKey>> candidates,
++            TKey anchorKey,
++            bool useRow)
++        {
++            CombatTargetSlot<TKey> anchor = RequireAnchor(candidates, anchorKey);
++            if (anchor.Party != CombatParty.Enemy)
++            {
++                throw new InvalidOperationException(
++                    "Enemy row/column targeting requires an enemy anchor.");
++            }
++            if (!anchor.State.IsAlive)
++            {
++                throw new InvalidOperationException("A defeated combatant cannot anchor a target group.");
++            }
++
++            IEnumerable<CombatTargetSlot<TKey>> selected = candidates.Where(slot =>
++                slot.Party == CombatParty.Enemy &&
++                slot.State.IsAlive &&
++                (useRow ? slot.Row == anchor.Row : slot.Column == anchor.Column));
++
++            return Array.AsReadOnly(
++                OrderFormation(selected).Select(slot => slot.Key).ToArray());
++        }
++
++        private static CombatTargetSlot<TKey> RequireAnchor(
++            IEnumerable<CombatTargetSlot<TKey>> candidates,
++            TKey anchorKey)
++        {
++            CombatTargetSlot<TKey>[] matches = candidates
++                .Where(slot => EqualityComparer<TKey>.Default.Equals(slot.Key, anchorKey))
++                .ToArray();
++
++            if (matches.Length != 1)
++            {
++                throw new InvalidOperationException(
++                    $"Expected exactly one anchor slot but found {matches.Length}.");
++            }
++
++            return matches[0];
++        }
++
++        private static IOrderedEnumerable<CombatTargetSlot<TKey>> OrderFormation(
++            IEnumerable<CombatTargetSlot<TKey>> candidates)
++        {
++            return candidates
++                .OrderBy(slot => slot.Row)
++                .ThenBy(slot => slot.Column);
++        }
++
++        private static void ValidateUniqueFormationCoordinates(
++            IEnumerable<CombatTargetSlot<TKey>> candidates)
++        {
++            bool duplicate = candidates
++                .GroupBy(slot => (slot.Party, slot.Row, slot.Column))
++                .Any(group => group.Count() > 1);
++
++            if (duplicate)
++            {
++                throw new InvalidOperationException(
++                    "Formation coordinates must be unique within each party.");
++            }
++        }
++    }
++}
