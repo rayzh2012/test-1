@@ -1,0 +1,36 @@
+{
+  "schema_version": "pal3_experiment_log.v0.1",
+  "experiment_id": "pal3-exp-20260820-0258-step5a-target-resolver-0010",
+  "roadmap_step": "5A",
+  "title": "Deterministic combat target selection with explicit formation coordinates",
+  "created_at": "2026-08-20T02:58:00-04:00",
+  "status": "RUNNING",
+  "base_control_ref": "master@2a8ad4365f516b9f11d2fe94527e2f0381e2c60c",
+  "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "objective": "Implement deterministic single/all/row/column target selection while keeping PAL3 ElementPosition-to-row/column mapping outside the domain until that mapping is supported by runtime/data evidence.",
+  "hypothesis": "An explicit formation-coordinate adapter contract can support all current TargetRangeType selection semantics without guessing how the upstream elemental positions map to rows and columns.",
+  "claim_boundary": "This experiment selects targets only. It does not apply damage/healing to multiple targets, prove the real PAL3 ElementPosition row/column layout, or add Unity presentation behavior.",
+  "source_evidence": [
+    "Pinned upstream TargetRangeType defines FirstPartySingle/All, EnemyPartySingle/All, EnemyPartyOneRow and EnemyPartyOneColumn.",
+    "Pinned upstream ElementPosition defines six ally and six enemy element/center slots.",
+    "No pinned-upstream resolver or explicit row/column mapping was found, so the domain will require explicit row/column input rather than infer it."
+  ],
+  "changed_surfaces": [
+    "CombatTargetResolver.cs",
+    "CombatTargetResolverTests.cs",
+    "fast-tests.json"
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "RUNNING",
+      "description": "Resolve living first/enemy party targets deterministically; require explicit anchor for single/row/column; filter defeated actors; validate unique formation coordinates; expose read-only results.",
+      "expected_tests": "existing 60 tests plus 10 target-selection tests = 70",
+      "failure": null,
+      "fix": null,
+      "evidence": null
+    }
+  ],
+  "reusable_lessons": [],
+  "next_recommended_experiment": "If verified, Step 5B applies one already-supported damage effect to the selected target set and emits one Damage fact per resolved target."
+}
