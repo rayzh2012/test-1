@@ -1,0 +1,356 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SkillDefinition.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SkillDefinition.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SkillDefinition.cs
+@@ -0,0 +1,158 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity combat skill domain contract.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Linq;
++    using Pal3.Core.Contract.Enums;
++
++    public enum SkillVisualArchetype
++    {
++        MeleeImpact = 0,
++        Projectile,
++        DescendStrike,
++        AreaBurst,
++        GroundField,
++        SupportPulse,
++        SelfAura,
++        BossSpecial,
++    }
++
++    public enum SkillEffectKind
++    {
++        AttributeImpact = 0,
++        CombatStateImpact,
++    }
++
++    public sealed class SkillEffectDefinition
++    {
++        public SkillEffectKind Kind { get; }
++
++        public ActorAttributeType AttributeType { get; }
++        public AttributeImpactType AttributeImpactType { get; }
++        public int Value { get; }
++
++        public ActorCombatStateType CombatStateType { get; }
++        public CombatStateImpactType CombatStateImpactType { get; }
++
++        private SkillEffectDefinition(
++            SkillEffectKind kind,
++            ActorAttributeType attributeType,
++            AttributeImpactType attributeImpactType,
++            int value,
++            ActorCombatStateType combatStateType,
++            CombatStateImpactType combatStateImpactType)
++        {
++            Kind = kind;
++            AttributeType = attributeType;
++            AttributeImpactType = attributeImpactType;
++            Value = value;
++            CombatStateType = combatStateType;
++            CombatStateImpactType = combatStateImpactType;
++        }
++
++        public static SkillEffectDefinition ForAttribute(
++            ActorAttributeType attributeType,
++            AttributeImpactType impactType,
++            int value)
++        {
++            return new SkillEffectDefinition(
++                SkillEffectKind.AttributeImpact,
++                attributeType,
++                impactType,
++                value,
++                default,
++                CombatStateImpactType.None);
++        }
++
++        public static SkillEffectDefinition ForCombatState(
++            ActorCombatStateType combatStateType,
++            CombatStateImpactType impactType)
++        {
++            if (impactType == CombatStateImpactType.None)
++            {
++                throw new ArgumentOutOfRangeException(nameof(impactType),
++                    "Combat-state effects must either apply or remove a state.");
++            }
++
++            return new SkillEffectDefinition(
++                SkillEffectKind.CombatStateImpact,
++                default,
++                AttributeImpactType.Absolute,
++                value: 0,
++                combatStateType,
++                impactType);
++        }
++    }
++
++    /// <summary>
++    /// Presentation-independent combat skill contract.
++    /// Mechanics may become arbitrarily rich while presentation remains mapped to a small
++    /// reusable set of visual archetypes/profiles.
++    /// </summary>
++    public sealed class SkillDefinition
++    {
++        private readonly SkillEffectDefinition[] _effects;
++
++        public uint Id { get; }
++        public string Name { get; }
++        public SkillType Type { get; }
++        public ElementType Element { get; }
++        public TargetRangeType TargetRange { get; }
++        public int MpCost { get; }
++        public int SpCost { get; }
++        public SkillVisualArchetype VisualArchetype { get; }
++        public string VisualProfileKey { get; }
++        public IReadOnlyList<SkillEffectDefinition> Effects => _effects;
++
++        public SkillDefinition(
++            uint id,
++            string name,
++            SkillType type,
++            ElementType element,
++            TargetRangeType targetRange,
++            int mpCost,
++            int spCost,
++            SkillVisualArchetype visualArchetype,
++            string visualProfileKey,
++            IEnumerable<SkillEffectDefinition> effects)
++        {
++            if (id == 0) throw new ArgumentOutOfRangeException(nameof(id));
++            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Skill name is required.", nameof(name));
++            if (targetRange == TargetRangeType.None)
++            {
++                throw new ArgumentOutOfRangeException(nameof(targetRange), "A combat skill requires an explicit target range.");
++            }
++            if (mpCost < 0) throw new ArgumentOutOfRangeException(nameof(mpCost));
++            if (spCost < 0) throw new ArgumentOutOfRangeException(nameof(spCost));
++            if (string.IsNullOrWhiteSpace(visualProfileKey))
++            {
++                throw new ArgumentException("A visual profile key is required.", nameof(visualProfileKey));
++            }
++            if (effects == null) throw new ArgumentNullException(nameof(effects));
++
++            _effects = effects.ToArray();
++            if (_effects.Length == 0)
++            {
++                throw new ArgumentException("A combat skill must contain at least one effect.", nameof(effects));
++            }
++            if (_effects.Any(effect => effect == null))
++            {
++                throw new ArgumentException("Skill effects cannot contain null entries.", nameof(effects));
++            }
++
++            Id = id;
++            Name = name;
++            Type = type;
++            Element = element;
++            TargetRange = targetRange;
++            MpCost = mpCost;
++            SpCost = spCost;
++            VisualArchetype = visualArchetype;
++            VisualProfileKey = visualProfileKey;
++        }
++    }
++}
+diff --git a/Assets/Tests/EditMode/SkillDefinitionTests.cs b/Assets/Tests/EditMode/SkillDefinitionTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/SkillDefinitionTests.cs
+@@ -0,0 +1,188 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class SkillDefinitionTests
++    {
++        [Test]
++        public void SkillDefinition_PreservesMultipleIndependentEffects()
++        {
++            SkillDefinition skill = new(
++                id: 1001,
++                name: "Test Flame",
++                type: SkillType.DamageMagic,
++                element: ElementType.Fire,
++                targetRange: TargetRangeType.EnemyPartySingle,
++                mpCost: 12,
++                spCost: 0,
++                visualArchetype: SkillVisualArchetype.Projectile,
++                visualProfileKey: "fire.projectile.basic",
++                effects: new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        AttributeImpactType.Absolute,
++                        value: -30),
++                    SkillEffectDefinition.ForCombatState(
++                        ActorCombatStateType.PoisonFire,
++                        CombatStateImpactType.Increase),
++                });
++
++            Assert.That(skill.Effects, Has.Count.EqualTo(2));
++            Assert.That(skill.Effects[0].Kind, Is.EqualTo(SkillEffectKind.AttributeImpact));
++            Assert.That(skill.Effects[1].Kind, Is.EqualTo(SkillEffectKind.CombatStateImpact));
++        }
++
++        [Test]
++        public void AttributeEffect_PreservesAttributeImpactContract()
++        {
++            SkillEffectDefinition effect = SkillEffectDefinition.ForAttribute(
++                ActorAttributeType.Hp,
++                AttributeImpactType.Percentage,
++                value: 25);
++
++            Assert.That(effect.Kind, Is.EqualTo(SkillEffectKind.AttributeImpact));
++            Assert.That(effect.AttributeType, Is.EqualTo(ActorAttributeType.Hp));
++            Assert.That(effect.AttributeImpactType, Is.EqualTo(AttributeImpactType.Percentage));
++            Assert.That(effect.Value, Is.EqualTo(25));
++        }
++
++        [Test]
++        public void CombatStateEffect_PreservesStateImpactContract()
++        {
++            SkillEffectDefinition effect = SkillEffectDefinition.ForCombatState(
++                ActorCombatStateType.Seal,
++                CombatStateImpactType.Increase);
++
++            Assert.That(effect.Kind, Is.EqualTo(SkillEffectKind.CombatStateImpact));
++            Assert.That(effect.CombatStateType, Is.EqualTo(ActorCombatStateType.Seal));
++            Assert.That(effect.CombatStateImpactType, Is.EqualTo(CombatStateImpactType.Increase));
++        }
++
++        [Test]
++        public void CombatStateEffect_RejectsNoOpImpact()
++        {
++            Assert.Throws<ArgumentOutOfRangeException>(() =>
++                SkillEffectDefinition.ForCombatState(
++                    ActorCombatStateType.Seal,
++                    CombatStateImpactType.None));
++        }
++
++        [Test]
++        public void SkillDefinition_SeparatesMechanicsFromVisualProfile()
++        {
++            SkillEffectDefinition[] effects =
++            {
++                SkillEffectDefinition.ForAttribute(
++                    ActorAttributeType.Hp,
++                    AttributeImpactType.Absolute,
++                    value: -20),
++            };
++
++            SkillDefinition projectile = CreateSkill(
++                visualArchetype: SkillVisualArchetype.Projectile,
++                visualProfileKey: "fire.projectile.basic",
++                effects);
++
++            SkillDefinition burst = CreateSkill(
++                visualArchetype: SkillVisualArchetype.AreaBurst,
++                visualProfileKey: "fire.area.basic",
++                effects);
++
++            Assert.That(projectile.Effects[0].Value, Is.EqualTo(burst.Effects[0].Value));
++            Assert.That(projectile.TargetRange, Is.EqualTo(burst.TargetRange));
++            Assert.That(projectile.VisualArchetype, Is.Not.EqualTo(burst.VisualArchetype));
++            Assert.That(projectile.VisualProfileKey, Is.Not.EqualTo(burst.VisualProfileKey));
++        }
++
++        [Test]
++        public void SkillDefinition_RejectsEmptyEffectList()
++        {
++            Assert.Throws<ArgumentException>(() => CreateSkill(
++                SkillVisualArchetype.Projectile,
++                "fire.projectile.basic",
++                Array.Empty<SkillEffectDefinition>()));
++        }
++
++        [TestCase(-1, 0)]
++        [TestCase(0, -1)]
++        public void SkillDefinition_RejectsNegativeResourceCosts(int mpCost, int spCost)
++        {
++            Assert.Throws<ArgumentOutOfRangeException>(() => new SkillDefinition(
++                id: 1001,
++                name: "Test",
++                type: SkillType.DamageMagic,
++                element: ElementType.Fire,
++                targetRange: TargetRangeType.EnemyPartySingle,
++                mpCost,
++                spCost,
++                SkillVisualArchetype.Projectile,
++                "fire.projectile.basic",
++                new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        AttributeImpactType.Absolute,
++                        value: -10),
++                }));
++        }
++
++        [Test]
++        public void SkillDefinition_RejectsMissingTargetRange()
++        {
++            Assert.Throws<ArgumentOutOfRangeException>(() => new SkillDefinition(
++                id: 1001,
++                name: "Test",
++                type: SkillType.DamageMagic,
++                element: ElementType.Fire,
++                targetRange: TargetRangeType.None,
++                mpCost: 0,
++                spCost: 0,
++                SkillVisualArchetype.Projectile,
++                "fire.projectile.basic",
++                new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        AttributeImpactType.Absolute,
++                        value: -10),
++                }));
++        }
++
++        [Test]
++        public void SkillDefinition_RejectsBlankVisualProfileKey()
++        {
++            Assert.Throws<ArgumentException>(() => CreateSkill(
++                SkillVisualArchetype.Projectile,
++                " ",
++                new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        AttributeImpactType.Absolute,
++                        value: -10),
++                }));
++        }
++
++        private static SkillDefinition CreateSkill(
++            SkillVisualArchetype visualArchetype,
++            string visualProfileKey,
++            SkillEffectDefinition[] effects)
++        {
++            return new SkillDefinition(
++                id: 1001,
++                name: "Test",
++                type: SkillType.DamageMagic,
++                element: ElementType.Fire,
++                targetRange: TargetRangeType.EnemyPartySingle,
++                mpCost: 10,
++                spCost: 0,
++                visualArchetype,
++                visualProfileKey,
++                effects);
++        }
++    }
++}
