@@ -1,0 +1,272 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
+new file mode 100644
+index 0000000..af50bcf
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
+@@ -0,0 +1,137 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity combat-core feasibility slice.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Core
++{
++    using System;
++
++    /// <summary>
++    /// Outcome of the smallest deterministic 1v1 combat slice.
++    /// This is intentionally independent of Unity presentation.
++    /// </summary>
++    public enum DuelOutcome
++    {
++        InProgress = 0,
++        PlayerWin = 1,
++        PlayerLose = 2,
++    }
++
++    /// <summary>
++    /// Minimal mutable combat state used by the pure C# combat domain.
++    /// More PAL3 attributes can be mapped in after the integration boundary is proven.
++    /// </summary>
++    public sealed class CombatantState
++    {
++        public int MaxHp { get; }
++        public int CurrentHp { get; private set; }
++        public int Attack { get; }
++        public int Defense { get; }
++
++        public bool IsAlive => CurrentHp > 0;
++
++        public CombatantState(int maxHp, int attack, int defense)
++        {
++            if (maxHp <= 0) throw new ArgumentOutOfRangeException(nameof(maxHp));
++            if (attack < 0) throw new ArgumentOutOfRangeException(nameof(attack));
++            if (defense < 0) throw new ArgumentOutOfRangeException(nameof(defense));
++
++            MaxHp = maxHp;
++            CurrentHp = maxHp;
++            Attack = attack;
++            Defense = defense;
++        }
++
++        internal int ApplyDamage(int damage)
++        {
++            if (damage < 0) throw new ArgumentOutOfRangeException(nameof(damage));
++            if (!IsAlive) return 0;
++
++            int appliedDamage = Math.Min(CurrentHp, damage);
++            CurrentHp -= appliedDamage;
++            return appliedDamage;
++        }
++    }
++
++    public readonly struct NormalAttackResolution
++    {
++        public int Damage { get; }
++        public bool IsTargetDefeated { get; }
++
++        public NormalAttackResolution(int damage, bool isTargetDefeated)
++        {
++            Damage = damage;
++            IsTargetDefeated = isTargetDefeated;
++        }
++    }
++
++    /// <summary>
++    /// Deterministic normal-attack resolver for the feasibility slice.
++    /// </summary>
++    public static class NormalAttackResolver
++    {
++        public static NormalAttackResolution Resolve(CombatantState attacker, CombatantState defender)
++        {
++            if (attacker == null) throw new ArgumentNullException(nameof(attacker));
++            if (defender == null) throw new ArgumentNullException(nameof(defender));
++            if (!attacker.IsAlive) throw new InvalidOperationException("A defeated combatant cannot attack.");
++            if (!defender.IsAlive) throw new InvalidOperationException("A defeated combatant cannot be targeted.");
++
++            // FEASIBILITY BASELINE ONLY:
++            // This is deliberately NOT a claim about PAL3's original damage formula.
++            // Replace this model only after formula evidence is locked.
++            int damage = Math.Max(1, attacker.Attack - defender.Defense);
++            int appliedDamage = defender.ApplyDamage(damage);
++
++            return new NormalAttackResolution(appliedDamage, !defender.IsAlive);
++        }
++    }
++
++    /// <summary>
++    /// Smallest end-to-end combat state machine: player and enemy trade normal attacks
++    /// until one side is defeated.
++    /// </summary>
++    public sealed class CombatDuel
++    {
++        public CombatantState Player { get; }
++        public CombatantState Enemy { get; }
++
++        public DuelOutcome Outcome { get; private set; } = DuelOutcome.InProgress;
++
++        public CombatDuel(CombatantState player, CombatantState enemy)
++        {
++            Player = player ?? throw new ArgumentNullException(nameof(player));
++            Enemy = enemy ?? throw new ArgumentNullException(nameof(enemy));
++        }
++
++        public NormalAttackResolution ResolvePlayerNormalAttack()
++        {
++            return ResolveNormalAttack(Player, Enemy, DuelOutcome.PlayerWin);
++        }
++
++        public NormalAttackResolution ResolveEnemyNormalAttack()
++        {
++            return ResolveNormalAttack(Enemy, Player, DuelOutcome.PlayerLose);
++        }
++
++        private NormalAttackResolution ResolveNormalAttack(
++            CombatantState attacker,
++            CombatantState defender,
++            DuelOutcome terminalOutcome)
++        {
++            if (Outcome != DuelOutcome.InProgress)
++            {
++                throw new InvalidOperationException("The duel has already ended.");
++            }
++
++            NormalAttackResolution resolution = NormalAttackResolver.Resolve(attacker, defender);
++
++            if (resolution.IsTargetDefeated)
++            {
++                Outcome = terminalOutcome;
++            }
++
++            return resolution;
++        }
++    }
++}
+diff --git a/Assets/Tests/EditMode/CombatCoreTests.cs b/Assets/Tests/EditMode/CombatCoreTests.cs
+new file mode 100644
+index 0000000..36879e1
+--- /dev/null
++++ b/Assets/Tests/EditMode/CombatCoreTests.cs
+@@ -0,0 +1,94 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Core
++{
++    using System;
++    using NUnit.Framework;
++    using Pal3.Game.GameSystems.Combat.Core;
++
++    public sealed class CombatCoreTests
++    {
++        [Test]
++        public void NormalAttack_AppliesAttackMinusDefense()
++        {
++            CombatantState attacker = new(maxHp: 100, attack: 30, defense: 5);
++            CombatantState defender = new(maxHp: 100, attack: 10, defense: 12);
++
++            NormalAttackResolution result = NormalAttackResolver.Resolve(attacker, defender);
++
++            Assert.That(result.Damage, Is.EqualTo(18));
++            Assert.That(defender.CurrentHp, Is.EqualTo(82));
++            Assert.That(result.IsTargetDefeated, Is.False);
++        }
++
++        [Test]
++        public void NormalAttack_AlwaysDealsAtLeastOneDamage()
++        {
++            CombatantState attacker = new(maxHp: 100, attack: 5, defense: 5);
++            CombatantState defender = new(maxHp: 100, attack: 10, defense: 999);
++
++            NormalAttackResolution result = NormalAttackResolver.Resolve(attacker, defender);
++
++            Assert.That(result.Damage, Is.EqualTo(1));
++            Assert.That(defender.CurrentHp, Is.EqualTo(99));
++        }
++
++        [Test]
++        public void NormalAttack_ClampsDamageAtRemainingHpAndMarksDefeat()
++        {
++            CombatantState attacker = new(maxHp: 100, attack: 500, defense: 0);
++            CombatantState defender = new(maxHp: 40, attack: 10, defense: 0);
++
++            NormalAttackResolution result = NormalAttackResolver.Resolve(attacker, defender);
++
++            Assert.That(result.Damage, Is.EqualTo(40));
++            Assert.That(defender.CurrentHp, Is.Zero);
++            Assert.That(defender.IsAlive, Is.False);
++            Assert.That(result.IsTargetDefeated, Is.True);
++        }
++
++        [Test]
++        public void Duel_PlayerKillTransitionsToPlayerWin()
++        {
++            CombatDuel duel = new(
++                new CombatantState(maxHp: 100, attack: 100, defense: 0),
++                new CombatantState(maxHp: 20, attack: 10, defense: 0));
++
++            duel.ResolvePlayerNormalAttack();
++
++            Assert.That(duel.Outcome, Is.EqualTo(DuelOutcome.PlayerWin));
++        }
++
++        [Test]
++        public void Duel_EnemyKillTransitionsToPlayerLose()
++        {
++            CombatDuel duel = new(
++                new CombatantState(maxHp: 20, attack: 10, defense: 0),
++                new CombatantState(maxHp: 100, attack: 100, defense: 0));
++
++            duel.ResolveEnemyNormalAttack();
++
++            Assert.That(duel.Outcome, Is.EqualTo(DuelOutcome.PlayerLose));
++        }
++
++        [Test]
++        public void Duel_RejectsActionsAfterTerminalOutcome()
++        {
++            CombatDuel duel = new(
++                new CombatantState(maxHp: 100, attack: 100, defense: 0),
++                new CombatantState(maxHp: 20, attack: 10, defense: 0));
++
++            duel.ResolvePlayerNormalAttack();
++
++            Assert.Throws<InvalidOperationException>(() => duel.ResolvePlayerNormalAttack());
++        }
++
++        [TestCase(0, 1, 1)]
++        [TestCase(-1, 1, 1)]
++        [TestCase(10, -1, 1)]
++        [TestCase(10, 1, -1)]
++        public void CombatantState_RejectsInvalidStats(int maxHp, int attack, int defense)
++        {
++            Assert.Throws<ArgumentOutOfRangeException>(
++                () => new CombatantState(maxHp, attack, defense));
++        }
++    }
++}
+diff --git a/Assets/Tests/EditMode/Pal3.Game.CombatCore.Tests.asmdef b/Assets/Tests/EditMode/Pal3.Game.CombatCore.Tests.asmdef
+new file mode 100644
+index 0000000..cb0d27e
+--- /dev/null
++++ b/Assets/Tests/EditMode/Pal3.Game.CombatCore.Tests.asmdef
+@@ -0,0 +1,23 @@
++{
++    "name": "Pal3.Game.CombatCore.Tests",
++    "rootNamespace": "",
++    "references": [
++        "GUID:077e41948865f464a8105d046a0fdfe0"
++    ],
++    "includePlatforms": [
++        "Editor"
++    ],
++    "excludePlatforms": [],
++    "allowUnsafeCode": false,
++    "overrideReferences": false,
++    "precompiledReferences": [],
++    "autoReferenced": false,
++    "defineConstraints": [
++        "UNITY_INCLUDE_TESTS"
++    ],
++    "versionDefines": [],
++    "noEngineReferences": false,
++    "optionalUnityReferences": [
++        "TestAssemblies"
++    ]
++}
