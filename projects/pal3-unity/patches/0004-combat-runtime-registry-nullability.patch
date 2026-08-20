@@ -1,0 +1,18 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs
+@@ -34,12 +34,12 @@ namespace Pal3.Game.GameSystems.Combat.Domain
+         {
+             if (key == null) throw new ArgumentNullException(nameof(key));
+ 
+-            if (!_states.TryGetValue(key, out CombatantState state))
++            if (!_states.ContainsKey(key))
+             {
+                 throw new KeyNotFoundException("Combatant runtime state is not registered.");
+             }
+ 
+-            return state;
++            return _states[key];
+         }
+ 
+         public NormalAttackResolution ResolveNormalAttack(TKey attacker, TKey defender)

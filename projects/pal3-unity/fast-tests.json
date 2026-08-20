@@ -8,11 +8,13 @@
       "required": true,
       "source_files": [
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs",
-        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs"
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs",
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs"
       ],
       "test_files": [
         "Assets/Tests/EditMode/CombatCoreTests.cs",
-        "Assets/Tests/EditMode/SingleHitGateTests.cs"
+        "Assets/Tests/EditMode/SingleHitGateTests.cs",
+        "Assets/Tests/EditMode/CombatRuntimeRegistryTests.cs"
       ]
     }
   ]

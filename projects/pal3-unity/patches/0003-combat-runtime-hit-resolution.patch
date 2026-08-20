@@ -1,0 +1,305 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
+@@ -2,7 +2,7 @@
+ //  PAL3.Unity combat-core feasibility slice.
+ // ---------------------------------------------------------------------------------------------
+ 
+-namespace Pal3.Game.GameSystems.Combat.Core
++namespace Pal3.Game.GameSystems.Combat.Domain
+ {
+     using System;
+ 
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs
+@@ -2,7 +2,7 @@
+ //  PAL3.Unity combat presentation/domain integration seam.
+ // ---------------------------------------------------------------------------------------------
+ 
+-namespace Pal3.Game.GameSystems.Combat.Core
++namespace Pal3.Game.GameSystems.Combat.Domain
+ {
+     using System;
+ 
+diff --git a/Assets/Tests/EditMode/CombatCoreTests.cs b/Assets/Tests/EditMode/CombatCoreTests.cs
+--- a/Assets/Tests/EditMode/CombatCoreTests.cs
++++ b/Assets/Tests/EditMode/CombatCoreTests.cs
+@@ -1,8 +1,8 @@
+-namespace Pal3.Game.Tests.GameSystems.Combat.Core
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
+ {
+     using System;
+     using NUnit.Framework;
+-    using Pal3.Game.GameSystems.Combat.Core;
++    using Pal3.Game.GameSystems.Combat.Domain;
+ 
+     public sealed class CombatCoreTests
+     {
+diff --git a/Assets/Tests/EditMode/SingleHitGateTests.cs b/Assets/Tests/EditMode/SingleHitGateTests.cs
+--- a/Assets/Tests/EditMode/SingleHitGateTests.cs
++++ b/Assets/Tests/EditMode/SingleHitGateTests.cs
+@@ -1,8 +1,8 @@
+-namespace Pal3.Game.Tests.GameSystems.Combat.Core
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
+ {
+     using System;
+     using NUnit.Framework;
+-    using Pal3.Game.GameSystems.Combat.Core;
++    using Pal3.Game.GameSystems.Combat.Domain;
+ 
+     public sealed class SingleHitGateTests
+     {
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs
+@@ -10,7 +10,7 @@
+     using Combat;
+     using Engine.Animation;
+     using Engine.Core.Implementation;
+-    using Pal3.Game.GameSystems.Combat.Core;
++    using Pal3.Game.GameSystems.Combat.Domain;
+     using Game.Actor.Controllers;
+     using Scene;
+ 
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs
+@@ -0,0 +1,55 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity combat runtime state registry.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++
++    /// <summary>
++    /// Owns mutable combatant state for one combat encounter.
++    /// Keys are presentation/runtime handles; states remain pure C# domain objects.
++    /// </summary>
++    public sealed class CombatRuntimeRegistry<TKey> where TKey : class
++    {
++        private readonly Dictionary<TKey, CombatantState> _states = new();
++
++        public IEnumerable<TKey> Keys => _states.Keys;
++
++        public int Count => _states.Count;
++
++        public void Register(TKey key, CombatantState state)
++        {
++            if (key == null) throw new ArgumentNullException(nameof(key));
++            if (state == null) throw new ArgumentNullException(nameof(state));
++
++            if (!_states.TryAdd(key, state))
++            {
++                throw new InvalidOperationException("Combatant runtime state is already registered.");
++            }
++        }
++
++        public CombatantState Get(TKey key)
++        {
++            if (key == null) throw new ArgumentNullException(nameof(key));
++
++            if (!_states.TryGetValue(key, out CombatantState state))
++            {
++                throw new KeyNotFoundException("Combatant runtime state is not registered.");
++            }
++
++            return state;
++        }
++
++        public NormalAttackResolution ResolveNormalAttack(TKey attacker, TKey defender)
++        {
++            return NormalAttackResolver.Resolve(Get(attacker), Get(defender));
++        }
++
++        public void Clear()
++        {
++            _states.Clear();
++        }
++    }
++}
+diff --git a/Assets/Tests/EditMode/CombatRuntimeRegistryTests.cs b/Assets/Tests/EditMode/CombatRuntimeRegistryTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/CombatRuntimeRegistryTests.cs
+@@ -0,0 +1,71 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using NUnit.Framework;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class CombatRuntimeRegistryTests
++    {
++        [Test]
++        public void RegisterAndGet_ReturnsEncounterState()
++        {
++            object key = new();
++            CombatantState state = new(maxHp: 100, attack: 30, defense: 10);
++            CombatRuntimeRegistry<object> registry = new();
++
++            registry.Register(key, state);
++
++            Assert.That(registry.Get(key), Is.SameAs(state));
++            Assert.That(registry.Count, Is.EqualTo(1));
++        }
++
++        [Test]
++        public void Register_DuplicateKeyIsRejected()
++        {
++            object key = new();
++            CombatRuntimeRegistry<object> registry = new();
++            registry.Register(key, new CombatantState(100, 20, 10));
++
++            Assert.Throws<InvalidOperationException>(
++                () => registry.Register(key, new CombatantState(100, 20, 10)));
++        }
++
++        [Test]
++        public void Get_UnknownKeyIsRejected()
++        {
++            CombatRuntimeRegistry<object> registry = new();
++
++            Assert.Throws<KeyNotFoundException>(() => registry.Get(new object()));
++        }
++
++        [Test]
++        public void ResolveNormalAttack_MutatesOnlyRuntimeDefenderState()
++        {
++            object attacker = new();
++            object defender = new();
++            CombatRuntimeRegistry<object> registry = new();
++            registry.Register(attacker, new CombatantState(maxHp: 100, attack: 35, defense: 5));
++            registry.Register(defender, new CombatantState(maxHp: 80, attack: 10, defense: 15));
++
++            NormalAttackResolution result = registry.ResolveNormalAttack(attacker, defender);
++
++            Assert.That(result.Damage, Is.EqualTo(20));
++            Assert.That(registry.Get(attacker).CurrentHp, Is.EqualTo(100));
++            Assert.That(registry.Get(defender).CurrentHp, Is.EqualTo(60));
++        }
++
++        [Test]
++        public void Clear_RemovesEncounterState()
++        {
++            object key = new();
++            CombatRuntimeRegistry<object> registry = new();
++            registry.Register(key, new CombatantState(100, 20, 10));
++
++            registry.Clear();
++
++            Assert.That(registry.Count, Is.Zero);
++            Assert.Throws<KeyNotFoundException>(() => registry.Get(key));
++        }
++    }
++}
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
+@@ -22,7 +22,9 @@
+     using Data;
+     using Engine.Core.Abstraction;
+     using Engine.Extensions;
++    using Engine.Logging;
+     using Game.Scene;
++    using Pal3.Game.GameSystems.Combat.Domain;
+     using Scene;
+     using State;
+     using Team;
+@@ -58,6 +60,7 @@
+ 
+         private CombatScene _combatScene;
+         private CombatContext _currentCombatContext;
++        private CombatRuntimeRegistry<CombatActorController> _runtimeCombatStates = new();
+ 
+         public CombatManager(GameResourceProvider resourceProvider,
+             TeamManager teamManager,
+@@ -108,6 +111,7 @@
+             }
+ 
+             _combatScene.LoadActors(combatActors, combatContext.MeetType);
++            InitializeRuntimeCombatState(combatActors);
+ 
+             SetCameraPosition(_combatCameraConfigFile.DefaultCamConfigs[0]);
+ 
+@@ -124,11 +128,75 @@
+ 
+         public void ExitCombat()
+         {
++            foreach (CombatActorController controller in _runtimeCombatStates.Keys)
++            {
++                controller.NormalAttackHit -= OnNormalAttackHit;
++            }
++
++            _runtimeCombatStates.Clear();
++
+             // Stop combat music
+             Pal3.Instance.Execute(new StopScriptMusicCommand());
+             Pal3.Instance.Execute(new CameraFadeInCommand());
+             _sceneManager.UnloadCombatScene();
+             ResetCameraPosition();
++        }
++
++        private void InitializeRuntimeCombatState(Dictionary<ElementPosition, CombatActorInfo> combatActors)
++        {
++            _runtimeCombatStates = new CombatRuntimeRegistry<CombatActorController>();
++
++            foreach ((ElementPosition elementPosition, CombatActorInfo actorInfo) in combatActors)
++            {
++                CombatActorController controller = _combatScene.GetCombatActorController(elementPosition);
++                if (controller == null) continue;
++
++                int hp = Math.Max(1, GetInitialAttribute(actorInfo, ActorAttributeType.Hp, 1));
++                int attack = Math.Max(0, GetInitialAttribute(actorInfo, ActorAttributeType.Attack, 0));
++                int defense = Math.Max(0, GetInitialAttribute(actorInfo, ActorAttributeType.Defense, 0));
++
++                _runtimeCombatStates.Register(
++                    controller,
++                    new CombatantState(maxHp: hp, attack: attack, defense: defense));
++
++                controller.NormalAttackHit -= OnNormalAttackHit;
++                controller.NormalAttackHit += OnNormalAttackHit;
++            }
++        }
++
++        private static int GetInitialAttribute(
++            CombatActorInfo actorInfo,
++            ActorAttributeType attributeType,
++            int fallbackValue)
++        {
++            if (actorInfo.AttributeValues != null &&
++                actorInfo.AttributeValues.TryGetValue(attributeType, out int value))
++            {
++                return value;
++            }
++
++            return fallbackValue;
++        }
++
++        private void OnNormalAttackHit(
++            CombatActorController attackerController,
++            CombatActorController targetController)
++        {
++            CombatantState attackerState = _runtimeCombatStates.Get(attackerController);
++            CombatantState targetState = _runtimeCombatStates.Get(targetController);
++
++            if (!attackerState.IsAlive || !targetState.IsAlive)
++            {
++                return;
++            }
++
++            NormalAttackResolution resolution =
++                _runtimeCombatStates.ResolveNormalAttack(attackerController, targetController);
++
++            EngineLogger.Log(
++                $"Normal attack resolved: damage={resolution.Damage}, " +
++                $"targetHp={targetState.CurrentHp}/{targetState.MaxHp}, " +
++                $"defeated={resolution.IsTargetDefeated}");
+         }
+ 
+         private void SetCameraPosition(CombatCameraConfig config)
