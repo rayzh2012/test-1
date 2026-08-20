@@ -1,0 +1,12 @@
+{
+  "schema_version": "pal3_experiment_index.v0.1",
+  "policy": "append_only_terminal_logs",
+  "worker_read_order": [
+    "projects/pal3-unity/combat-magic-roadmap.md",
+    "projects/pal3-unity/experiment-logs/README.md",
+    "projects/pal3-unity/experiment-logs/index.json",
+    "latest_relevant_logs",
+    "current_command"
+  ],
+  "experiments": []
+}
