@@ -36,6 +36,15 @@
       "entry": "projects/pal3-unity/devlog/entries/2026-08-20T0258-step5a-target-resolver.md",
       "first_passing_fast_lane_run_id": 32352972869,
       "artifact_id": 9400548210
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0512-step5b-multi-target-skill-0011",
+      "roadmap_step": "5B",
+      "status": "VERIFIED",
+      "entry": "projects/pal3-unity/devlog/entries/2026-08-20T0512-step5b-multi-target-skill.md",
+      "failed_source_audit_run_id": 32354067564,
+      "passing_fast_lane_run_id": 32354285337,
+      "artifact_id": 9401035886
     }
   ]
 }

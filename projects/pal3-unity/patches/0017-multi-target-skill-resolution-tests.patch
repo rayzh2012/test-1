@@ -1,0 +1,423 @@
+diff --git a/Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs b/Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs
+@@ -0,0 +1,418 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Linq;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class MultiTargetSkillResolverTests
++    {
++        [Test]
++        public void EnemyAll_SpendsMpOnceAndDamagesEveryLivingEnemy()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy-b", row: 1, column: 0, hp: 70),
++                Enemy("enemy-a", row: 0, column: 1, hp: 60),
++                Enemy("dead", row: 0, column: 0, hp: 40, alive: false),
++                Ally("ally", row: 0, column: 0, hp: 100),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartyAll,
++                mpCost: 12,
++                damage: 25);
++
++            MultiTargetSkillCastResolution<string> result =
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill);
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(38));
++            Assert.That(slots.Single(slot => slot.Key == "enemy-a").State.CurrentHp, Is.EqualTo(35));
++            Assert.That(slots.Single(slot => slot.Key == "enemy-b").State.CurrentHp, Is.EqualTo(45));
++            Assert.That(slots.Single(slot => slot.Key == "ally").State.CurrentHp, Is.EqualTo(100));
++            Assert.That(result.Targets.Select(target => target.TargetKey),
++                Is.EqualTo(new[] { "enemy-a", "enemy-b" }));
++        }
++
++        [Test]
++        public void EnemyRow_DamagesOnlyExplicitAnchorRow()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("r0c0", row: 0, column: 0),
++                Enemy("r1c0", row: 1, column: 0),
++                Enemy("r1c1", row: 1, column: 1),
++                Enemy("r2c0", row: 2, column: 0),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartyOneRow,
++                damage: 20);
++
++            MultiTargetSkillCastResolution<string> result =
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill, "r1c1");
++
++            Assert.That(result.Targets.Select(target => target.TargetKey),
++                Is.EqualTo(new[] { "r1c0", "r1c1" }));
++            Assert.That(State(slots, "r0c0").CurrentHp, Is.EqualTo(100));
++            Assert.That(State(slots, "r1c0").CurrentHp, Is.EqualTo(80));
++            Assert.That(State(slots, "r1c1").CurrentHp, Is.EqualTo(80));
++            Assert.That(State(slots, "r2c0").CurrentHp, Is.EqualTo(100));
++        }
++
++        [Test]
++        public void EnemyColumn_DamagesOnlyExplicitAnchorColumn()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("r2c1", row: 2, column: 1),
++                Enemy("r0c1", row: 0, column: 1),
++                Enemy("r1c0", row: 1, column: 0),
++                Enemy("r1c1", row: 1, column: 1),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartyOneColumn,
++                damage: 15);
++
++            MultiTargetSkillCastResolution<string> result =
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill, "r1c1");
++
++            Assert.That(result.Targets.Select(target => target.TargetKey),
++                Is.EqualTo(new[] { "r0c1", "r1c1", "r2c1" }));
++            Assert.That(State(slots, "r1c0").CurrentHp, Is.EqualTo(100));
++            Assert.That(State(slots, "r0c1").CurrentHp, Is.EqualTo(85));
++            Assert.That(State(slots, "r1c1").CurrentHp, Is.EqualTo(85));
++            Assert.That(State(slots, "r2c1").CurrentHp, Is.EqualTo(85));
++        }
++
++        [Test]
++        public void EachTarget_ClampsDamageAndEmitsIndependentDefeatFact()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("fragile", row: 0, column: 0, hp: 10),
++                Enemy("sturdy", row: 0, column: 1, hp: 100),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartyAll,
++                damage: 30);
++
++            MultiTargetSkillCastResolution<string> result =
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill);
++
++            TargetSkillResolution<string> fragile =
++                result.Targets.Single(target => target.TargetKey == "fragile");
++            TargetSkillResolution<string> sturdy =
++                result.Targets.Single(target => target.TargetKey == "sturdy");
++
++            Assert.That(fragile.Damage, Is.EqualTo(10));
++            Assert.That(fragile.IsTargetDefeated, Is.True);
++            Assert.That(fragile.Events.Select(entry => entry.Kind),
++                Is.EqualTo(new[] { CombatEventKind.Damage, CombatEventKind.TargetDefeated }));
++            Assert.That(sturdy.Damage, Is.EqualTo(30));
++            Assert.That(sturdy.IsTargetDefeated, Is.False);
++            Assert.That(sturdy.Events.Select(entry => entry.Kind),
++                Is.EqualTo(new[] { CombatEventKind.Damage }));
++        }
++
++        [Test]
++        public void Cast_EmitsExactlyOneSkillCastFactAndOneDamageFactPerTarget()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("a", row: 0, column: 0),
++                Enemy("b", row: 0, column: 1),
++                Enemy("c", row: 1, column: 0),
++            };
++            SkillDefinition skill = CreateDamageSkill(TargetRangeType.EnemyPartyAll);
++
++            MultiTargetSkillCastResolution<string> result =
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill);
++
++            Assert.That(result.CastEvents, Has.Count.EqualTo(1));
++            Assert.That(result.CastEvents[0].Kind, Is.EqualTo(CombatEventKind.SkillCast));
++            Assert.That(result.Targets, Has.Count.EqualTo(3));
++            Assert.That(result.Targets.SelectMany(target => target.Events)
++                .Count(entry => entry.Kind == CombatEventKind.Damage), Is.EqualTo(3));
++        }
++
++        [Test]
++        public void InsufficientMp_RejectsBeforeAnyTargetMutation()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 5);
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("a", row: 0, column: 0),
++                Enemy("b", row: 0, column: 1),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartyAll,
++                mpCost: 12,
++                damage: 30);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(5));
++            Assert.That(State(slots, "a").CurrentHp, Is.EqualTo(100));
++            Assert.That(State(slots, "b").CurrentHp, Is.EqualTo(100));
++        }
++
++        [Test]
++        public void NoLivingEnemyTargets_RejectsBeforeSpendingMp()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("dead-a", row: 0, column: 0, alive: false),
++                Enemy("dead-b", row: 0, column: 1, alive: false),
++                Ally("ally", row: 0, column: 0),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartyAll,
++                mpCost: 10);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(State(slots, "ally").CurrentHp, Is.EqualTo(100));
++        }
++
++        [Test]
++        public void UnsupportedSingleTargetRange_RejectsWithoutMutation()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy", row: 0, column: 0),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartySingle,
++                mpCost: 10);
++
++            Assert.Throws<NotSupportedException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(State(slots, "enemy").CurrentHp, Is.EqualTo(100));
++        }
++
++        [Test]
++        public void UnsupportedExtraEffect_RejectsWithoutMutation()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy", row: 0, column: 0),
++            };
++            SkillDefinition skill = new(
++                id: 7002,
++                name: "Burning Wave",
++                type: SkillType.DamageMagic,
++                element: ElementType.Fire,
++                targetRange: TargetRangeType.EnemyPartyAll,
++                mpCost: 10,
++                spCost: 0,
++                visualArchetype: SkillVisualArchetype.AreaBurst,
++                visualProfileKey: "fire.area.basic",
++                effects: new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        AttributeImpactType.Absolute,
++                        value: -20),
++                    SkillEffectDefinition.ForCombatState(
++                        ActorCombatStateType.PoisonFire,
++                        CombatStateImpactType.Increase),
++                });
++
++            Assert.Throws<NotSupportedException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(State(slots, "enemy").CurrentHp, Is.EqualTo(100));
++        }
++
++        [Test]
++        public void OverflowingDamageMagnitude_RejectsBeforeSpendingMpOrMutatingTargets()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy", row: 0, column: 0),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartyAll,
++                mpCost: 10,
++                damageValue: int.MinValue);
++
++            Assert.Throws<OverflowException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(State(slots, "enemy").CurrentHp, Is.EqualTo(100));
++        }
++
++        [Test]
++        public void DefeatedCaster_RejectsBeforeTargetMutation()
++        {
++            CombatantState caster = Caster();
++            Defeat(caster);
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy", row: 0, column: 0),
++            };
++            SkillDefinition skill = CreateDamageSkill(TargetRangeType.EnemyPartyAll);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(State(slots, "enemy").CurrentHp, Is.EqualTo(100));
++        }
++
++        [Test]
++        public void RowAndColumnRanges_RequireAnchorOverload()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy", row: 0, column: 0),
++            };
++            SkillDefinition rowSkill =
++                CreateDamageSkill(TargetRangeType.EnemyPartyOneRow);
++            SkillDefinition columnSkill =
++                CreateDamageSkill(TargetRangeType.EnemyPartyOneColumn);
++
++            Assert.Throws<ArgumentException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, rowSkill));
++            Assert.Throws<ArgumentException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, columnSkill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(State(slots, "enemy").CurrentHp, Is.EqualTo(100));
++        }
++
++        [Test]
++        public void AnchorOverload_RejectsEnemyAllRangeWithoutMutation()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy", row: 0, column: 0),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartyAll,
++                mpCost: 10);
++
++            Assert.Throws<ArgumentException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill, "enemy"));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(State(slots, "enemy").CurrentHp, Is.EqualTo(100));
++        }
++
++        [Test]
++        public void ResultCollections_AreReadOnlyWrappersNotRawArrays()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy", row: 0, column: 0),
++            };
++            SkillDefinition skill = CreateDamageSkill(TargetRangeType.EnemyPartyAll);
++
++            MultiTargetSkillCastResolution<string> result =
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill);
++
++            Assert.That(result.CastEvents, Is.Not.InstanceOf<CombatEvent[]>());
++            Assert.That(result.Targets, Is.Not.InstanceOf<TargetSkillResolution<string>[]>());
++            Assert.That(result.Targets[0].Events, Is.Not.InstanceOf<CombatEvent[]>());
++        }
++
++        private static CombatantState Caster()
++        {
++            return new CombatantState(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++        }
++
++        private static SkillDefinition CreateDamageSkill(
++            TargetRangeType targetRange,
++            int mpCost = 10,
++            int damage = 20,
++            int? damageValue = null)
++        {
++            int value = damageValue ?? -damage;
++            return new SkillDefinition(
++                id: 7001,
++                name: "Generic Multi Bolt",
++                type: SkillType.DamageMagic,
++                element: ElementType.Thunder,
++                targetRange,
++                mpCost,
++                spCost: 0,
++                visualArchetype: SkillVisualArchetype.AreaBurst,
++                visualProfileKey: "thunder.area.basic",
++                effects: new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        AttributeImpactType.Absolute,
++                        value),
++                });
++        }
++
++        private static CombatTargetSlot<string> Enemy(
++            string key,
++            int row,
++            int column,
++            int hp = 100,
++            bool alive = true)
++        {
++            return Slot(key, CombatParty.Enemy, row, column, hp, alive);
++        }
++
++        private static CombatTargetSlot<string> Ally(
++            string key,
++            int row,
++            int column,
++            int hp = 100,
++            bool alive = true)
++        {
++            return Slot(key, CombatParty.First, row, column, hp, alive);
++        }
++
++        private static CombatTargetSlot<string> Slot(
++            string key,
++            CombatParty party,
++            int row,
++            int column,
++            int hp,
++            bool alive)
++        {
++            CombatantState state = new(maxHp: hp, attack: 10, defense: 5);
++            if (!alive)
++            {
++                Defeat(state);
++            }
++
++            return new CombatTargetSlot<string>(key, state, party, row, column);
++        }
++
++        private static CombatantState State(
++            CombatTargetSlot<string>[] slots,
++            string key)
++        {
++            return slots.Single(slot => slot.Key == key).State;
++        }
++
++        private static void Defeat(CombatantState state)
++        {
++            CombatantState killer = new(maxHp: 100, attack: 999, defense: 0);
++            NormalAttackResolver.Resolve(killer, state);
++        }
++    }
++}
