@@ -4,12 +4,13 @@
   "roadmap_step": "4A",
   "title": "SkillInfo population blocker audit machinery and data-input discovery",
   "created_at": "2026-08-20T02:29:00-04:00",
-  "status": "RUNNING",
+  "status": "VERIFIED_WITH_DATA_INPUT_BLOCKER",
+  "terminal": true,
   "base_control_ref": "master@f0712f8e032d3d7b4812713019db4199617c81b0",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
   "objective": "Determine whether lawful original PAL3 SkillInfo data is currently accessible, and regardless of input availability build a deterministic population auditor that measures execution-readiness and mapping-issue frequencies over any parsed SkillInfo collection.",
   "hypothesis": "Separating data availability from audit-engine correctness lets future workers reuse the same verified auditor immediately when original Softstar.gdb data becomes available, without conflating missing proprietary input with code failure.",
-  "claim_boundary": "Synthetic fixtures may verify audit aggregation behavior but do not establish real PAL3 skill distributions. Real blocker frequencies require lawful original GDB input.",
+  "claim_boundary": "Synthetic fixtures verify audit aggregation behavior against the real upstream SkillInfo schema but do not establish real PAL3 skill distributions. Real blocker frequencies require lawful original GDB input.",
   "changed_surfaces": [
     "GdbSkillPopulationAudit.cs",
     "GdbSkillPopulationAuditTests.cs",
@@ -32,19 +33,58 @@
       "fix": "Do not fabricate data. Build and verify an input-agnostic population auditor now; rerun it against parsed original SkillInfo records when lawful data is later supplied."
     },
     {
-      "attempt": 2,
+      "attempt": "2.1",
+      "surface": "AUDIT_ENGINE_PATCH_REPLAY",
+      "status": "FAILED",
+      "classification": "PATCH_FORMAT",
+      "description": "Replay new population-audit implementation and tests before semantic execution.",
+      "failure": "Fast Lane run 32339928133 failed at source patch replay; the domain tests were skipped. Both new-file unified-diff hunk counts were incorrect: patch 0009 declared 163 added lines but contained 159, and patch 0010 declared 230 added lines but contained 172.",
+      "fix": "Change only the two new-file hunk headers from +1,163 to +1,159 and from +1,230 to +1,172. No audit semantics were changed.",
+      "evidence": {
+        "fast_lane_run_id": 32339928133,
+        "artifact_id": 9395977698,
+        "artifact_sha256": "22e16828a7e4dd8f7acdebaad125814ca7346ac65e886671c4c525fc2b5742de"
+      }
+    },
+    {
+      "attempt": "2.2",
       "surface": "AUDIT_ENGINE",
-      "status": "RUNNING",
-      "description": "Aggregate GdbSkillInfoMapper results over IEnumerable<SkillInfo>, count ready/blocked skills, issue frequencies, and deterministic representative skill IDs; verify with synthetic fixtures compiled against the real upstream SkillInfo schema.",
-      "expected_tests": "existing 45 tests plus 6 population-audit tests = 51",
-      "failure": null,
-      "fix": null,
-      "evidence": null
+      "status": "VERIFIED",
+      "description": "Aggregate GdbSkillInfoMapper results over IEnumerable<SkillInfo>, count ready/blocked skills, execution-ready ratio, issue frequencies, and deterministic representative skill IDs; verify with synthetic fixtures compiled against the real upstream SkillInfo schema.",
+      "result": "PATCH_APPLIES + DIFF_CHECK + REAL_GDB_SCHEMA_COMPILES + FAST_DOMAIN_TESTS passed after fixing only the two hunk headers.",
+      "tests": {
+        "total": 51,
+        "passed": 51,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 120,
+        "compiler_warnings": 0
+      },
+      "evidence": {
+        "source_audit_run_id": 32340164155,
+        "fast_lane_run_id": 32340164174,
+        "artifact_id": 9396063171,
+        "artifact_sha256": "6774b3b2b118a55c52595a6c6b91cad18fb317e9eedd2975ed62ab82d54e39cd"
+      }
     }
+  ],
+  "verified_capabilities": [
+    "Audit an arbitrary parsed SkillInfo population without mutating input records.",
+    "Count total, execution-ready and blocked skills and compute execution-ready ratio.",
+    "Aggregate mapper issue frequencies by issue code and severity.",
+    "Emit deterministic sorted representative skill IDs with configurable caps.",
+    "Keep data-input availability separate from audit-engine correctness."
+  ],
+  "unverified_or_blocked": [
+    "No real PAL3 SkillInfo population was scanned because lawful original Softstar.gdb input is unavailable in the currently connected sources.",
+    "No empirical claim is made about which blocker is most frequent in the commercial PAL3 dataset.",
+    "Unity compile/runtime and VFX remain outside this experiment."
   ],
   "reusable_lessons": [
     "Missing commercial input is a DATA_INPUT blocker, not a code failure.",
-    "Never substitute invented sample distributions for actual PAL3 population evidence."
+    "Never substitute invented sample distributions for actual PAL3 population evidence.",
+    "For hand-authored new-file patches, hunk line counts are a repeatable failure mode; patch replay must remain a blocking gate before semantic tests.",
+    "A verified input-agnostic auditor can be built before proprietary input arrives, so future data acquisition immediately converts into high-information measurements."
   ],
-  "next_recommended_experiment": "If the audit engine verifies, obtain lawful parsed PAL3 SkillInfo input and run the population audit; otherwise fix only the failing audit-engine behavior before adding more combat semantics."
+  "next_recommended_experiment": "Supply lawful original PAL3 Softstar.gdb or already parsed SkillInfo records and run the verified population auditor. Until then, do not choose the next unsupported skill semantic by pretending to know real frequency; the next independent roadmap work should target presentation/runtime infrastructure that does not require fabricated population evidence."
 }
