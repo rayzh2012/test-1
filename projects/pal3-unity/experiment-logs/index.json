@@ -80,6 +80,18 @@
       "failed_source_audit_run_id": 32354067564,
       "first_passing_source_audit_run_id": 32354285396,
       "first_passing_fast_lane_run_id": 32354285337
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0558-step5c-multi-target-presentation-0012",
+      "roadmap_step": "5C",
+      "status": "VERIFIED",
+      "terminal": true,
+      "log": "projects/pal3-unity/experiment-logs/2026-08-20T0558-step5c-multi-target-presentation-0012.json",
+      "human_entry": "projects/pal3-unity/devlog/entries/2026-08-20T0558-step5c-multi-target-presentation.md",
+      "branch": "agent/pal3-step5c-multi-target-presentation-0012",
+      "pull_request": 92,
+      "first_passing_source_audit_run_id": 32357032521,
+      "first_passing_fast_lane_run_id": 32357032514
     }
   ]
 }
