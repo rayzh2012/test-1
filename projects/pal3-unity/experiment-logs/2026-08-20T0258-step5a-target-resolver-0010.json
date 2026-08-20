@@ -4,9 +4,11 @@
   "roadmap_step": "5A",
   "title": "Deterministic combat target selection with explicit formation coordinates",
   "created_at": "2026-08-20T02:58:00-04:00",
-  "status": "RUNNING",
+  "status": "VERIFIED",
+  "terminal": true,
   "base_control_ref": "master@2a8ad4365f516b9f11d2fe94527e2f0381e2c60c",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "pull_request": 90,
   "objective": "Implement deterministic single/all/row/column target selection while keeping PAL3 ElementPosition-to-row/column mapping outside the domain until that mapping is supported by runtime/data evidence.",
   "hypothesis": "An explicit formation-coordinate adapter contract can support all current TargetRangeType selection semantics without guessing how the upstream elemental positions map to rows and columns.",
   "claim_boundary": "This experiment selects targets only. It does not apply damage/healing to multiple targets, prove the real PAL3 ElementPosition row/column layout, or add Unity presentation behavior.",
@@ -23,14 +25,37 @@
   "attempts": [
     {
       "attempt": 1,
-      "status": "RUNNING",
+      "status": "PASS",
       "description": "Resolve living first/enemy party targets deterministically; require explicit anchor for single/row/column; filter defeated actors; validate unique target keys and formation coordinates; expose read-only results.",
       "expected_tests": "existing 60 tests plus 14 target-selection tests = 74",
       "failure": null,
       "fix": "Pre-CI contract review added global target-key uniqueness after identifying that all-target selection could otherwise return a duplicate actor key from different coordinates.",
-      "evidence": null
+      "evidence": {
+        "source_audit_run_id": 32352972672,
+        "source_audit_status": "PASS",
+        "fast_lane_run_id": 32352972869,
+        "fast_lane_status": "PASS",
+        "tests_passed": 74,
+        "tests_failed": 0,
+        "tests_skipped": 0,
+        "test_duration_ms": 117,
+        "artifact_id": 9400548210,
+        "artifact_sha256": "ce590e3c7ea8c1e9e6b9ec289a2745ed0132f51cf51ac1be2d1136f9d439f6ce"
+      }
     }
   ],
-  "reusable_lessons": [],
-  "next_recommended_experiment": "If verified, Step 5B applies one already-supported damage effect to the selected target set and emits one Damage fact per resolved target."
+  "verified_invariants": [
+    "Single-target selection requires one living anchor on the required party.",
+    "Party-all selection excludes defeated actors and uses deterministic row/column ordering.",
+    "Enemy-row and enemy-column selection use explicit adapter coordinates rather than infer ElementPosition geometry.",
+    "Duplicate target keys are rejected globally.",
+    "Duplicate formation coordinates are rejected within a party.",
+    "Returned target collections are read-only wrappers rather than raw arrays."
+  ],
+  "reusable_lessons": [
+    "Do not collapse semantic target range names into guessed geometry when upstream exposes the range enum but not the coordinate mapping.",
+    "Target identity uniqueness is a separate invariant from formation-coordinate uniqueness.",
+    "Keep target selection pure before adding multi-target state mutation."
+  ],
+  "next_recommended_experiment": "Step 5B applies one already-supported damage effect to the selected target set, spends MP once per cast, and emits one resolved Damage fact per affected target."
 }
