@@ -1,0 +1,50 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
+@@ -33,6 +33,17 @@ namespace Pal3.Game.GameSystems.Combat.Core
+             CurrentHp -= appliedDamage;
+             return appliedDamage;
+         }
+ 
++        internal int RestoreHp(int amount)
++        {
++            if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
++            if (!IsAlive) return 0;
++
++            int missingHp = MaxHp - CurrentHp;
++            int appliedHealing = Math.Min(missingHp, amount);
++            CurrentHp += appliedHealing;
++            return appliedHealing;
++        }
++
+         internal bool TrySpendMp(int amount)
+         {
+             if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
+@@ -10,7 +10,8 @@ namespace Pal3.Game.GameSystems.Combat.Domain
+     public enum CombatEventKind
+     {
+         SkillCast = 0,
+         Damage,
+         TargetDefeated,
++        Healing,
+     }
+ 
+@@ -42,8 +43,14 @@ namespace Pal3.Game.GameSystems.Combat.Domain
+         public static CombatEvent ForDamage(uint skillId, int damage)
+         {
+             if (damage <= 0) throw new ArgumentOutOfRangeException(nameof(damage));
+             return new CombatEvent(CombatEventKind.Damage, skillId, damage);
+         }
+ 
++        public static CombatEvent ForHealing(uint skillId, int healing)
++        {
++            if (healing < 0) throw new ArgumentOutOfRangeException(nameof(healing));
++            return new CombatEvent(CombatEventKind.Healing, skillId, healing);
++        }
++
+         public static CombatEvent ForTargetDefeated(uint skillId)
+         {
+             return new CombatEvent(CombatEventKind.TargetDefeated, skillId, amount: 0);

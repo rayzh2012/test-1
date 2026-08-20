@@ -1,0 +1,76 @@
+{
+  "schema_version": "pal3_experiment_log.v0.1",
+  "experiment_id": "pal3-exp-20260820-0614-step6a-hp-recovery-0013",
+  "roadmap_step": "6A",
+  "title": "Deterministic HP recovery for RecoverMagic",
+  "created_at": "2026-08-20T06:14:00-04:00",
+  "status": "VERIFIED",
+  "terminal": true,
+  "base_control_ref": "master@39659a3904fcdab8f59e2ba0aae6badb7df3b021",
+  "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "objective": "Implement the first Step 6 healing/support mechanics slice using source-native RecoverMagic, FirstPartySingle/FirstPartyAll and HP Absolute/RecoverToMax semantics.",
+  "hypothesis": "A recovery resolver can reuse verified target selection and cost/atomicity patterns to spend MP once, restore living ally HP deterministically, support self-heal via a first-party anchor, emit explicit Healing facts including zero effective healing at full HP, and avoid revival or unsupported modifier semantics.",
+  "claim_boundary": "No Percentage healing formula, revival behavior, SP cost, attribute modifier, combat-state effect, Unity presentation/playback, or undocumented original PAL3 formula is introduced. RecoverMagic, target ranges and impact-type names come directly from pinned upstream enums.",
+  "design_constraints": [
+    "Append Healing to CombatEventKind without renumbering existing event kinds.",
+    "Add clamped RestoreHp to CombatantState without changing ApplyDamage semantics.",
+    "Support only RecoverMagic with exactly one HP effect and zero SP cost.",
+    "Support positive Absolute HP recovery and RecoverToMax.",
+    "Reject Percentage and other impact types until semantics are separately locked.",
+    "Reuse CombatTargetResolver<TKey> for FirstPartySingle/FirstPartyAll.",
+    "Allow caster state as the selected target for self-heal.",
+    "Do not revive defeated targets; dead targets are rejected/filtered by target selection.",
+    "Spend MP once per cast after all expected preconditions and identity checks.",
+    "Expose one SkillCast fact plus one target-addressed Healing fact per resolved target.",
+    "Allow Healing=0 for a legal cast on an already-full target.",
+    "Expose result/event collections through read-only wrappers."
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "FAIL_COMPILE",
+      "description": "Initial HP recovery primitives/resolver/test stack replayed successfully, but fast-lane C# compilation failed before any tests executed.",
+      "expected_tests": "existing 98 tests plus 15 recovery tests = 113",
+      "failure": "Fast Lane run 32358054901 failed with CS1513 at RecoverySkillResolver.cs(276,24): a closing brace was expected. The patch file contained the full 286-line source, but its new-file hunk header incorrectly declared +1,276, so the replayed workspace contained only the first 276 lines.",
+      "fix": "Correct 0023 new-file hunk header from +1,276 to +1,286. No recovery semantics or tests changed.",
+      "evidence": {
+        "source_audit_run_id": 32358054897,
+        "source_audit_status": "PASS",
+        "fast_lane_run_id": 32358054901,
+        "fast_lane_status": "FAIL_COMPILE",
+        "tests_executed": 0,
+        "artifact_id": 9402425957,
+        "artifact_sha256": "e48a02524e11b980d0bf38252e84174af8956ca836c85e12d57d9899ee8259f4"
+      }
+    },
+    {
+      "attempt": 2,
+      "status": "PASS",
+      "description": "Rerun the same HP recovery semantics/tests after correcting only the 0023 new-file hunk length.",
+      "expected_tests": "113",
+      "failure": null,
+      "fix": null,
+      "evidence": {
+        "source_audit_run_id": 32358257767,
+        "source_audit_status": "PASS",
+        "fast_lane_run_id": 32358257771,
+        "fast_lane_status": "PASS",
+        "tests_total": 113,
+        "tests_executed": 113,
+        "tests_passed": 113,
+        "tests_failed": 0,
+        "tests_skipped": 0,
+        "test_duration_ms": 144,
+        "artifact_id": 9402507538,
+        "artifact_sha256": "dcdf7f5fddea6c4ff8c60698956604b76695e7bd339507f0cce1e63dc38b1e5f"
+      }
+    }
+  ],
+  "reusable_lessons": [
+    "A new-file unified-diff hunk can replay without a controller failure yet still truncate source if the declared added-line count is too small; compile evidence catches this class of patch-generation defect.",
+    "Self-heal does not require a new target-range enum: a FirstPartySingle anchor may legitimately point to the caster state.",
+    "Recovery can preserve the existing atomic cast boundary by validating target identity and resource sufficiency before MP/HP mutation.",
+    "Zero effective healing at full HP is still a useful resolved fact and does not require special-case presentation authority."
+  ],
+  "next_recommended_experiment": "Continue Step 6B with attack/defense/speed/luck support modifiers, keeping lifecycle/state-engine concerns separated for Step 7."
+}

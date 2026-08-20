@@ -1,0 +1,44 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260820-0614-step6a-hp-recovery-0013",
+  "created_at": "2026-08-20T06:14:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Continue the PAL3 combat roadmap from verified multi-target damage/presentation into Step 6 healing/support, beginning with deterministic HP recovery.",
+  "normalized_action": "implement_recover_magic_hp_absolute_and_recover_to_max_for_first_party_single_and_all",
+  "target_surfaces": [
+    "CombatantState.RestoreHp",
+    "CombatEventKind.Healing",
+    "RecoverySkillResolver<TKey>",
+    "RecoverySkillCastResolution<TKey>",
+    "RecoveryTargetResolution<TKey>",
+    "fast-tests.json",
+    "experiment-logs",
+    "devlog/entries"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "ABSOLUTE_HP_RECOVERY",
+    "RECOVER_TO_MAX",
+    "SELF_SINGLE_PARTY_TARGETS",
+    "NO_REVIVE",
+    "MP_SPENT_ONCE",
+    "HEALING_FACTS",
+    "ATOMIC_PRECONDITIONS",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "This Step 6A slice supports RecoverMagic with one HP effect using positive Absolute recovery or RecoverToMax across FirstPartySingle/FirstPartyAll. It does not support Percentage recovery, revival, SP costs, attack/defense/speed/luck modifiers, combat-state effects, Unity presentation/playback, or claim original PAL3 formulas beyond explicit source enum semantics.",
+  "status": "COMPLETED_VERIFIED",
+  "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0614-step6a-hp-recovery-0013.json",
+  "verification": {
+    "failed_fast_lane_run_id": 32358054901,
+    "first_passing_source_audit_run_id": 32358257767,
+    "first_passing_fast_lane_run_id": 32358257771,
+    "tests_passed": 113,
+    "tests_failed": 0,
+    "tests_skipped": 0,
+    "artifact_id": 9402507538,
+    "artifact_sha256": "dcdf7f5fddea6c4ff8c60698956604b76695e7bd339507f0cce1e63dc38b1e5f"
+  }
+}
