@@ -1,0 +1,15 @@
+{
+  "schema_version": "pal3_human_devlog_index.v0.1",
+  "policy": "append_only_entries_serial_aggregate",
+  "aggregate": "projects/pal3-unity/devlog/PAL3-AI-DEVLOG.md",
+  "entries": [
+    {
+      "experiment_id": "pal3-exp-20260820-0208-step3-gdb-skill-mapping-0007",
+      "roadmap_step": 3,
+      "status": "VERIFIED",
+      "entry": "projects/pal3-unity/devlog/entries/2026-08-20T0208-step3-gdb-skill-mapping.md",
+      "fast_lane_run_id": 32338925581,
+      "artifact_id": 9395634316
+    }
+  ]
+}
