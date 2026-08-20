@@ -1,0 +1,275 @@
+diff --git a/Assets/Tests/EditMode/CombatTargetResolverTests.cs b/Assets/Tests/EditMode/CombatTargetResolverTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/CombatTargetResolverTests.cs
+@@ -0,0 +1,270 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Linq;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class CombatTargetResolverTests
++    {
++        [Test]
++        public void EnemyAll_FiltersDefeatedAndOrdersByExplicitFormationCoordinates()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("late", row: 2, column: 0),
++                Enemy("first", row: 0, column: 1),
++                Enemy("dead", row: 0, column: 0, alive: false),
++                Enemy("middle", row: 1, column: 3),
++                Ally("ally", row: 0, column: 0),
++            };
++
++            var result = CombatTargetResolver<string>.Resolve(
++                TargetRangeType.EnemyPartyAll,
++                slots);
++
++            Assert.That(result, Is.EqualTo(new[] { "first", "middle", "late" }));
++        }
++
++        [Test]
++        public void FirstPartyAll_SelectsOnlyLivingFirstPartyTargets()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Ally("ally-b", row: 1, column: 0),
++                Enemy("enemy", row: 0, column: 0),
++                Ally("ally-a", row: 0, column: 0),
++                Ally("dead-ally", row: 0, column: 1, alive: false),
++            };
++
++            var result = CombatTargetResolver<string>.Resolve(
++                TargetRangeType.FirstPartyAll,
++                slots);
++
++            Assert.That(result, Is.EqualTo(new[] { "ally-a", "ally-b" }));
++        }
++
++        [Test]
++        public void EnemySingle_ReturnsLivingEnemyAnchor()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy-a", row: 0, column: 0),
++                Enemy("enemy-b", row: 0, column: 1),
++            };
++
++            var result = CombatTargetResolver<string>.Resolve(
++                TargetRangeType.EnemyPartySingle,
++                slots,
++                "enemy-b");
++
++            Assert.That(result, Is.EqualTo(new[] { "enemy-b" }));
++        }
++
++        [Test]
++        public void SingleTarget_RejectsAnchorFromWrongParty()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Ally("ally", row: 0, column: 0),
++                Enemy("enemy", row: 0, column: 0),
++            };
++
++            Assert.Throws<InvalidOperationException>(() =>
++                CombatTargetResolver<string>.Resolve(
++                    TargetRangeType.EnemyPartySingle,
++                    slots,
++                    "ally"));
++        }
++
++        [Test]
++        public void SingleTarget_RejectsDefeatedAnchor()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("dead", row: 0, column: 0, alive: false),
++            };
++
++            Assert.Throws<InvalidOperationException>(() =>
++                CombatTargetResolver<string>.Resolve(
++                    TargetRangeType.EnemyPartySingle,
++                    slots,
++                    "dead"));
++        }
++
++        [Test]
++        public void EnemyRow_UsesExplicitRowAndFiltersDefeatedTargets()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("r1c2", row: 1, column: 2),
++                Enemy("r0c0", row: 0, column: 0),
++                Enemy("r1c0", row: 1, column: 0),
++                Enemy("r1c1-dead", row: 1, column: 1, alive: false),
++                Enemy("r2c0", row: 2, column: 0),
++            };
++
++            var result = CombatTargetResolver<string>.Resolve(
++                TargetRangeType.EnemyPartyOneRow,
++                slots,
++                "r1c2");
++
++            Assert.That(result, Is.EqualTo(new[] { "r1c0", "r1c2" }));
++        }
++
++        [Test]
++        public void EnemyColumn_UsesExplicitColumnAndDeterministicOrder()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("r2c1", row: 2, column: 1),
++                Enemy("r0c1", row: 0, column: 1),
++                Enemy("r1c0", row: 1, column: 0),
++                Enemy("r1c1", row: 1, column: 1),
++            };
++
++            var result = CombatTargetResolver<string>.Resolve(
++                TargetRangeType.EnemyPartyOneColumn,
++                slots,
++                "r1c1");
++
++            Assert.That(result, Is.EqualTo(new[] { "r0c1", "r1c1", "r2c1" }));
++        }
++
++        [Test]
++        public void EnemyAxisTargeting_RejectsFirstPartyAnchor()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Ally("ally", row: 0, column: 0),
++                Enemy("enemy", row: 0, column: 0),
++            };
++
++            Assert.Throws<InvalidOperationException>(() =>
++                CombatTargetResolver<string>.Resolve(
++                    TargetRangeType.EnemyPartyOneRow,
++                    slots,
++                    "ally"));
++        }
++
++        [Test]
++        public void ExplicitAnchorRange_RejectsMissingAnchor()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy", row: 0, column: 0),
++            };
++
++            Assert.Throws<InvalidOperationException>(() =>
++                CombatTargetResolver<string>.Resolve(
++                    TargetRangeType.EnemyPartyOneColumn,
++                    slots,
++                    "missing"));
++        }
++
++        [Test]
++        public void DuplicateFormationCoordinatesWithinParty_AreRejected()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy-a", row: 0, column: 0),
++                Enemy("enemy-b", row: 0, column: 0),
++            };
++
++            Assert.Throws<InvalidOperationException>(() =>
++                CombatTargetResolver<string>.Resolve(
++                    TargetRangeType.EnemyPartyAll,
++                    slots));
++        }
++
++        [Test]
++        public void DuplicateTargetKeys_AreRejectedEvenAtDifferentCoordinates()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("same", row: 0, column: 0),
++                Enemy("same", row: 1, column: 1),
++            };
++
++            Assert.Throws<InvalidOperationException>(() =>
++                CombatTargetResolver<string>.Resolve(
++                    TargetRangeType.EnemyPartyAll,
++                    slots));
++        }
++
++        [Test]
++        public void NoAnchorOverload_RejectsRangesThatRequireAnchor()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy", row: 0, column: 0),
++            };
++
++            Assert.Throws<ArgumentException>(() =>
++                CombatTargetResolver<string>.Resolve(
++                    TargetRangeType.EnemyPartySingle,
++                    slots));
++        }
++
++        [Test]
++        public void TargetResult_IsNotBackedByPublicMutableArray()
++        {
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy", row: 0, column: 0),
++            };
++
++            var result = CombatTargetResolver<string>.Resolve(
++                TargetRangeType.EnemyPartyAll,
++                slots);
++
++            Assert.That(result, Is.Not.InstanceOf<string[]>());
++        }
++
++        [Test]
++        public void Slot_RejectsNegativeFormationCoordinates()
++        {
++            Assert.Throws<ArgumentOutOfRangeException>(() =>
++                Enemy("enemy", row: -1, column: 0));
++
++            Assert.Throws<ArgumentOutOfRangeException>(() =>
++                Enemy("enemy", row: 0, column: -1));
++        }
++
++        private static CombatTargetSlot<string> Enemy(
++            string key,
++            int row,
++            int column,
++            bool alive = true)
++        {
++            return Slot(key, CombatParty.Enemy, row, column, alive);
++        }
++
++        private static CombatTargetSlot<string> Ally(
++            string key,
++            int row,
++            int column,
++            bool alive = true)
++        {
++            return Slot(key, CombatParty.First, row, column, alive);
++        }
++
++        private static CombatTargetSlot<string> Slot(
++            string key,
++            CombatParty party,
++            int row,
++            int column,
++            bool alive)
++        {
++            CombatantState state = new(maxHp: 100, attack: 10, defense: 5);
++            if (!alive)
++            {
++                CombatantState killer = new(maxHp: 100, attack: 999, defense: 0);
++                NormalAttackResolver.Resolve(killer, state);
++            }
++
++            return new CombatTargetSlot<string>(key, state, party, row, column);
++        }
++    }
++}
