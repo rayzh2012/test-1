@@ -18,7 +18,7 @@ new file mode 100644
 +    /// </summary>
 +    public sealed class SingleHitGate<TTarget> where TTarget : class
 +    {
-+        private TTarget _target;
++        private TTarget _target = null!;
 +        private bool _consumed;
 +
 +        public bool IsOpen => _target != null;
@@ -36,7 +36,7 @@ new file mode 100644
 +        {
 +            if (!IsOpen || _consumed)
 +            {
-+                return null;
++                return null!;
 +            }
 +
 +            _consumed = true;
@@ -45,7 +45,7 @@ new file mode 100644
 +
 +        public void Close()
 +        {
-+            _target = null;
++            _target = null!;
 +            _consumed = false;
 +        }
 +    }
@@ -117,7 +117,7 @@ new file mode 100644
 +        {
 +            SingleHitGate<object> gate = new();
 +
-+            Assert.Throws<ArgumentNullException>(() => gate.Open(null));
++            Assert.Throws<ArgumentNullException>(() => gate.Open(null!));
 +        }
 +    }
 +}
