@@ -1,0 +1,164 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillPopulationAudit.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillPopulationAudit.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillPopulationAudit.cs
+@@ -0,0 +1,163 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity GDB SkillInfo population audit.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Linq;
++    using Pal3.Core.DataReader.Gdb;
++
++    public sealed class GdbSkillIssuePopulation
++    {
++        private readonly uint[] _exampleSkillIds;
++
++        public string Code { get; }
++        public GdbSkillMappingIssueSeverity Severity { get; }
++        public int Occurrences { get; }
++        public IReadOnlyList<uint> ExampleSkillIds => _exampleSkillIds;
++
++        public GdbSkillIssuePopulation(
++            string code,
++            GdbSkillMappingIssueSeverity severity,
++            int occurrences,
++            IEnumerable<uint> exampleSkillIds)
++        {
++            Code = code ?? throw new ArgumentNullException(nameof(code));
++            Severity = severity;
++            if (occurrences < 0) throw new ArgumentOutOfRangeException(nameof(occurrences));
++            Occurrences = occurrences;
++            _exampleSkillIds = exampleSkillIds?.ToArray()
++                ?? throw new ArgumentNullException(nameof(exampleSkillIds));
++        }
++    }
++
++    public sealed class GdbSkillPopulationAuditResult
++    {
++        private readonly GdbSkillIssuePopulation[] _issues;
++
++        public int TotalSkills { get; }
++        public int ExecutionReadySkills { get; }
++        public int BlockedSkills { get; }
++        public int SkillsWithInfoOnly { get; }
++        public IReadOnlyList<GdbSkillIssuePopulation> Issues => _issues;
++
++        public double ExecutionReadyRatio =>
++            TotalSkills == 0 ? 0d : (double)ExecutionReadySkills / TotalSkills;
++
++        public GdbSkillPopulationAuditResult(
++            int totalSkills,
++            int executionReadySkills,
++            int blockedSkills,
++            int skillsWithInfoOnly,
++            IEnumerable<GdbSkillIssuePopulation> issues)
++        {
++            if (totalSkills < 0) throw new ArgumentOutOfRangeException(nameof(totalSkills));
++            if (executionReadySkills < 0) throw new ArgumentOutOfRangeException(nameof(executionReadySkills));
++            if (blockedSkills < 0) throw new ArgumentOutOfRangeException(nameof(blockedSkills));
++            if (skillsWithInfoOnly < 0) throw new ArgumentOutOfRangeException(nameof(skillsWithInfoOnly));
++            if (executionReadySkills + blockedSkills != totalSkills)
++            {
++                throw new ArgumentException("Ready + blocked must equal total skills.");
++            }
++
++            TotalSkills = totalSkills;
++            ExecutionReadySkills = executionReadySkills;
++            BlockedSkills = blockedSkills;
++            SkillsWithInfoOnly = skillsWithInfoOnly;
++            _issues = issues?.ToArray() ?? throw new ArgumentNullException(nameof(issues));
++        }
++    }
++
++    /// <summary>
++    /// Aggregates loss-aware mapping results across a SkillInfo population.
++    /// This class does not read proprietary game data itself; callers supply already parsed
++    /// SkillInfo records from a lawful runtime/data source.
++    /// </summary>
++    public static class GdbSkillPopulationAudit
++    {
++        private const string AUDIT_VISUAL_PROFILE = "audit.unbound";
++
++        public static GdbSkillPopulationAuditResult Audit(
++            IEnumerable<SkillInfo> skills,
++            int maxExampleSkillIdsPerIssue = 5)
++        {
++            if (skills == null) throw new ArgumentNullException(nameof(skills));
++            if (maxExampleSkillIdsPerIssue < 0)
++            {
++                throw new ArgumentOutOfRangeException(nameof(maxExampleSkillIdsPerIssue));
++            }
++
++            SkillInfo[] orderedSkills = skills
++                .OrderBy(skill => skill.Id)
++                .ToArray();
++
++            int executionReady = 0;
++            int blocked = 0;
++            int infoOnly = 0;
++
++            Dictionary<(string Code, GdbSkillMappingIssueSeverity Severity), List<uint>> issueSkillIds = new();
++
++            foreach (SkillInfo skill in orderedSkills)
++            {
++                GdbSkillMappingResult mapping = GdbSkillInfoMapper.Map(
++                    skill,
++                    SkillVisualArchetype.Projectile,
++                    AUDIT_VISUAL_PROFILE);
++
++                if (mapping.IsExecutionReady)
++                {
++                    executionReady++;
++                }
++                else
++                {
++                    blocked++;
++                }
++
++                if (mapping.IsExecutionReady && mapping.Issues.Count > 0)
++                {
++                    infoOnly++;
++                }
++
++                foreach (GdbSkillMappingIssue issue in mapping.Issues)
++                {
++                    (string Code, GdbSkillMappingIssueSeverity Severity) key =
++                        (issue.Code, issue.Severity);
++
++                    if (!issueSkillIds.TryGetValue(key, out List<uint>? ids))
++                    {
++                        ids = new List<uint>();
++                        issueSkillIds[key] = ids;
++                    }
++
++                    ids.Add(skill.Id);
++                }
++            }
++
++            GdbSkillIssuePopulation[] issues = issueSkillIds
++                .OrderBy(pair => pair.Key.Severity)
++                .ThenBy(pair => pair.Key.Code, StringComparer.Ordinal)
++                .Select(pair => new GdbSkillIssuePopulation(
++                    pair.Key.Code,
++                    pair.Key.Severity,
++                    pair.Value.Count,
++                    pair.Value
++                        .Distinct()
++                        .OrderBy(id => id)
++                        .Take(maxExampleSkillIdsPerIssue)))
++                .ToArray();
++
++            return new GdbSkillPopulationAuditResult(
++                totalSkills: orderedSkills.Length,
++                executionReadySkills: executionReady,
++                blockedSkills: blocked,
++                skillsWithInfoOnly: infoOnly,
++                issues);
++        }
++    }
++}
