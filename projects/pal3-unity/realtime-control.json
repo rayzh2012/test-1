@@ -1,5 +1,5 @@
 {
-  "schema_version": "pal3_realtime_control.v0.2",
+  "schema_version": "pal3_realtime_control.v0.3",
   "project_id": "pal3-unity",
   "mode": "chatgpt_direct",
   "transport": "conversation_to_github",
@@ -8,6 +8,20 @@
   "cursor_required": false,
   "command_log_dir": "commands",
   "experiment_log_dir": "experiment-logs",
+  "human_devlog": {
+    "required": true,
+    "protocol": "devlog/README.md",
+    "canonical_markdown": "devlog/PAL3-AI-DEVLOG.md",
+    "purpose": "human-readable chronological engineering blog derived from machine evidence and experiment history",
+    "publication_targets": [
+      "repository_markdown",
+      "github_gist",
+      "medium"
+    ],
+    "current_writable_target": "repository_markdown",
+    "gist_write_status": "PENDING_CONNECTOR_SUPPORT",
+    "history_rule": "Published failure history must not be erased after later fixes succeed. First-attempt success must be recorded as such without invented failures."
+  },
   "worker_bootstrap": {
     "mandatory": true,
     "read_before_action": [
@@ -15,6 +29,8 @@
       "experiment-logs/README.md",
       "experiment-logs/index.json",
       "latest_relevant_experiment_logs",
+      "devlog/README.md",
+      "tail_of_devlog/PAL3-AI-DEVLOG.md",
       "current_command_record"
     ],
     "history_rule": "Do not erase failed attempts after a later fix succeeds.",
@@ -49,13 +65,14 @@
     "record_environment_blockers_separately": true,
     "one_command_record_per_material_change": true,
     "one_experiment_log_per_material_attempt": true,
-    "terminal_experiment_logs_are_append_only": true
+    "terminal_experiment_logs_are_append_only": true,
+    "terminal_material_experiments_require_human_devlog_entry": true
   },
   "interaction_contract": {
     "read_only_requests": "inspect immediately",
     "explicit_continue_or_change_requests": "create smallest auditable change and verify",
-    "failed_fast_gate": "record failure in experiment log, stop feature expansion, and inspect failure",
-    "passed_fast_gate": "record machine evidence and become eligible for next small iteration",
+    "failed_fast_gate": "record failure in experiment log, stop feature expansion, inspect failure, and preserve it for the human devlog",
+    "passed_fast_gate": "record machine evidence, publish/update the human devlog entry, and become eligible for the next small iteration",
     "unity_blocked_only": "continue pure-domain work but do not claim Unity integration"
   }
 }
