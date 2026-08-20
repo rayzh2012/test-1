@@ -16,6 +16,20 @@
     "DIFF_CHECK",
     "FAST_DOMAIN_TESTS"
   ],
+  "verification": {
+    "initial_failure": "0002 unified-diff new-file hunk counts were malformed; realtime CI rejected the patch before source semantics were evaluated",
+    "repair": "Corrected only the malformed hunk counts, then made the pure hit-gate slice nullable-clean",
+    "source_audit_run": 32325982451,
+    "fastlane_run": 32325982552,
+    "fastlane_artifact_id": 9391360392,
+    "fastlane_artifact_sha256": "6a5cd72af83c9f5c038d00bc9fe0de65539bd6c994a24ff50789301e74d5489a",
+    "tests": {
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 0
+    }
+  },
   "claim_boundary": "This patch proves animation-hit event plumbing and single-hit gating only. It does not yet prove runtime HP mutation, Unity compilation, or a complete combat loop.",
-  "status": "EXECUTING"
+  "status": "VERIFIED_FAST_LANE"
 }
