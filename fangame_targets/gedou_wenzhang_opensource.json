@@ -1,9 +1,14 @@
 {
   "name": "格斗纹章",
-  "version": "开源免费版",
+  "version": "开源免费版 / V0.1014 lineage",
   "engine": "RPG Maker VX",
   "min_mb": 180,
   "sources": [
+    "https://s.kuaiwan.com/game/?page=25&tags=%E7%AD%96%E7%95%A5",
+    "https://www.fxxz.com/l/r_1_412.html",
+    "https://www.paopaoche.net/z/gezi/index.html",
+    "https://360game.360.cn/pcgames/list_0_81_weight_desc.html",
+    "https://down.ali213.net/pcgame/FightingCoatofArmsG.html",
     "https://mip.ali213.net/down/FightingCoatofArmsG.html",
     "https://3g.ali213.net/down/FightingCoatofArmsG.html",
     "https://rpg.blue/forum.php?mod=viewthread&tid=277104",
