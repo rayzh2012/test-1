@@ -18,6 +18,16 @@
       "branch": "agent/pal3-single-target-spell-0006",
       "pull_request": 78,
       "final_fast_lane_run_id": 32336914181
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0208-step3-gdb-skill-mapping-0007",
+      "roadmap_step": 3,
+      "status": "RUNNING",
+      "terminal": false,
+      "log": "projects/pal3-unity/experiment-logs/2026-08-20T0208-step3-gdb-skill-mapping-0007.json",
+      "branch": "agent/pal3-step3-gdb-skill-mapping-0007",
+      "pull_request": null,
+      "final_fast_lane_run_id": null
     }
   ]
 }
