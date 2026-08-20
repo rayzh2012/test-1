@@ -9,6 +9,8 @@
   "target_surfaces": [
     "projects/pal3-unity/realtime-control.json",
     "projects/pal3-unity/commands/",
+    "projects/pal3-unity/fast-tests.json",
+    "tools/pal3_fastlane.py",
     ".github/workflows/pal3-chat-fastlane.yml"
   ],
   "expected_gates": [
@@ -23,6 +25,20 @@
       "classification": "environment"
     }
   ],
+  "verification": {
+    "pr": 73,
+    "source_control_audit_run": 32324138128,
+    "fastlane_run": 32324138124,
+    "fastlane_status": "PASS",
+    "combat_core_tests": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "duration_ms": 26
+    },
+    "artifact_id": 9390747341,
+    "artifact_sha256": "cc4f6f8dcbda6ed20c7b9df1db0cb63177bc646eba21dcf2b719854c51ed57e5"
+  },
   "claim_boundary": "Fast-lane success does not imply Unity compile, runtime, iOS build, or playtest success.",
-  "status": "EXECUTING"
+  "status": "VERIFIED"
 }
