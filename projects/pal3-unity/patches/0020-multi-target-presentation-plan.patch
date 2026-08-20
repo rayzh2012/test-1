@@ -1,0 +1,240 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/MultiTargetSkillPresentationPlan.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/MultiTargetSkillPresentationPlan.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/MultiTargetSkillPresentationPlan.cs
+@@ -0,0 +1,235 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity target-addressed multi-target presentation planning.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Presentation
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Linq;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    /// <summary>
++    /// Immutable presentation cues for one already-resolved target.
++    /// The target key is presentation addressability only; this type owns no combat state.
++    /// </summary>
++    public sealed class TargetSkillPresentationPlan<TKey> where TKey : notnull
++    {
++        private readonly IReadOnlyList<SkillPresentationCue> _cues;
++
++        public TKey TargetKey { get; }
++        public IReadOnlyList<SkillPresentationCue> Cues => _cues;
++
++        public TargetSkillPresentationPlan(
++            TKey targetKey,
++            IEnumerable<SkillPresentationCue> cues)
++        {
++            if (targetKey is null) throw new ArgumentNullException(nameof(targetKey));
++            if (cues == null) throw new ArgumentNullException(nameof(cues));
++
++            SkillPresentationCue[] cueArray = cues.ToArray();
++            if (cueArray.Length == 0)
++            {
++                throw new ArgumentException(
++                    "A target presentation plan requires at least one cue.",
++                    nameof(cues));
++            }
++
++            TargetKey = targetKey;
++            _cues = Array.AsReadOnly(cueArray);
++        }
++    }
++
++    /// <summary>
++    /// Immutable presentation plan for one already-resolved multi-target skill cast.
++    /// Global cues are intentionally separate from target-addressed cues.
++    /// </summary>
++    public sealed class MultiTargetSkillPresentationPlan<TKey> where TKey : notnull
++    {
++        private readonly IReadOnlyList<SkillPresentationCue> _globalCues;
++        private readonly IReadOnlyList<TargetSkillPresentationPlan<TKey>> _targets;
++
++        public uint SkillId { get; }
++        public SkillVisualArchetype Archetype { get; }
++        public string VisualProfileKey { get; }
++        public IReadOnlyList<SkillPresentationCue> GlobalCues => _globalCues;
++        public IReadOnlyList<TargetSkillPresentationPlan<TKey>> Targets => _targets;
++
++        public MultiTargetSkillPresentationPlan(
++            uint skillId,
++            SkillVisualArchetype archetype,
++            string visualProfileKey,
++            IEnumerable<SkillPresentationCue> globalCues,
++            IEnumerable<TargetSkillPresentationPlan<TKey>> targets)
++        {
++            if (skillId == 0) throw new ArgumentOutOfRangeException(nameof(skillId));
++            if (string.IsNullOrWhiteSpace(visualProfileKey))
++            {
++                throw new ArgumentException(
++                    "Visual profile key is required.",
++                    nameof(visualProfileKey));
++            }
++            if (globalCues == null) throw new ArgumentNullException(nameof(globalCues));
++            if (targets == null) throw new ArgumentNullException(nameof(targets));
++
++            SkillPresentationCue[] globalCueArray = globalCues.ToArray();
++            if (globalCueArray.Length == 0)
++            {
++                throw new ArgumentException(
++                    "A multi-target presentation plan requires at least one global cue.",
++                    nameof(globalCues));
++            }
++
++            TargetSkillPresentationPlan<TKey>[] targetArray = targets.ToArray();
++            if (targetArray.Length == 0)
++            {
++                throw new ArgumentException(
++                    "A multi-target presentation plan requires at least one target.",
++                    nameof(targets));
++            }
++            if (targetArray.Any(target => target == null))
++            {
++                throw new ArgumentException(
++                    "Target presentation plans cannot contain null entries.",
++                    nameof(targets));
++            }
++            if (targetArray
++                .Select(target => target.TargetKey)
++                .Distinct(EqualityComparer<TKey>.Default)
++                .Count() != targetArray.Length)
++            {
++                throw new InvalidOperationException(
++                    "Target presentation plans require unique target keys.");
++            }
++
++            SkillId = skillId;
++            Archetype = archetype;
++            VisualProfileKey = visualProfileKey;
++            _globalCues = Array.AsReadOnly(globalCueArray);
++            _targets = Array.AsReadOnly(targetArray);
++        }
++    }
++
++    /// <summary>
++    /// Generic multi-target presentation planner.
++    ///
++    /// This layer intentionally does not invent travel paths, durations, prefabs, sounds,
++    /// camera behavior, spatial sequencing, or Unity objects. It mirrors only facts already
++    /// resolved by the combat domain:
++    ///
++    /// one global SkillCast -> one target-addressed Impact per target -> optional target Defeat.
++    ///
++    /// VisualArchetype and VisualProfileKey are preserved for a later engine adapter.
++    /// </summary>
++    public static class GenericMultiTargetSkillPresentationPlanner
++    {
++        public static MultiTargetSkillPresentationPlan<TKey> Build<TKey>(
++            SkillDefinition skill,
++            MultiTargetSkillCastResolution<TKey> resolution)
++            where TKey : notnull
++        {
++            if (skill == null) throw new ArgumentNullException(nameof(skill));
++            if (resolution == null) throw new ArgumentNullException(nameof(resolution));
++            if (skill.Id != resolution.SkillId)
++            {
++                throw new ArgumentException(
++                    "Skill definition and multi-target resolution must refer to the same skill.",
++                    nameof(resolution));
++            }
++
++            CombatEvent[] castEvents = resolution.CastEvents.ToArray();
++            if (castEvents.Length != 1 ||
++                castEvents[0].Kind != CombatEventKind.SkillCast ||
++                castEvents[0].SkillId != skill.Id ||
++                castEvents[0].Amount != 0)
++            {
++                throw new InvalidOperationException(
++                    "Multi-target resolution must expose exactly one matching SkillCast fact.");
++            }
++
++            TargetSkillPresentationPlan<TKey>[] targets = resolution.Targets
++                .Select(target => BuildTarget(skill, target))
++                .ToArray();
++
++            return new MultiTargetSkillPresentationPlan<TKey>(
++                skill.Id,
++                skill.VisualArchetype,
++                skill.VisualProfileKey,
++                new[]
++                {
++                    new SkillPresentationCue(
++                        SkillPresentationCueKind.Cast,
++                        CombatEventKind.SkillCast),
++                },
++                targets);
++        }
++
++        private static TargetSkillPresentationPlan<TKey> BuildTarget<TKey>(
++            SkillDefinition skill,
++            TargetSkillResolution<TKey> target)
++            where TKey : notnull
++        {
++            if (target == null)
++            {
++                throw new InvalidOperationException(
++                    "Resolved target cannot be null.");
++            }
++
++            CombatEvent[] events = target.Events.ToArray();
++            if (events.Any(entry => entry.SkillId != skill.Id))
++            {
++                throw new InvalidOperationException(
++                    "Target resolution events contain a mismatched skill id.");
++            }
++            if (events.Any(entry =>
++                entry.Kind is not (
++                    CombatEventKind.Damage or
++                    CombatEventKind.TargetDefeated)))
++            {
++                throw new InvalidOperationException(
++                    "Target resolution contains an unsupported event kind.");
++            }
++
++            CombatEvent[] damageEvents =
++                events.Where(entry => entry.Kind == CombatEventKind.Damage).ToArray();
++            if (damageEvents.Length != 1)
++            {
++                throw new InvalidOperationException(
++                    $"Expected exactly one Damage event but found {damageEvents.Length}.");
++            }
++            if (damageEvents[0].Amount != target.Damage)
++            {
++                throw new InvalidOperationException(
++                    "Damage presentation must mirror resolved target damage exactly.");
++            }
++
++            CombatEvent[] defeatEvents =
++                events.Where(entry => entry.Kind == CombatEventKind.TargetDefeated).ToArray();
++            int expectedDefeatEvents = target.IsTargetDefeated ? 1 : 0;
++            if (defeatEvents.Length != expectedDefeatEvents)
++            {
++                throw new InvalidOperationException(
++                    "Defeat presentation must mirror the resolved target terminal state.");
++            }
++
++            List<SkillPresentationCue> cues = new()
++            {
++                new SkillPresentationCue(
++                    SkillPresentationCueKind.Impact,
++                    CombatEventKind.Damage,
++                    resolvedAmount: damageEvents[0].Amount),
++            };
++
++            if (target.IsTargetDefeated)
++            {
++                cues.Add(new SkillPresentationCue(
++                    SkillPresentationCueKind.TargetDefeated,
++                    CombatEventKind.TargetDefeated));
++            }
++
++            return new TargetSkillPresentationPlan<TKey>(
++                target.TargetKey,
++                cues);
++        }
++    }
++}
