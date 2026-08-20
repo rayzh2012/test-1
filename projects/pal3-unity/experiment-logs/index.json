@@ -30,6 +30,16 @@
       "pull_request": 86,
       "first_passing_fast_lane_run_id": 32338925581,
       "final_fast_lane_run_id": 32339278966
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0229-step4a-skill-population-audit-0008",
+      "roadmap_step": "4A",
+      "status": "RUNNING",
+      "terminal": false,
+      "log": "projects/pal3-unity/experiment-logs/2026-08-20T0229-step4a-skill-population-audit-0008.json",
+      "branch": "agent/pal3-step4-skill-population-audit-0008",
+      "pull_request": null,
+      "final_fast_lane_run_id": null
     }
   ]
 }
