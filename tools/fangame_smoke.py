@@ -184,13 +184,24 @@ def start_flow_hint(static_path):
         if start is None: return None
         pages = [x for x in g.get('event_pages', []) if x.get('map_id') == start]
         edges = [x for x in g.get('map_edges', []) if x.get('source_map_id') == start]
+        targets = sorted({x.get('target_map_id') for x in edges if x.get('target_map_id') is not None})
+        target_flows = []
+        for target in targets:
+            tpages = [x for x in g.get('event_pages', []) if x.get('map_id') == target]
+            target_flows.append({
+                'map_id': target,
+                'dialogue_lines': sum(int(x.get('dialogue_lines') or 0) for x in tpages),
+                'choice_options': sum(int(x.get('choice_options') or 0) for x in tpages),
+                'event_pages': len(tpages),
+            })
         return {
             'start_map_id': start,
             'event_pages': len(pages),
             'dialogue_lines': sum(int(x.get('dialogue_lines') or 0) for x in pages),
             'choice_options': sum(int(x.get('choice_options') or 0) for x in pages),
             'command_count': sum(int(x.get('command_count') or 0) for x in pages),
-            'direct_transfer_targets': [x.get('target_map_id') for x in edges if x.get('target_map_id') is not None],
+            'direct_transfer_targets': targets,
+            'target_flows': target_flows,
         }
     except Exception:
         return None
@@ -198,104 +209,88 @@ def start_flow_hint(static_path):
 
 def advance_long_intro(env, out, proc, base_frame, hint):
     evidence = {
-        'attempted': False,
-        'safe_reason': None,
-        'max_confirms': 0,
-        'confirms_sent': 0,
-        'checkpoints': [],
-        'large_transition_detected': False,
+        'attempted': False, 'safe_reason': None, 'max_confirms': 0,
+        'confirms_sent': 0, 'checkpoints': [], 'large_transition_detected': False,
+        'post_transition_confirms': 0,
     }
     if not hint:
-        evidence['safe_reason'] = 'NO_GRAPH_HINT'
-        return base_frame, evidence
+        evidence['safe_reason'] = 'NO_GRAPH_HINT'; return base_frame, evidence
     dialogue = int(hint.get('dialogue_lines') or 0)
     choices = int(hint.get('choice_options') or 0)
     if dialogue < 20 or choices != 0:
-        evidence['safe_reason'] = 'NOT_A_LONG_CHOICE_FREE_START_FLOW'
-        return base_frame, evidence
-
+        evidence['safe_reason'] = 'NOT_A_LONG_CHOICE_FREE_START_FLOW'; return base_frame, evidence
     evidence['attempted'] = True
     evidence['safe_reason'] = 'LONG_CHOICE_FREE_START_FLOW'
     max_confirms = min(420, max(80, dialogue * 2 + 60))
     evidence['max_confirms'] = max_confirms
-    prev = base_frame
-    last = base_frame
-    batch = 8
+    prev = base_frame; last = base_frame; batch = 8
     while evidence['confirms_sent'] < max_confirms and proc.poll() is None:
         count = min(batch, max_confirms - evidence['confirms_sent'])
         for _ in range(count):
-            key(env, 'Return')
-            time.sleep(0.055)
+            key(env, 'Return'); time.sleep(0.055)
         evidence['confirms_sent'] += count
         time.sleep(0.45)
         frame, _ = capture(env, out, f'14_long_confirm_{evidence["confirms_sent"]:03d}.png')
         d = diff_pixels(prev, frame)
-        evidence['checkpoints'].append({
-            'confirms_sent': evidence['confirms_sent'],
-            'changed_pixels': d,
-        })
+        evidence['checkpoints'].append({'confirms_sent': evidence['confirms_sent'], 'changed_pixels': d})
         if frame:
-            last = frame
-            prev = frame
+            last = frame; prev = frame
         if d is not None and d >= 50000 and evidence['confirms_sent'] >= 24:
             evidence['large_transition_detected'] = True
-            time.sleep(1.5)
-            settled, _ = capture(env, out, '20_after_long_confirm_settle.png')
+            time.sleep(2.0)
+            settled, _ = capture(env, out, '19_after_long_confirm_transition.png')
             if settled: last = settled
+            flows = hint.get('target_flows') or []
+            if len(flows) == 1 and int(flows[0].get('choice_options') or 0) == 0:
+                target_dialogue = int(flows[0].get('dialogue_lines') or 0)
+                if 0 < target_dialogue <= 20:
+                    post = min(24, max(6, target_dialogue * 2 + 4))
+                    for _ in range(post):
+                        if proc.poll() is not None: break
+                        key(env, 'Return'); time.sleep(0.12)
+                    evidence['post_transition_confirms'] = post
+                    time.sleep(2.0)
+                    cleared, _ = capture(env, out, '20_after_post_transition_confirm.png')
+                    if cleared: last = cleared
             break
     return last, evidence
 
 
 def probe_map_like_input(env, out, proc, base_frame):
     evidence = {
-        'idle_control_deltas': [],
-        'idle_noise_median': None,
-        'idle_noise_max': None,
-        'input_delta_threshold': None,
-        'steps': [],
-        'localized_step_count': 0,
-        'horizontal_localized_count': 0,
-        'vertical_localized_count': 0,
-        'roundtrip_changed_pixels': None,
-        'candidate': False,
+        'idle_control_deltas': [], 'idle_noise_median': None, 'idle_noise_max': None,
+        'input_delta_threshold': None, 'steps': [], 'localized_step_count': 0,
+        'horizontal_localized_count': 0, 'vertical_localized_count': 0,
+        'roundtrip_changed_pixels': None, 'candidate': False,
         'candidate_reason': 'INSUFFICIENT_MAP_LIKE_BEHAVIOR',
     }
     prev = base_frame
-    for i in range(4):
+    for i in range(6):
         time.sleep(0.9)
         frame, _ = capture(env, out, f'{21+i:02d}_idle_control_{i+1}.png')
         d = diff_pixels(prev, frame)
         evidence['idle_control_deltas'].append(d)
         if frame: prev = frame
     base_for_roundtrip = prev
-    idle_vals = [x for x in evidence['idle_control_deltas'] if x is not None]
-    idle_med = median(idle_vals)
-    idle_max = max(idle_vals) if idle_vals else None
-    evidence['idle_noise_median'] = idle_med
-    evidence['idle_noise_max'] = idle_max
+    tail = [x for x in evidence['idle_control_deltas'][-3:] if x is not None]
+    idle_med = median(tail); idle_max = max(tail) if tail else None
+    evidence['idle_noise_median'] = idle_med; evidence['idle_noise_max'] = idle_max
     threshold = max(80, int((idle_max or 0) * 1.5), int((idle_med or 0) * 2.0))
     evidence['input_delta_threshold'] = threshold
-
     sequence = ('Right', 'Right', 'Left', 'Left', 'Down', 'Down', 'Up', 'Up')
-    for i, k in enumerate(sequence, 25):
+    for i, k in enumerate(sequence, 27):
         if proc.poll() is not None:
-            evidence['candidate_reason'] = 'PROCESS_EXITED_DURING_MOVEMENT_PROBE'
-            return evidence
+            evidence['candidate_reason'] = 'PROCESS_EXITED_DURING_MOVEMENT_PROBE'; return evidence
         key(env, k); time.sleep(0.9)
         frame, _ = capture(env, out, f'{i:02d}_probe_{k.lower()}.png')
         d = diff_pixels(prev, frame)
         local = d is not None and threshold <= d <= 60000
-        evidence['steps'].append({
-            'key': k,
-            'changed_pixels': d,
-            'above_idle_noise': local,
-        })
+        evidence['steps'].append({'key': k, 'changed_pixels': d, 'above_idle_noise': local})
         if local:
             evidence['localized_step_count'] += 1
             if k in ('Left', 'Right'): evidence['horizontal_localized_count'] += 1
             if k in ('Up', 'Down'): evidence['vertical_localized_count'] += 1
         if frame: prev = frame
-
     evidence['roundtrip_changed_pixels'] = diff_pixels(base_for_roundtrip, prev)
     reversible_limit = max(1200, threshold * 4)
     reversible = (evidence['roundtrip_changed_pixels'] is not None and
@@ -305,11 +300,11 @@ def probe_map_like_input(env, out, proc, base_frame):
     enough_steps = evidence['localized_step_count'] >= 5
     if reversible and axis_support and enough_steps and proc.poll() is None and windows(env):
         evidence['candidate'] = True
-        evidence['candidate_reason'] = 'BIDIRECTIONAL_INPUT_EXCEEDS_IDLE_NOISE_AND_ROUNDTRIPS'
+        evidence['candidate_reason'] = 'BIDIRECTIONAL_INPUT_EXCEEDS_SETTLED_IDLE_NOISE_AND_ROUNDTRIPS'
     elif not axis_support:
-        evidence['candidate_reason'] = 'DIRECTIONAL_DELTAS_DO_NOT_CLEAR_IDLE_ANIMATION_NOISE'
+        evidence['candidate_reason'] = 'DIRECTIONAL_DELTAS_DO_NOT_CLEAR_SETTLED_IDLE_NOISE'
     elif not enough_steps:
-        evidence['candidate_reason'] = 'TOO_FEW_INPUT_DELTAS_ABOVE_IDLE_NOISE'
+        evidence['candidate_reason'] = 'TOO_FEW_INPUT_DELTAS_ABOVE_SETTLED_IDLE_NOISE'
     elif not reversible:
         evidence['candidate_reason'] = 'INPUT_SEQUENCE_NOT_ROUGHLY_REVERSIBLE'
     return evidence
@@ -363,8 +358,7 @@ def main():
             rc, bootlog = run(['wineboot', '-u'], env=env, cwd=game_root, timeout=90)
             result['wineboot_rc'] = rc
             if rc != 0: result['notes'].append('wineboot failed: ' + bootlog[-1500:])
-            configure_wine_audio(env, game_root, result['notes'])
-            time.sleep(2)
+            configure_wine_audio(env, game_root, result['notes']); time.sleep(2)
         proc = subprocess.Popen(cmd, cwd=game_root, env=env, stdout=logf,
                                 stderr=subprocess.STDOUT, text=True)
         time.sleep(12)
@@ -377,7 +371,6 @@ def main():
         else:
             result['status'] = 'WINDOW_VISIBLE_BOOT' if wins_boot else 'PROCESS_ALIVE_NO_VISIBLE_WINDOW'
             if wins_boot: result['stage_evidence'].append('VISIBLE_WINDOW_AT_BOOT_UNVERIFIED')
-
             key(env, 'Return'); time.sleep(4)
             s2, _ = capture(env, out, '02_after_confirm.png')
             d1 = diff_pixels(s1, s2)
@@ -389,44 +382,34 @@ def main():
                 result['notes'].append('Process exited after first confirm; startup/error dialog possible.')
             else:
                 if (d1 or 0) > 1000: result['stage_evidence'].append('CONFIRM_CAUSED_LARGE_VISUAL_CHANGE')
-
-                prev = s2
-                last = s2
+                prev = s2; last = s2
                 for n in range(2, 13):
                     if proc.poll() is not None: break
                     key(env, 'Return'); time.sleep(1.8)
                     frame, _ = capture(env, out, f'{n+1:02d}_after_confirm_{n:02d}.png')
                     d = diff_pixels(prev, frame)
                     result['confirm_probe'].append({'confirm_index': n, 'changed_pixels': d})
-                    if frame:
-                        prev = frame; last = frame
-
+                    if frame: prev = frame; last = frame
                 if proc.poll() is None and last:
-                    last, result['long_intro_probe'] = advance_long_intro(
-                        env, out, proc, last, result['start_flow_hint'])
+                    last, result['long_intro_probe'] = advance_long_intro(env, out, proc, last, result['start_flow_hint'])
                     if result['long_intro_probe'].get('large_transition_detected'):
                         result['stage_evidence'].append('LONG_INTRO_LARGE_TRANSITION_DETECTED')
-
                 result['process_alive_after_confirm_probe'] = proc.poll() is None
                 result['visible_windows_after_confirm_probe'] = len(windows(env))
                 if result['process_alive_after_confirm_probe'] and last:
                     result['map_gameplay_probe'] = probe_map_like_input(env, out, proc, last)
                     result['map_gameplay_candidate'] = bool(result['map_gameplay_probe']['candidate'])
-                    movement_deltas = [x.get('changed_pixels') for x in result['map_gameplay_probe']['steps']
-                                       if x.get('changed_pixels') is not None]
+                    movement_deltas = [x.get('changed_pixels') for x in result['map_gameplay_probe']['steps'] if x.get('changed_pixels') is not None]
                     result['confirm_to_movement_changed_pixels'] = max(movement_deltas) if movement_deltas else None
                     if result['map_gameplay_candidate']:
                         result['stage_evidence'].append('MAP_GAMEPLAY_CANDIDATE_BEHAVIOR')
                     elif movement_deltas:
                         result['stage_evidence'].append('DIRECTIONAL_INPUT_PROBED_WITH_IDLE_BASELINE')
-
                 alive3 = proc.poll() is None; result['process_alive_after_inputs'] = alive3
                 wins3 = windows(env); result['visible_windows_after_inputs'] = len(wins3)
                 has_window = bool(wins2 or wins3)
-                any_confirm_change = ((d1 or 0) > 1000 or
-                                      any((x.get('changed_pixels') or 0) > 1000 for x in result['confirm_probe']))
-                any_input_change = bool(result['map_gameplay_probe'] and
-                                        any(x.get('above_idle_noise') for x in result['map_gameplay_probe']['steps']))
+                any_confirm_change = ((d1 or 0) > 1000 or any((x.get('changed_pixels') or 0) > 1000 for x in result['confirm_probe']))
+                any_input_change = bool(result['map_gameplay_probe'] and any(x.get('above_idle_noise') for x in result['map_gameplay_probe']['steps']))
                 if alive3 and has_window and any_confirm_change and any_input_change:
                     result['status'] = 'INPUT_FLOW_VERIFIED'
                     result['stage_evidence'].append('ARROW_INPUTS_EXCEEDED_IDLE_ANIMATION_NOISE')
