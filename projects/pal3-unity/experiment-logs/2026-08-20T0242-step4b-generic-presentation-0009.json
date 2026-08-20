@@ -4,7 +4,8 @@
   "roadmap_step": "4B",
   "title": "Domain combat events plus first generic Projectile presentation contract",
   "created_at": "2026-08-20T02:42:00-04:00",
-  "status": "RUNNING",
+  "status": "VERIFIED",
+  "terminal": true,
   "base_control_ref": "master@e4d5198f15945c92e8b417238eb843d7bda70635",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
   "objective": "Close the missing CombatEvent seam from the skill resolver and prove that a generic Projectile presentation plan consumes immutable resolved combat facts without owning or mutating damage/resource truth.",
@@ -20,14 +21,61 @@
   "attempts": [
     {
       "attempt": 1,
-      "status": "RUNNING",
-      "description": "Emit immutable combat facts from the already-resolved single-target skill result; build a timing-free generic Projectile cue plan and verify that planning cannot mutate encounter HP/MP.",
-      "expected_tests": "existing 51 tests plus 8 presentation/event tests = 59",
+      "status": "VERIFIED",
+      "description": "Emit SkillCast/Damage/optional TargetDefeated facts from the already-resolved single-target skill result; build a timing-free generic Projectile cue plan and verify that planning cannot mutate encounter HP/MP.",
+      "tests": {
+        "total": 59,
+        "passed": 59,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 234
+      },
       "failure": null,
-      "fix": null,
-      "evidence": null
+      "evidence": {
+        "source_audit_run_id": 32341131104,
+        "fast_lane_run_id": 32341131050,
+        "artifact_id": 9396383495,
+        "artifact_sha256": "e850a394653783cbe20d53d90132af2f42d15fcaad34fc7b3d7db406e890f531"
+      }
     }
   ],
-  "reusable_lessons": [],
-  "next_recommended_experiment": "If verified, add the thinnest Unity-facing adapter that consumes SkillPresentationPlan when Unity activation becomes available, or continue domain targeting work without changing presentation authority."
+  "pre_merge_review": {
+    "finding": "The public types exposed IReadOnlyList but initially retained raw arrays as their backing objects, so a caller could theoretically cast the returned object back to an array and mutate event/cue contents.",
+    "classification": "CONTRACT_HARDENING_NOT_CI_FAILURE",
+    "fix": "Store Array.AsReadOnly wrappers for SkillCastResolution.Events and SkillPresentationPlan.Cues, then add a regression test proving neither public collection is a mutable array alias.",
+    "verification": {
+      "source_audit_run_id": 32341367212,
+      "fast_lane_run_id": 32341367176,
+      "tests": {
+        "total": 60,
+        "passed": 60,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 149
+      },
+      "artifact_id": 9396458443,
+      "artifact_sha256": "2615061d951efb1cd1ffc26f7bb94e22876e2b8c711f5a3e1adaff0cdade6994"
+    }
+  },
+  "verified_capabilities": [
+    "Single-target skill resolution emits ordered immutable SkillCast and Damage domain facts and an optional TargetDefeated fact.",
+    "Projectile presentation planning consumes resolved facts after HP/MP mutation has completed.",
+    "Presentation planning mirrors resolved damage and cannot recalculate or mutate combat truth.",
+    "The first generic presentation plan contains Cast, Travel, Impact and optional TargetDefeated cues without inventing timing values.",
+    "VisualProfileKey and SkillVisualArchetype remain presentation metadata separated from mechanics.",
+    "Public event and cue collections are read-only wrappers rather than mutable array aliases."
+  ],
+  "unverified_or_blocked": [
+    "No UnityEngine presentation adapter or prefab playback exists yet.",
+    "No cast/travel/impact timing values are claimed.",
+    "Camera, sound, hit reactions and damage-number rendering are not implemented.",
+    "Unity compile/runtime remains separately blocked by activation prerequisites."
+  ],
+  "reusable_lessons": [
+    "Resolved combat facts should cross the presentation boundary; presentation must not receive authority to recompute mechanics.",
+    "Do not invent visual timing constants when the evidence does not establish them.",
+    "IReadOnlyList alone does not guarantee an immutable backing object; protect public contracts against array-alias mutation before calling them immutable.",
+    "A first-attempt green build may still deserve pre-merge contract hardening without rewriting history as a failed attempt."
+  ],
+  "next_recommended_experiment": "Proceed to Step 5 multi-target target resolution in the pure domain while reusing the same CombatEvent/presentation boundary; attach a real Unity Projectile adapter only when Unity activation is available."
 }
