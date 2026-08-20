@@ -23,6 +23,12 @@
     "FAST_DOMAIN_TESTS"
   ],
   "claim_boundary": "This step creates a Unity-independent presentation contract for the Projectile archetype. It does not claim Unity prefab playback, animation timing, camera, sound, VFX fidelity, Unity compilation, or runtime playability.",
-  "status": "EXECUTING",
+  "status": "COMPLETED",
+  "result": {
+    "first_code_run": "59 passed / 0 failed / 0 skipped",
+    "pre_merge_hardening": "read-only backing collections added after review",
+    "hardened_run": "60 passed / 0 failed / 0 skipped",
+    "final_code_fast_lane_run_id": 32341367176
+  },
   "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0242-step4b-generic-presentation-0009.json"
 }
