@@ -1,0 +1,198 @@
+diff --git a/Assets/Tests/EditMode/GdbSkillInfoMapperTests.cs b/Assets/Tests/EditMode/GdbSkillInfoMapperTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/GdbSkillInfoMapperTests.cs
+@@ -0,0 +1,193 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System.Collections.Generic;
++    using System.Linq;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Core.DataReader.Gdb;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class GdbSkillInfoMapperTests
++    {
++        [Test]
++        public void SingleElementAbsoluteSkill_ProjectsAllRuntimeEffects()
++        {
++            SkillInfo source = CreateBaseSkill();
++            source.ElementAttributes = new HashSet<ObjectElementType> { ObjectElementType.Fire };
++            source.AttributeImpacts = new Dictionary<ActorAttributeType, AttributeImpact>
++            {
++                [ActorAttributeType.Hp] = new AttributeImpact
++                {
++                    Type = AttributeImpactType.Absolute,
++                    Value = -30,
++                },
++            };
++            source.CombatStateImpactTypes = new Dictionary<ActorCombatStateType, CombatStateImpactType>
++            {
++                [ActorCombatStateType.PoisonFire] = CombatStateImpactType.Increase,
++            };
++
++            GdbSkillMappingResult result = GdbSkillInfoMapper.Map(
++                source,
++                SkillVisualArchetype.Projectile,
++                "gdb.test.fire");
++
++            Assert.That(result.Definition, Is.Not.Null);
++            Assert.That(result.IsExecutionReady, Is.True);
++            Assert.That(result.Definition!.Element, Is.EqualTo(ElementType.Fire));
++            Assert.That(result.Definition.MpCost, Is.EqualTo(12));
++            Assert.That(result.Definition.SpCost, Is.Zero);
++            Assert.That(result.Definition.Effects, Has.Count.EqualTo(2));
++            Assert.That(result.Definition.VisualArchetype, Is.EqualTo(SkillVisualArchetype.Projectile));
++            Assert.That(result.Definition.VisualProfileKey, Is.EqualTo("gdb.test.fire"));
++        }
++
++        [Test]
++        public void MultipleSourceElements_ArePreservedAndNeverCollapsedToFirst()
++        {
++            SkillInfo source = CreateBaseSkill();
++            source.ElementAttributes = new HashSet<ObjectElementType>
++            {
++                ObjectElementType.Wind,
++                ObjectElementType.Fire,
++            };
++
++            GdbSkillMappingResult result = GdbSkillInfoMapper.Map(
++                source,
++                SkillVisualArchetype.AreaBurst,
++                "gdb.test.multi");
++
++            Assert.That(result.Definition, Is.Null);
++            Assert.That(result.IsExecutionReady, Is.False);
++            Assert.That(result.SourceElements, Is.EqualTo(new[]
++            {
++                ElementType.Fire,
++                ElementType.Wind,
++            }));
++            Assert.That(result.Issues.Any(issue =>
++                issue.Code == "MULTI_ELEMENT_NOT_REPRESENTABLE" &&
++                issue.Severity == GdbSkillMappingIssueSeverity.Blocking), Is.True);
++        }
++
++        [Test]
++        public void PercentageMpConsumption_IsPreservedAsBlockingSourceSemantics()
++        {
++            SkillInfo source = CreateBaseSkill();
++            source.MpConsumeImpactType = AttributeImpactType.Percentage;
++            source.MpConsumeValue = 25;
++
++            GdbSkillMappingResult result = GdbSkillInfoMapper.Map(
++                source,
++                SkillVisualArchetype.Projectile,
++                "gdb.test.percentage-mp");
++
++            Assert.That(result.Definition, Is.Null);
++            Assert.That(result.Source.MpConsumeImpactType, Is.EqualTo(AttributeImpactType.Percentage));
++            Assert.That(result.Source.MpConsumeValue, Is.EqualTo(25));
++            Assert.That(result.Issues.Any(issue =>
++                issue.Code == "MP_CONSUMPTION_TYPE_NOT_REPRESENTABLE"), Is.True);
++        }
++
++        [Test]
++        public void SpecialConsumption_IsNeverSilentlyDropped()
++        {
++            SkillInfo source = CreateBaseSkill();
++            source.SpecialConsumeType = 10;
++            source.SpecialConsumeImpactType = AttributeImpactType.Absolute;
++            source.SpecialConsumeValue = 500;
++
++            GdbSkillMappingResult result = GdbSkillInfoMapper.Map(
++                source,
++                SkillVisualArchetype.Projectile,
++                "gdb.test.money-cost");
++
++            Assert.That(result.Definition, Is.Null);
++            Assert.That(result.Source.SpecialConsumeType, Is.EqualTo(10));
++            Assert.That(result.Source.SpecialConsumeValue, Is.EqualTo(500));
++            Assert.That(result.Issues.Any(issue =>
++                issue.Code == "SPECIAL_CONSUMPTION_NOT_REPRESENTABLE"), Is.True);
++        }
++
++        [Test]
++        public void ProgressionAndCompositeMetadata_RemainsInSourceAndIsReported()
++        {
++            SkillInfo source = CreateBaseSkill();
++            source.RequiredActorLevel = 17;
++            source.NextLevelSkillId = 4321;
++            source.CompositeSkillIds = new uint[] { 90, 91 };
++            source.CanTriggerComboSkill = 1;
++
++            GdbSkillMappingResult result = GdbSkillInfoMapper.Map(
++                source,
++                SkillVisualArchetype.Projectile,
++                "gdb.test.metadata");
++
++            Assert.That(result.Source.RequiredActorLevel, Is.EqualTo(17));
++            Assert.That(result.Source.NextLevelSkillId, Is.EqualTo(4321));
++            Assert.That(result.Source.CompositeSkillIds, Is.EqualTo(new uint[] { 90, 91 }));
++            Assert.That(result.Issues.Any(issue => issue.Code == "LEVEL_PROGRESSION_METADATA"), Is.True);
++            Assert.That(result.Issues.Any(issue => issue.Code == "COMPOSITE_SKILL_METADATA"), Is.True);
++            Assert.That(result.Issues.Any(issue => issue.Code == "COMBO_TRIGGER_METADATA"), Is.True);
++        }
++
++        [Test]
++        public void MapperUsesExplicitVisualBindingAndDoesNotInferPresentation()
++        {
++            SkillInfo source = CreateBaseSkill();
++
++            GdbSkillMappingResult projectile = GdbSkillInfoMapper.Map(
++                source,
++                SkillVisualArchetype.Projectile,
++                "manual.profile.a");
++
++            GdbSkillMappingResult field = GdbSkillInfoMapper.Map(
++                source,
++                SkillVisualArchetype.GroundField,
++                "manual.profile.b");
++
++            Assert.That(projectile.Definition, Is.Not.Null);
++            Assert.That(field.Definition, Is.Not.Null);
++            Assert.That(projectile.Definition!.Effects[0].Value, Is.EqualTo(field.Definition!.Effects[0].Value));
++            Assert.That(projectile.Definition.VisualArchetype, Is.Not.EqualTo(field.Definition.VisualArchetype));
++            Assert.That(projectile.Definition.VisualProfileKey, Is.Not.EqualTo(field.Definition.VisualProfileKey));
++        }
++
++        private static SkillInfo CreateBaseSkill()
++        {
++            return new SkillInfo
++            {
++                Id = 3001,
++                Type = SkillType.DamageMagic,
++                ElementAttributes = new HashSet<ObjectElementType> { ObjectElementType.Thunder },
++                Name = "GDB Test Skill",
++                Description = "Preserved source description",
++                ApplicableActors = new HashSet<PlayerActorId>(),
++                TargetRangeType = TargetRangeType.EnemyPartySingle,
++                SpecialSkillId = 0,
++                AttributeImpacts = new Dictionary<ActorAttributeType, AttributeImpact>
++                {
++                    [ActorAttributeType.Hp] = new AttributeImpact
++                    {
++                        Type = AttributeImpactType.Absolute,
++                        Value = -20,
++                    },
++                },
++                SuccessRateLevel = 0,
++                CombatStateImpactTypes = new Dictionary<ActorCombatStateType, CombatStateImpactType>(),
++                SpConsumeImpactType = AttributeImpactType.Absolute,
++                MpConsumeImpactType = AttributeImpactType.Absolute,
++                SpConsumeValue = 0,
++                MpConsumeValue = 12,
++                SpecialConsumeType = -1,
++                SpecialConsumeImpactType = AttributeImpactType.Absolute,
++                SpecialConsumeValue = 0,
++                TimesBeforeLevelUp = System.Array.Empty<byte>(),
++                CompositeSkillIds = System.Array.Empty<uint>(),
++                CompositeRequiredSkillIds = System.Array.Empty<uint>(),
++                CompositeRequiredSkillLevels = System.Array.Empty<byte>(),
++                CompositeRequiredCurrentSkillLevels = System.Array.Empty<byte>(),
++                CompositeRequiredActorLevels = System.Array.Empty<byte>(),
++            };
++        }
++    }
++}

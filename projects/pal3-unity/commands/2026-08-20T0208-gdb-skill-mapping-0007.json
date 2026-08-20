@@ -1,0 +1,30 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260820-0208-gdb-skill-mapping-0007",
+  "created_at": "2026-08-20T02:08:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Continue the PAL3 combat/magic roadmap immediately while preserving every attempt in machine logs and the human-readable devlog.",
+  "normalized_action": "execute_step3_real_gdb_skillinfo_mapping_without_silent_semantic_loss",
+  "target_surfaces": [
+    "Pal3.Core.DataReader.Gdb.SkillInfo",
+    "GdbSkillInfoMapper",
+    "GdbSkillMappingResult",
+    "fast-tests.json",
+    "pal3_fastlane.py",
+    "experiment-logs",
+    "devlog"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "REAL_GDB_SCHEMA_COMPILES",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "Step 3 proves a loss-aware projection layer over the real upstream SkillInfo type. It does not prove complete runtime support for every PAL3 skill semantic, real GDB dataset coverage, Unity compilation, casting VFX, or original formula fidelity.",
+  "status": "VERIFIED",
+  "first_passing_fast_lane_run_id": 32338925581,
+  "final_fast_lane_run_id": 32339278966,
+  "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0208-step3-gdb-skill-mapping-0007.json",
+  "human_devlog_entry": "projects/pal3-unity/devlog/entries/2026-08-20T0208-step3-gdb-skill-mapping.md"
+}

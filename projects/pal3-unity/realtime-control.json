@@ -1,5 +1,5 @@
 {
-  "schema_version": "pal3_realtime_control.v0.3",
+  "schema_version": "pal3_realtime_control.v0.4",
   "project_id": "pal3-unity",
   "mode": "chatgpt_direct",
   "transport": "conversation_to_github",
@@ -11,7 +11,10 @@
   "human_devlog": {
     "required": true,
     "protocol": "devlog/README.md",
-    "canonical_markdown": "devlog/PAL3-AI-DEVLOG.md",
+    "entry_dir": "devlog/entries",
+    "entry_index": "devlog/entries/index.json",
+    "aggregate_markdown": "devlog/PAL3-AI-DEVLOG.md",
+    "write_model": "append_only_entries_serial_aggregate",
     "purpose": "human-readable chronological engineering blog derived from machine evidence and experiment history",
     "publication_targets": [
       "repository_markdown",
@@ -20,6 +23,8 @@
     ],
     "current_writable_target": "repository_markdown",
     "gist_write_status": "PENDING_CONNECTOR_SUPPORT",
+    "parallel_rule": "Each worker writes one uniquely named entry file. Parallel workers do not directly rewrite the aggregate markdown.",
+    "aggregate_rule": "PAL3-AI-DEVLOG.md is a serial publication snapshot compiled from historical content plus terminal entry files.",
     "history_rule": "Published failure history must not be erased after later fixes succeed. First-attempt success must be recorded as such without invented failures."
   },
   "worker_bootstrap": {
@@ -30,11 +35,12 @@
       "experiment-logs/index.json",
       "latest_relevant_experiment_logs",
       "devlog/README.md",
-      "tail_of_devlog/PAL3-AI-DEVLOG.md",
+      "devlog/entries/index.json",
+      "latest_relevant_human_devlog_entries",
       "current_command_record"
     ],
     "history_rule": "Do not erase failed attempts after a later fix succeeds.",
-    "parallel_rule": "Workers must claim isolated roadmap steps or isolated subproblems and re-read the experiment index before writing."
+    "parallel_rule": "Workers must claim isolated roadmap steps or isolated subproblems, re-read both experiment and human-devlog indexes before writing, and never concurrently rewrite the aggregate devlog."
   },
   "lanes": {
     "fast": {
@@ -66,13 +72,14 @@
     "one_command_record_per_material_change": true,
     "one_experiment_log_per_material_attempt": true,
     "terminal_experiment_logs_are_append_only": true,
-    "terminal_material_experiments_require_human_devlog_entry": true
+    "terminal_material_experiments_require_human_devlog_entry": true,
+    "human_devlog_entries_are_append_only": true
   },
   "interaction_contract": {
     "read_only_requests": "inspect immediately",
     "explicit_continue_or_change_requests": "create smallest auditable change and verify",
-    "failed_fast_gate": "record failure in experiment log, stop feature expansion, inspect failure, and preserve it for the human devlog",
-    "passed_fast_gate": "record machine evidence, publish/update the human devlog entry, and become eligible for the next small iteration",
+    "failed_fast_gate": "record failure in experiment log, stop feature expansion, inspect failure, and preserve it in the experiment's human entry",
+    "passed_fast_gate": "record machine evidence, create/update that experiment's unique human entry, and become eligible for the next small iteration",
     "unity_blocked_only": "continue pure-domain work but do not claim Unity integration"
   }
 }

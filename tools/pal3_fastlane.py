@@ -41,6 +41,8 @@ def write_markdown(report: dict[str, Any], path: Path) -> None:
         )
         if item.get("missing_files"):
             lines.append(f"  - missing: {', '.join(item['missing_files'])}")
+        if item.get("define_constants"):
+            lines.append(f"  - defines: {', '.join(item['define_constants'])}")
         if item.get("result_file"):
             lines.append(f"  - result: `{item['result_file']}`")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -124,26 +126,31 @@ def run_dotnet_nunit(
     result_dir = out_dir / "dotnet-tests" / slice_id
     result_dir.mkdir(parents=True, exist_ok=True)
     trx_name = f"{slice_id}.trx"
-    test = run(
-        [
-            "dotnet",
-            "test",
-            str(projects[0]),
-            "--configuration",
-            "Release",
-            "--logger",
-            f"trx;LogFileName={trx_name}",
-            "--results-directory",
-            str(result_dir),
-        ],
-        cwd=slice_dir,
-    )
+
+    test_cmd = [
+        "dotnet",
+        "test",
+        str(projects[0]),
+        "--configuration",
+        "Release",
+        "--logger",
+        f"trx;LogFileName={trx_name}",
+        "--results-directory",
+        str(result_dir),
+    ]
+
+    define_constants = item.get("define_constants", [])
+    if define_constants:
+        test_cmd.append(f"-p:DefineConstants={';'.join(define_constants)}")
+
+    test = run(test_cmd, cwd=slice_dir)
 
     return {
         "id": slice_id,
         "runner": "dotnet_nunit",
         "status": "PASS" if test.returncode == 0 else "FAIL_TESTS",
         "copied_files": copied,
+        "define_constants": define_constants,
         "result_file": str((result_dir / trx_name).relative_to(out_dir)),
         "stdout": test.stdout[-12000:],
         "stderr": test.stderr[-12000:],
@@ -181,7 +188,7 @@ def main() -> int:
 
     failed = [item for item in results if item["status"].startswith("FAIL_")]
     report = {
-        "schema_version": "pal3_fastlane_report.v0.1",
+        "schema_version": "pal3_fastlane_report.v0.2",
         "status": "PASS" if not failed else "FAIL",
         "slices": results,
     }
