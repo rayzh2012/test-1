@@ -1,7 +1,7 @@
 diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/MultiTargetSkillResolver.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/MultiTargetSkillResolver.cs
 --- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/MultiTargetSkillResolver.cs
 +++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/MultiTargetSkillResolver.cs
-@@ -164,6 +164,23 @@ namespace Pal3.Game.GameSystems.Combat.Domain
+@@ -164,6 +164,24 @@ namespace Pal3.Game.GameSystems.Combat.Domain
              CombatantState[] targets = targetKeys
                  .Select(key => statesByKey[key])
                  .ToArray();
