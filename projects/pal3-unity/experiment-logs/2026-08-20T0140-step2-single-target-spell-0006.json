@@ -1,0 +1,32 @@
+{
+  "schema_version": "pal3_experiment_log.v0.1",
+  "experiment_id": "pal3-exp-20260820-0140-step2-single-target-spell-0006",
+  "roadmap_step": 2,
+  "title": "First single-target damage spell execution",
+  "created_at": "2026-08-20T01:40:00-04:00",
+  "status": "RUNNING",
+  "base_control_ref": "master@a0a0efcd0fee949bf315a13f255bc365ac50dd5c",
+  "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "objective": "Prove that a presentation-independent enemy single-target damage skill can spend MP and mutate the same encounter-local target HP state already used by normal attacks.",
+  "hypothesis": "Extending CombatantState with encounter-local MP and executing one explicitly supported SkillDefinition effect through CombatRuntimeRegistry will preserve the existing combat slice while establishing the first real spell mechanics path.",
+  "claim_boundary": "This experiment does not map real GDB SkillInfo, does not implement original PAL3 magic formulas, does not create a Unity casting input/event seam, does not render VFX, and does not prove Unity compilation/runtime gameplay.",
+  "changed_surfaces": [
+    "CombatantState MP state",
+    "SingleTargetSkillResolver",
+    "CombatRuntimeRegistry.ResolveSingleTargetSkill",
+    "fast-tests.json"
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "RUNNING",
+      "description": "Add MP to encounter state; support DamageMagic + EnemyPartySingle + exactly one negative Absolute HP effect; reject unsupported mechanics before mutation.",
+      "expected_tests": "existing 30 tests plus new single-target spell tests",
+      "failure": null,
+      "fix": null,
+      "evidence": null
+    }
+  ],
+  "reusable_lessons": [],
+  "next_recommended_experiment": "If verified, Step 3: map real GDB SkillInfo into SkillDefinition without adding presentation assumptions."
+}
