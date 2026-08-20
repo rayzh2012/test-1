@@ -2,7 +2,7 @@ diff --git a/Assets/Tests/EditMode/GenericSkillPresentationPlannerTests.cs b/Ass
 new file mode 100644
 --- /dev/null
 +++ b/Assets/Tests/EditMode/GenericSkillPresentationPlannerTests.cs
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,199 @@
 +namespace Pal3.Game.Tests.GameSystems.Combat.Presentation
 +{
 +    using System;
@@ -126,6 +126,17 @@ new file mode 100644
 +            Assert.That(target.CurrentHp, Is.EqualTo(hpAfterResolution));
 +            Assert.That(caster.CurrentMp, Is.EqualTo(38));
 +            Assert.That(target.CurrentHp, Is.EqualTo(50));
++        }
++
++        [Test]
++        public void ResolutionEventsAndPresentationCues_AreNotMutableArrayAliases()
++        {
++            (SkillDefinition skill, SkillCastResolution resolution) = ResolveDamageSpell();
++            SkillPresentationPlan plan =
++                GenericSkillPresentationPlanner.BuildProjectile(skill, resolution);
++
++            Assert.That(resolution.Events, Is.Not.InstanceOf<CombatEvent[]>());
++            Assert.That(plan.Cues, Is.Not.InstanceOf<SkillPresentationCue[]>());
 +        }
 +
 +        [Test]
