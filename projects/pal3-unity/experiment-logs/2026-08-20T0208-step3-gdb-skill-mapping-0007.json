@@ -4,7 +4,8 @@
   "roadmap_step": 3,
   "title": "Real GDB SkillInfo loss-aware mapping",
   "created_at": "2026-08-20T02:08:00-04:00",
-  "status": "VERIFYING_FINAL_HEAD",
+  "terminal_at": "2026-08-20T02:20:00-04:00",
+  "status": "VERIFIED",
   "base_control_ref": "master@06411cd0174cc1928aa8190e96936cf5bdd0f38a",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
   "objective": "Compile the real upstream SkillInfo schema in the fast lane and project only representable semantics into SkillDefinition while preserving and reporting every source semantic that the current runtime domain cannot safely represent.",
@@ -26,7 +27,7 @@
       "failure": null,
       "fix": null,
       "evidence": {
-        "fast_lane_run_id": 32338925581,
+        "first_passing_fast_lane_run_id": 32338925581,
         "artifact_id": 9395634316,
         "artifact_sha256": "2d0981f15e85e34161c0c06c7821de0d9f79a161de4e369cc137a133280128f6",
         "tests_total": 45,
@@ -42,6 +43,15 @@
     }
   ],
   "failures": [],
+  "final_head_verification": {
+    "head_before_terminal_metadata": "dd0efa325146e55013834ea5d9ce3c61c3d2ed8e",
+    "fast_lane_run_id": 32339278966,
+    "source_audit_run_id": 32339278999,
+    "compile_gate_run_id": 32339278912,
+    "fast_lane": "PASS",
+    "source_audit": "PASS",
+    "unity_compile_claim": "NOT_VERIFIED_BLOCKED_NO_LICENSE"
+  },
   "reusable_lessons": [
     "Compile the real upstream schema in the fast lane rather than validating a locally copied test struct.",
     "Do not coerce multi-element source semantics to the first element; preserve all source elements and emit a blocking mapping issue.",
