@@ -13,7 +13,7 @@
   "source_evidence": [
     "Pinned upstream TargetRangeType defines FirstPartySingle/All, EnemyPartySingle/All, EnemyPartyOneRow and EnemyPartyOneColumn.",
     "Pinned upstream ElementPosition defines six ally and six enemy element/center slots.",
-    "No pinned-upstream resolver or explicit row/column mapping was found, so the domain will require explicit row/column input rather than infer it."
+    "No pinned-upstream resolver or explicit row/column mapping was found, so the domain requires explicit row/column input rather than infer it."
   ],
   "changed_surfaces": [
     "CombatTargetResolver.cs",
@@ -24,10 +24,10 @@
     {
       "attempt": 1,
       "status": "RUNNING",
-      "description": "Resolve living first/enemy party targets deterministically; require explicit anchor for single/row/column; filter defeated actors; validate unique formation coordinates; expose read-only results.",
-      "expected_tests": "existing 60 tests plus 10 target-selection tests = 70",
+      "description": "Resolve living first/enemy party targets deterministically; require explicit anchor for single/row/column; filter defeated actors; validate unique target keys and formation coordinates; expose read-only results.",
+      "expected_tests": "existing 60 tests plus 14 target-selection tests = 74",
       "failure": null,
-      "fix": null,
+      "fix": "Pre-CI contract review added global target-key uniqueness after identifying that all-target selection could otherwise return a duplicate actor key from different coordinates.",
       "evidence": null
     }
   ],
