@@ -2,7 +2,7 @@ diff --git a/Assets/Tests/EditMode/GdbSkillPopulationAuditTests.cs b/Assets/Test
 new file mode 100644
 --- /dev/null
 +++ b/Assets/Tests/EditMode/GdbSkillPopulationAuditTests.cs
-@@ -0,0 +1,230 @@
+@@ -0,0 +1,172 @@
 +namespace Pal3.Game.Tests.GameSystems.Combat.Domain
 +{
 +    using System;
