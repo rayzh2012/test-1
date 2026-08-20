@@ -1,0 +1,1 @@
+Step 3 branch purpose: loss-aware projection from the real upstream `SkillInfo` schema. Expected fast-lane total after adding six mapper tests: 45 tests. Unity lane remains separately blocked by activation and is not part of this claim.
