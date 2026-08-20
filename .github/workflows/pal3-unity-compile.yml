@@ -1,0 +1,134 @@
+name: PAL3 Unity Compile Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "projects/pal3-unity/**"
+      - "tools/source_rewrite_controller.py"
+      - ".github/workflows/pal3-unity-compile.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  unity-compile:
+    name: Test PAL3 patch stack and build when licensed
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v6.0.3
+
+      - name: Read PAL3 target
+        id: target
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          cfg = json.load(open("projects/pal3-unity/control.json", encoding="utf-8"))
+          print(f"repo={cfg['upstream_repository']}")
+          print(f"ref={cfg['upstream_ref']}")
+          PY
+
+      - name: Checkout pinned PAL3 upstream
+        uses: actions/checkout@v6.0.3
+        with:
+          repository: ${{ steps.target.outputs.repo }}
+          ref: ${{ steps.target.outputs.ref }}
+          path: .control/upstream
+          fetch-depth: 1
+          lfs: true
+
+      - name: Apply and audit ordered patch stack
+        run: |
+          python tools/source_rewrite_controller.py audit \
+            --config projects/pal3-unity/control.json \
+            --workspace .control/upstream \
+            --out out/pal3-unity
+
+      - name: Run CombatCore domain tests with .NET
+        shell: bash
+        run: |
+          rm -rf .control/combatcore-dotnet
+          dotnet new nunit \
+            --name CombatCore.Tests \
+            --output .control/combatcore-dotnet \
+            --framework net8.0 \
+            --no-restore
+          rm -f .control/combatcore-dotnet/UnitTest1.cs
+          cp .control/upstream/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs \
+            .control/combatcore-dotnet/CombatCore.cs
+          cp .control/upstream/Assets/Tests/EditMode/CombatCoreTests.cs \
+            .control/combatcore-dotnet/CombatCoreTests.cs
+          dotnet test .control/combatcore-dotnet/CombatCore.Tests.csproj \
+            --configuration Release \
+            --logger "trx;LogFileName=combatcore.trx" \
+            --results-directory out/pal3-unity/dotnet-tests
+
+      - name: Detect Unity activation
+        id: unity_activation
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          mkdir -p out/pal3-unity
+          if [ -n "$UNITY_LICENSE" ] || [ -n "$UNITY_SERIAL" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            cat > out/pal3-unity/unity_gate_status.json <<'JSON'
+          {"status":"READY","reason":"activation material detected","unity_compile_verified":false}
+          JSON
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            cat > out/pal3-unity/unity_gate_status.json <<'JSON'
+          {"status":"BLOCKED_NO_LICENSE","reason":"UNITY_LICENSE and UNITY_SERIAL are both absent","unity_compile_verified":false}
+          JSON
+            echo "### Unity gate: BLOCKED_NO_LICENSE" >> "$GITHUB_STEP_SUMMARY"
+            echo "Domain tests still ran. Unity import/compile was not attempted because no activation material is configured." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Cache Unity Library
+        if: steps.unity_activation.outputs.available == 'true'
+        uses: actions/cache@v5.0.5
+        with:
+          path: .control/upstream/Library
+          key: PAL3-Unity-Library-${{ runner.os }}-${{ hashFiles('.control/upstream/ProjectSettings/ProjectVersion.txt', '.control/upstream/Packages/manifest.json', 'projects/pal3-unity/patches/*.patch') }}
+          restore-keys: |
+            PAL3-Unity-Library-${{ runner.os }}-
+
+      - name: Build patched PAL3 with Unity
+        if: steps.unity_activation.outputs.available == 'true'
+        uses: game-ci/unity-builder@v5
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: .control/upstream
+          targetPlatform: StandaloneLinux64
+          buildName: PAL3
+          versioning: Semantic
+          allowDirtyBuild: true
+
+      - name: Mark Unity compile verified
+        if: steps.unity_activation.outputs.available == 'true' && success()
+        shell: bash
+        run: |
+          cat > out/pal3-unity/unity_gate_status.json <<'JSON'
+          {"status":"PASS","reason":"GameCI Unity build completed successfully","unity_compile_verified":true}
+          JSON
+
+      - name: Upload compile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pal3-unity-compile-evidence
+          path: |
+            out/pal3-unity/
+            build/
+          if-no-files-found: warn
