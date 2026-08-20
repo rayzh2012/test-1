@@ -4,7 +4,8 @@
   "roadmap_step": "6A",
   "title": "Deterministic HP recovery for RecoverMagic",
   "created_at": "2026-08-20T06:14:00-04:00",
-  "status": "RUNNING",
+  "status": "VERIFIED",
+  "terminal": true,
   "base_control_ref": "master@39659a3904fcdab8f59e2ba0aae6badb7df3b021",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
   "objective": "Implement the first Step 6 healing/support mechanics slice using source-native RecoverMagic, FirstPartySingle/FirstPartyAll and HP Absolute/RecoverToMax semantics.",
@@ -44,16 +45,32 @@
     },
     {
       "attempt": 2,
-      "status": "RUNNING",
+      "status": "PASS",
       "description": "Rerun the same HP recovery semantics/tests after correcting only the 0023 new-file hunk length.",
       "expected_tests": "113",
       "failure": null,
       "fix": null,
-      "evidence": null
+      "evidence": {
+        "source_audit_run_id": 32358257767,
+        "source_audit_status": "PASS",
+        "fast_lane_run_id": 32358257771,
+        "fast_lane_status": "PASS",
+        "tests_total": 113,
+        "tests_executed": 113,
+        "tests_passed": 113,
+        "tests_failed": 0,
+        "tests_skipped": 0,
+        "test_duration_ms": 144,
+        "artifact_id": 9402507538,
+        "artifact_sha256": "dcdf7f5fddea6c4ff8c60698956604b76695e7bd339507f0cce1e63dc38b1e5f"
+      }
     }
   ],
   "reusable_lessons": [
-    "A new-file unified-diff hunk can replay without a controller failure yet still truncate source if the declared added-line count is too small; compile evidence catches this class of patch-generation defect."
+    "A new-file unified-diff hunk can replay without a controller failure yet still truncate source if the declared added-line count is too small; compile evidence catches this class of patch-generation defect.",
+    "Self-heal does not require a new target-range enum: a FirstPartySingle anchor may legitimately point to the caster state.",
+    "Recovery can preserve the existing atomic cast boundary by validating target identity and resource sufficiency before MP/HP mutation.",
+    "Zero effective healing at full HP is still a useful resolved fact and does not require special-case presentation authority."
   ],
-  "next_recommended_experiment": "If Step 6A verifies, continue Step 6B with attack/defense/speed/luck support modifiers, keeping lifecycle/state-engine concerns separated for Step 7."
+  "next_recommended_experiment": "Continue Step 6B with attack/defense/speed/luck support modifiers, keeping lifecycle/state-engine concerns separated for Step 7."
 }
