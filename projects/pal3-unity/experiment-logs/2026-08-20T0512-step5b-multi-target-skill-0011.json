@@ -22,14 +22,30 @@
   "attempts": [
     {
       "attempt": 1,
-      "status": "RUNNING",
-      "description": "Add an enemy all/row/column multi-target resolver and atomicity/event tests without modifying the verified single-target resolver or presentation planner.",
+      "status": "FAIL_PATCH_REPLAY",
+      "description": "Initial code-bearing branch with resolver, 16 tests, and pre-CI state-alias hardening.",
       "expected_tests": "existing 74 tests plus 16 multi-target tests = 90",
+      "failure": "Source Audit run 32354067564 stopped before C# tests because 0018-multi-target-state-alias-guard.patch was corrupt at line 29. 0016 and 0017 applied successfully; this was a unified-diff hunk-count error, not a code-semantic result.",
+      "fix": "Correct 0018 hunk header from +164,23 to +164,24. No resolver semantics changed.",
+      "evidence": {
+        "source_audit_run_id": 32354067564,
+        "source_audit_status": "FAIL_PATCH_REPLAY",
+        "artifact_id": 9400943227,
+        "artifact_sha256": "78e18e221c62a61dee7581ff4901b4111d0bbc2bbd916e76fa7e9c1f408bd0df"
+      }
+    },
+    {
+      "attempt": 2,
+      "status": "RUNNING",
+      "description": "Rerun the exact same resolver/test semantics after correcting only the 0018 unified-diff hunk count.",
+      "expected_tests": "90",
       "failure": null,
-      "fix": "Pre-CI contract review added state-instance alias guards after identifying that unique keys alone would still allow two target keys to reference one CombatantState, or allow caster state to appear as an enemy target. Two regression tests were added before machine execution.",
+      "fix": null,
       "evidence": null
     }
   ],
-  "reusable_lessons": [],
+  "reusable_lessons": [
+    "A patch-format failure must be classified separately from C# compile/test failure."
+  ],
   "next_recommended_experiment": "If verified, decide whether Step 5C should add a multi-target presentation planner or proceed to Step 6 healing/support while keeping presentation downstream."
 }
