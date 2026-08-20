@@ -1,0 +1,32 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260820-0140-single-target-spell-0006",
+  "created_at": "2026-08-20T01:40:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Execute the combat/magic roadmap immediately, one verified slice at a time, and persist detailed reusable experiment logs including failures and fixes for future parallel workers.",
+  "normalized_action": "execute_step2_single_target_spell_with_experiment_log",
+  "target_surfaces": [
+    "CombatantState",
+    "SingleTargetSkillResolver",
+    "CombatRuntimeRegistry",
+    "fast-tests.json",
+    "experiment-logs",
+    "realtime-control worker bootstrap"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "Step 2 proves a deterministic single-target spell domain path only. It does not prove GDB mapping, original PAL3 formulas, Unity casting/VFX, Unity compile, runtime smoke, or playtest.",
+  "status": "VERIFIED",
+  "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0140-step2-single-target-spell-0006.json",
+  "verification": {
+    "tests_passed": 39,
+    "tests_failed": 0,
+    "tests_skipped": 0,
+    "fast_lane_run_id": 32336914181,
+    "source_audit_run_id": 32336914194
+  }
+}

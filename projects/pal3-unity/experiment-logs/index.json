@@ -8,5 +8,16 @@
     "latest_relevant_logs",
     "current_command"
   ],
-  "experiments": []
+  "experiments": [
+    {
+      "experiment_id": "pal3-exp-20260820-0140-step2-single-target-spell-0006",
+      "roadmap_step": 2,
+      "status": "VERIFIED",
+      "terminal": true,
+      "log": "projects/pal3-unity/experiment-logs/2026-08-20T0140-step2-single-target-spell-0006.json",
+      "branch": "agent/pal3-single-target-spell-0006",
+      "pull_request": 78,
+      "final_fast_lane_run_id": 32336914181
+    }
+  ]
 }
