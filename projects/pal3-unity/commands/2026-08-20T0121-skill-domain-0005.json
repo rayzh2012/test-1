@@ -18,5 +18,14 @@
     "FAST_DOMAIN_TESTS"
   ],
   "claim_boundary": "Step 1 defines mechanics/presentation contracts only. It does not implement a concrete PAL3 spell, GDB SkillInfo mapping, Unity VFX, elemental formula fidelity, or runtime skill casting.",
-  "status": "EXECUTING"
+  "verification": {
+    "fastlane_run_id": 32335549599,
+    "artifact_id": 9394510807,
+    "artifact_sha256": "4023c75ce7817f19420182bccd9052c1401679a7da4b4949437e481f978de0b5",
+    "tests_passed": 30,
+    "tests_failed": 0,
+    "tests_skipped": 0,
+    "warnings": 0
+  },
+  "status": "VERIFIED"
 }
