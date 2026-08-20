@@ -68,7 +68,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkil
  
      public readonly struct SkillCastResolution
      {
-+        private readonly CombatEvent[] _events;
++        private readonly IReadOnlyList<CombatEvent> _events;
 +
          public uint SkillId { get; }
          public int MpSpent { get; }
@@ -78,12 +78,12 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkil
  
          public SkillCastResolution(uint skillId, int mpSpent, int damage, bool isTargetDefeated)
          {
-@@ -21,6 +25,19 @@
+@@ -21,6 +25,20 @@
              MpSpent = mpSpent;
              Damage = damage;
              IsTargetDefeated = isTargetDefeated;
 +
-+            _events = isTargetDefeated
++            CombatEvent[] events = isTargetDefeated
 +                ? new[]
 +                {
 +                    CombatEvent.ForSkillCast(skillId),
@@ -95,6 +95,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkil
 +                    CombatEvent.ForSkillCast(skillId),
 +                    CombatEvent.ForDamage(skillId, damage),
 +                };
++            _events = Array.AsReadOnly(events);
          }
      }
  
@@ -102,7 +103,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/SkillPrese
 new file mode 100644
 --- /dev/null
 +++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/SkillPresentationPlan.cs
-@@ -0,0 +1,162 @@
+@@ -0,0 +1,163 @@
 +// ---------------------------------------------------------------------------------------------
 +//  PAL3.Unity generic skill-presentation planning contract.
 +// ---------------------------------------------------------------------------------------------
@@ -147,7 +148,7 @@ new file mode 100644
 +    /// </summary>
 +    public sealed class SkillPresentationPlan
 +    {
-+        private readonly SkillPresentationCue[] _cues;
++        private readonly IReadOnlyList<SkillPresentationCue> _cues;
 +
 +        public uint SkillId { get; }
 +        public SkillVisualArchetype Archetype { get; }
@@ -167,11 +168,12 @@ new file mode 100644
 +            }
 +            if (cues == null) throw new ArgumentNullException(nameof(cues));
 +
-+            _cues = cues.ToArray();
-+            if (_cues.Length == 0)
++            SkillPresentationCue[] cueArray = cues.ToArray();
++            if (cueArray.Length == 0)
 +            {
 +                throw new ArgumentException("A presentation plan requires at least one cue.", nameof(cues));
 +            }
++            _cues = Array.AsReadOnly(cueArray);
 +
 +            SkillId = skillId;
 +            Archetype = archetype;
