@@ -4,11 +4,12 @@
   "roadmap_step": "5B",
   "title": "Atomic multi-target damage-skill resolution with per-target facts",
   "created_at": "2026-08-20T05:12:00-04:00",
-  "status": "RUNNING",
+  "status": "VERIFIED",
+  "terminal": true,
   "base_control_ref": "master@e3dd03beeaedcf91b0d2b4e56de62123ec05f4eb",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "pull_request": 91,
   "objective": "Generalize the already-verified negative absolute HP damage-skill mechanic to enemy-all/row/column target sets while spending MP once and preserving target identity in resolved facts.",
-  "hypothesis": "If selection completes and every semantic/resource precondition is validated before mutation, one cast can spend MP once, mutate several target states deterministically, and expose one target-associated Damage fact per affected actor without changing the existing single-target ABI.",
   "claim_boundary": "No original PAL3 damage formula is claimed. This experiment reuses the existing deterministic absolute-HP effect only; healing, statuses, ally damage, ElementPosition geometry, Unity presentation/runtime and VFX remain outside scope.",
   "design_constraints": [
     "Keep CombatEvent and SkillCastResolution ABI unchanged.",
@@ -36,16 +37,42 @@
     },
     {
       "attempt": 2,
-      "status": "RUNNING",
+      "status": "PASS",
       "description": "Rerun the exact same resolver/test semantics after correcting only the 0018 unified-diff hunk count.",
       "expected_tests": "90",
       "failure": null,
       "fix": null,
-      "evidence": null
+      "evidence": {
+        "source_audit_run_id": 32354285396,
+        "source_audit_status": "PASS",
+        "fast_lane_run_id": 32354285337,
+        "fast_lane_status": "PASS",
+        "tests_passed": 90,
+        "tests_failed": 0,
+        "tests_skipped": 0,
+        "test_duration_ms": 141,
+        "artifact_id": 9401035886,
+        "artifact_sha256": "5536b9aed90d18a77df36e9f0239ffb3af6d57b9990f4c8dd888fdcf8cb88094"
+      }
     }
   ],
-  "reusable_lessons": [
-    "A patch-format failure must be classified separately from C# compile/test failure."
+  "verified_invariants": [
+    "Enemy-all/row/column target selection is delegated to the verified target resolver.",
+    "Defeated targets are omitted before mutation.",
+    "MP is spent exactly once per cast, not per target.",
+    "Each selected target receives independent clamped damage and defeat state.",
+    "One overall SkillCast fact is emitted, with target-associated Damage and optional TargetDefeated facts.",
+    "Empty target sets, insufficient MP, invalid skill semantics and int.MinValue damage overflow reject before MP/HP mutation.",
+    "Distinct target keys cannot alias the same CombatantState, and caster state cannot appear as a selected enemy target.",
+    "Result/event collections are read-only wrappers rather than raw arrays.",
+    "Existing single-target resolver and Projectile presentation ABI remain unchanged."
   ],
-  "next_recommended_experiment": "If verified, decide whether Step 5C should add a multi-target presentation planner or proceed to Step 6 healing/support while keeping presentation downstream."
+  "transaction_review": "After all preconditions and target-state alias checks pass, the resolver spends MP once and enters a mutation-only section whose normal domain operations are positive ApplyDamage calls followed by result/event construction from already-valid skill IDs and positive applied damage. No expected business-rule exception remains after the first mutation, preventing normal partial-cast failure states.",
+  "reusable_lessons": [
+    "Patch-format failure must be classified separately from C# compile/test failure.",
+    "Unique keys are insufficient for mutation safety when multiple keys can alias one mutable state instance.",
+    "For multi-target actions, validate every semantic/resource/identity precondition before the first state mutation.",
+    "Preserve target identity outside the generic CombatEvent ABI instead of breaking an already-verified single-target presentation contract."
+  ],
+  "next_recommended_experiment": "Step 5C should add a pure multi-target presentation planner that consumes MultiTargetSkillCastResolution target facts without owning target selection or damage truth; after that, Step 6 can introduce healing/support semantics."
 }
