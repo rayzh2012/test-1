@@ -67,6 +67,19 @@
       "branch": "agent/pal3-step5a-target-resolver-0010",
       "pull_request": 90,
       "first_passing_fast_lane_run_id": 32352972869
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0512-step5b-multi-target-skill-0011",
+      "roadmap_step": "5B",
+      "status": "VERIFIED",
+      "terminal": true,
+      "log": "projects/pal3-unity/experiment-logs/2026-08-20T0512-step5b-multi-target-skill-0011.json",
+      "human_entry": "projects/pal3-unity/devlog/entries/2026-08-20T0512-step5b-multi-target-skill.md",
+      "branch": "agent/pal3-step5b-multi-target-skill-0011",
+      "pull_request": 91,
+      "failed_source_audit_run_id": 32354067564,
+      "first_passing_source_audit_run_id": 32354285396,
+      "first_passing_fast_lane_run_id": 32354285337
     }
   ]
 }
