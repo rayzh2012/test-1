@@ -1,0 +1,46 @@
+{
+  "schema_version": "pal3_realtime_control.v0.1",
+  "project_id": "pal3-unity",
+  "mode": "chatgpt_direct",
+  "transport": "conversation_to_github",
+  "control_plane": "rayzh2012/test-1",
+  "upstream_execution": "pinned_checkout_plus_ordered_patch_stack",
+  "cursor_required": false,
+  "command_log_dir": "commands",
+  "lanes": {
+    "fast": {
+      "purpose": "low-latency feedback for each ChatGPT-authored change",
+      "gates": [
+        "PATCH_APPLIES",
+        "DIFF_CHECK",
+        "DOMAIN_TESTS_WHEN_AVAILABLE"
+      ],
+      "requires_unity_activation": false,
+      "blocking": true
+    },
+    "unity": {
+      "purpose": "engine import, compile, EditMode/runtime and platform verification",
+      "gates": [
+        "UNITY_COMPILE",
+        "UNITY_EDITMODE_TESTS",
+        "RUNTIME_SMOKE",
+        "IOS_BUILD"
+      ],
+      "requires_unity_activation": true,
+      "missing_activation_state": "BLOCKED_NO_LICENSE"
+    }
+  },
+  "evidence_policy": {
+    "observed_inferred_separation": true,
+    "do_not_promote_static_to_runtime": true,
+    "record_environment_blockers_separately": true,
+    "one_command_record_per_material_change": true
+  },
+  "interaction_contract": {
+    "read_only_requests": "inspect immediately",
+    "explicit_continue_or_change_requests": "create smallest auditable change and verify",
+    "failed_fast_gate": "stop feature expansion and inspect failure",
+    "passed_fast_gate": "eligible for next small iteration",
+    "unity_blocked_only": "continue pure-domain work but do not claim Unity integration"
+  }
+}

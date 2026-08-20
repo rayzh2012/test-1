@@ -1,0 +1,44 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260819-2213-realtime-control",
+  "created_at": "2026-08-19T22:13:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Continue the PAL3.Unity rewrite and make ChatGPT the direct low-latency control surface instead of relying on Cursor.",
+  "normalized_action": "install_realtime_fast_lane",
+  "target_surfaces": [
+    "projects/pal3-unity/realtime-control.json",
+    "projects/pal3-unity/commands/",
+    "projects/pal3-unity/fast-tests.json",
+    "tools/pal3_fastlane.py",
+    ".github/workflows/pal3-chat-fastlane.yml"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "COMBATCORE_DOMAIN_TESTS"
+  ],
+  "known_blockers": [
+    {
+      "gate": "UNITY_COMPILE",
+      "state": "BLOCKED_NO_LICENSE",
+      "classification": "environment"
+    }
+  ],
+  "verification": {
+    "pr": 73,
+    "source_control_audit_run": 32324138128,
+    "fastlane_run": 32324138124,
+    "fastlane_status": "PASS",
+    "combat_core_tests": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "duration_ms": 26
+    },
+    "artifact_id": 9390747341,
+    "artifact_sha256": "cc4f6f8dcbda6ed20c7b9df1db0cb63177bc646eba21dcf2b719854c51ed57e5"
+  },
+  "claim_boundary": "Fast-lane success does not imply Unity compile, runtime, iOS build, or playtest success.",
+  "status": "VERIFIED"
+}
