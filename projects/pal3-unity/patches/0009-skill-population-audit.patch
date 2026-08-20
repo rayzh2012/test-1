@@ -2,7 +2,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillPopulati
 new file mode 100644
 --- /dev/null
 +++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillPopulationAudit.cs
-@@ -0,0 +1,163 @@
+@@ -0,0 +1,159 @@
 +// ---------------------------------------------------------------------------------------------
 +//  PAL3.Unity GDB SkillInfo population audit.
 +// ---------------------------------------------------------------------------------------------
