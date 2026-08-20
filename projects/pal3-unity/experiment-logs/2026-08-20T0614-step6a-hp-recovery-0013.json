@@ -27,14 +27,33 @@
   "attempts": [
     {
       "attempt": 1,
-      "status": "RUNNING",
-      "description": "Add HP recovery primitives, recovery resolver, 15 regression tests, and wire the exact replayed sources into the .NET fast lane.",
+      "status": "FAIL_COMPILE",
+      "description": "Initial HP recovery primitives/resolver/test stack replayed successfully, but fast-lane C# compilation failed before any tests executed.",
       "expected_tests": "existing 98 tests plus 15 recovery tests = 113",
+      "failure": "Fast Lane run 32358054901 failed with CS1513 at RecoverySkillResolver.cs(276,24): a closing brace was expected. The patch file contained the full 286-line source, but its new-file hunk header incorrectly declared +1,276, so the replayed workspace contained only the first 276 lines.",
+      "fix": "Correct 0023 new-file hunk header from +1,276 to +1,286. No recovery semantics or tests changed.",
+      "evidence": {
+        "source_audit_run_id": 32358054897,
+        "source_audit_status": "PASS",
+        "fast_lane_run_id": 32358054901,
+        "fast_lane_status": "FAIL_COMPILE",
+        "tests_executed": 0,
+        "artifact_id": 9402425957,
+        "artifact_sha256": "e48a02524e11b980d0bf38252e84174af8956ca836c85e12d57d9899ee8259f4"
+      }
+    },
+    {
+      "attempt": 2,
+      "status": "RUNNING",
+      "description": "Rerun the same HP recovery semantics/tests after correcting only the 0023 new-file hunk length.",
+      "expected_tests": "113",
       "failure": null,
       "fix": null,
       "evidence": null
     }
   ],
-  "reusable_lessons": [],
+  "reusable_lessons": [
+    "A new-file unified-diff hunk can replay without a controller failure yet still truncate source if the declared added-line count is too small; compile evidence catches this class of patch-generation defect."
+  ],
   "next_recommended_experiment": "If Step 6A verifies, continue Step 6B with attack/defense/speed/luck support modifiers, keeping lifecycle/state-engine concerns separated for Step 7."
 }
