@@ -1,25 +1,34 @@
 {
-  "schema_version": "pal3_fast_tests.v0.1",
+  "schema_version": "pal3_fast_tests.v0.2",
   "slices": [
     {
       "id": "combat_core",
       "runner": "dotnet_nunit",
       "framework": "net8.0",
       "required": true,
+      "define_constants": [
+        "PAL3"
+      ],
       "source_files": [
+        "Assets/Scripts/Pal3.Core/Contract/Enums/ActorEnums.cs",
         "Assets/Scripts/Pal3.Core/Contract/Enums/CombatEnums.cs",
+        "Assets/Scripts/Pal3.Core/Contract/Enums/ItemEnums.cs",
+        "Assets/Scripts/Pal3.Core/Contract/Enums/SceneEnums.cs",
+        "Assets/Scripts/Pal3.Core/DataReader/Gdb/GdbFile.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SkillDefinition.cs",
-        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs"
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs",
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillInfoMapper.cs"
       ],
       "test_files": [
         "Assets/Tests/EditMode/CombatCoreTests.cs",
         "Assets/Tests/EditMode/SingleHitGateTests.cs",
         "Assets/Tests/EditMode/CombatRuntimeRegistryTests.cs",
         "Assets/Tests/EditMode/SkillDefinitionTests.cs",
-        "Assets/Tests/EditMode/SingleTargetSkillResolverTests.cs"
+        "Assets/Tests/EditMode/SingleTargetSkillResolverTests.cs",
+        "Assets/Tests/EditMode/GdbSkillInfoMapperTests.cs"
       ]
     }
   ]
