@@ -4,9 +4,12 @@
   "roadmap_step": 2,
   "title": "First single-target damage spell execution",
   "created_at": "2026-08-20T01:40:00-04:00",
-  "status": "VERIFYING",
+  "verified_at": "2026-08-20T01:47:00-04:00",
+  "status": "VERIFIED",
+  "terminal": true,
   "base_control_ref": "master@a0a0efcd0fee949bf315a13f255bc365ac50dd5c",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "pull_request": 78,
   "objective": "Prove that a presentation-independent enemy single-target damage skill can spend MP and mutate the same encounter-local target HP state already used by normal attacks.",
   "hypothesis": "Extending CombatantState with encounter-local MP and executing one explicitly supported SkillDefinition effect through CombatRuntimeRegistry will preserve the existing combat slice while establishing the first real spell mechanics path.",
   "claim_boundary": "This experiment does not map real GDB SkillInfo, does not implement original PAL3 magic formulas, does not create a Unity casting input/event seam, does not render VFX, and does not prove Unity compilation/runtime gameplay.",
@@ -27,8 +30,13 @@
       "failure": null,
       "fix": null,
       "evidence": {
-        "fast_lane_run_id": 32336775009,
-        "fast_lane_status": "PASS",
+        "initial_fast_lane_run_id": 32336775009,
+        "initial_fast_lane_status": "PASS",
+        "final_fast_lane_run_id": 32336914181,
+        "final_fast_lane_status": "PASS",
+        "source_audit_run_id": 32336914194,
+        "compile_gate_run_id": 32336914182,
+        "compile_gate_interpretation": "SUCCESS at workflow level; Unity engine build remains BLOCKED/SKIPPED without activation and is not UNITY_COMPILE_VERIFIED.",
         "patch_stack": "0001 through 0006 check=true applied=true",
         "tests": {
           "passed": 39,
@@ -37,8 +45,10 @@
           "duration_ms": 38,
           "compiler_warnings_observed": 0
         },
-        "artifact_id": 9394917689,
-        "artifact_sha256": "46acfa800292101d8a3d6d2dc1f21f602730a337a1cfb87cf83a7bcf34b0f527",
+        "initial_artifact_id": 9394917689,
+        "initial_artifact_sha256": "46acfa800292101d8a3d6d2dc1f21f602730a337a1cfb87cf83a7bcf34b0f527",
+        "final_artifact_id": 9394958545,
+        "final_artifact_sha256": "a079c714d4c87d690a4a594a5367c8d834f29260a1e5b0e7bfc09b1b2585464a",
         "post_patch_source_files": 587,
         "post_patch_source_lines": 60196
       }
