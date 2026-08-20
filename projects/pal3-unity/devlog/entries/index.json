@@ -53,6 +53,15 @@
       "entry": "projects/pal3-unity/devlog/entries/2026-08-20T0558-step5c-multi-target-presentation.md",
       "first_passing_fast_lane_run_id": 32357032514,
       "artifact_id": 9402045720
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0614-step6a-hp-recovery-0013",
+      "roadmap_step": "6A",
+      "status": "VERIFIED",
+      "entry": "projects/pal3-unity/devlog/entries/2026-08-20T0614-step6a-hp-recovery.md",
+      "failed_fast_lane_run_id": 32358054901,
+      "passing_fast_lane_run_id": 32358257771,
+      "artifact_id": 9402507538
     }
   ]
 }
