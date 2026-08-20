@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   unity-compile:
-    name: Test CombatCore and build PAL3 Linux
+    name: Test PAL3 patch stack and build when licensed
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
@@ -67,7 +67,32 @@ jobs:
             --logger "trx;LogFileName=combatcore.trx" \
             --results-directory out/pal3-unity/dotnet-tests
 
+      - name: Detect Unity activation
+        id: unity_activation
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          mkdir -p out/pal3-unity
+          if [ -n "$UNITY_LICENSE" ] || [ -n "$UNITY_SERIAL" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            cat > out/pal3-unity/unity_gate_status.json <<'JSON'
+          {"status":"READY","reason":"activation material detected","unity_compile_verified":false}
+          JSON
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            cat > out/pal3-unity/unity_gate_status.json <<'JSON'
+          {"status":"BLOCKED_NO_LICENSE","reason":"UNITY_LICENSE and UNITY_SERIAL are both absent","unity_compile_verified":false}
+          JSON
+            echo "### Unity gate: BLOCKED_NO_LICENSE" >> "$GITHUB_STEP_SUMMARY"
+            echo "Domain tests still ran. Unity import/compile was not attempted because no activation material is configured." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Cache Unity Library
+        if: steps.unity_activation.outputs.available == 'true'
         uses: actions/cache@v5.0.5
         with:
           path: .control/upstream/Library
@@ -76,9 +101,11 @@ jobs:
             PAL3-Unity-Library-${{ runner.os }}-
 
       - name: Build patched PAL3 with Unity
+        if: steps.unity_activation.outputs.available == 'true'
         uses: game-ci/unity-builder@v5
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
@@ -87,6 +114,14 @@ jobs:
           buildName: PAL3
           versioning: Semantic
           allowDirtyBuild: true
+
+      - name: Mark Unity compile verified
+        if: steps.unity_activation.outputs.available == 'true' && success()
+        shell: bash
+        run: |
+          cat > out/pal3-unity/unity_gate_status.json <<'JSON'
+          {"status":"PASS","reason":"GameCI Unity build completed successfully","unity_compile_verified":true}
+          JSON
 
       - name: Upload compile evidence
         if: always()
