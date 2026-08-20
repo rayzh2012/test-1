@@ -1,0 +1,458 @@
+diff --git a/Assets/Tests/EditMode/RecoverySkillResolverTests.cs b/Assets/Tests/EditMode/RecoverySkillResolverTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/RecoverySkillResolverTests.cs
+@@ -0,0 +1,453 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Linq;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class RecoverySkillResolverTests
++    {
++        [Test]
++        public void AbsoluteSingle_HealsTargetAndSpendsMpOnce()
++        {
++            CombatantState caster = Caster();
++            CombatantState ally = AllyState(hp: 100);
++            Damage(ally, 35);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("ally", ally, row: 0, column: 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartySingle,
++                AttributeImpactType.Absolute,
++                value: 25,
++                mpCost: 12);
++
++            RecoverySkillCastResolution<string> result =
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill, "ally");
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(38));
++            Assert.That(ally.CurrentHp, Is.EqualTo(90));
++            Assert.That(result.Targets.Single().Healing, Is.EqualTo(25));
++            Assert.That(result.Targets.Single().Events.Single().Kind,
++                Is.EqualTo(CombatEventKind.Healing));
++            Assert.That(result.Targets.Single().Events.Single().Amount, Is.EqualTo(25));
++            Assert.That(result.CastEvents.Single().Kind, Is.EqualTo(CombatEventKind.SkillCast));
++        }
++
++        [Test]
++        public void AbsoluteSingle_ClampsAtMaxHp()
++        {
++            CombatantState caster = Caster();
++            CombatantState ally = AllyState(hp: 100);
++            Damage(ally, 10);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("ally", ally, 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartySingle,
++                AttributeImpactType.Absolute,
++                value: 40);
++
++            RecoverySkillCastResolution<string> result =
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill, "ally");
++
++            Assert.That(ally.CurrentHp, Is.EqualTo(100));
++            Assert.That(result.Targets.Single().Healing, Is.EqualTo(10));
++            Assert.That(result.Targets.Single().IsAtMaxHp, Is.True);
++        }
++
++        [Test]
++        public void RecoverToMax_UsesMissingHpNotEffectValue()
++        {
++            CombatantState caster = Caster();
++            CombatantState ally = AllyState(hp: 120);
++            Damage(ally, 55);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("ally", ally, 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartySingle,
++                AttributeImpactType.RecoverToMax,
++                value: -999);
++
++            RecoverySkillCastResolution<string> result =
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill, "ally");
++
++            Assert.That(ally.CurrentHp, Is.EqualTo(120));
++            Assert.That(result.Targets.Single().Healing, Is.EqualTo(55));
++            Assert.That(result.Targets.Single().IsAtMaxHp, Is.True);
++        }
++
++        [Test]
++        public void FullHpTarget_ProducesZeroHealingFactAndStillCompletesCast()
++        {
++            CombatantState caster = Caster();
++            CombatantState ally = AllyState(hp: 100);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("ally", ally, 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartySingle,
++                AttributeImpactType.Absolute,
++                value: 30,
++                mpCost: 10);
++
++            RecoverySkillCastResolution<string> result =
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill, "ally");
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(40));
++            Assert.That(ally.CurrentHp, Is.EqualTo(100));
++            Assert.That(result.Targets.Single().Healing, Is.Zero);
++            Assert.That(result.Targets.Single().Events.Single().Amount, Is.Zero);
++        }
++
++        [Test]
++        public void SelfHeal_IsAllowedThroughFirstPartySingleAnchor()
++        {
++            CombatantState caster = Caster();
++            Damage(caster, 30);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("caster", caster, 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartySingle,
++                AttributeImpactType.Absolute,
++                value: 20);
++
++            RecoverySkillResolver<string>.Resolve(caster, slots, skill, "caster");
++
++            Assert.That(caster.CurrentHp, Is.EqualTo(90));
++            Assert.That(caster.CurrentMp, Is.EqualTo(40));
++        }
++
++        [Test]
++        public void FirstPartyAll_HealsEveryLivingAllyInFormationOrderAndSpendsMpOnce()
++        {
++            CombatantState caster = Caster();
++            CombatantState allyB = AllyState();
++            CombatantState allyA = AllyState();
++            CombatantState dead = AllyState();
++            Damage(allyA, 30);
++            Damage(allyB, 50);
++            Defeat(dead);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("b", allyB, row: 1, column: 0),
++                First("dead", dead, row: 0, column: 0),
++                First("a", allyA, row: 0, column: 1),
++                Enemy("enemy", AllyState(), row: 0, column: 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartyAll,
++                AttributeImpactType.Absolute,
++                value: 20,
++                mpCost: 15);
++
++            RecoverySkillCastResolution<string> result =
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill);
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(35));
++            Assert.That(allyA.CurrentHp, Is.EqualTo(90));
++            Assert.That(allyB.CurrentHp, Is.EqualTo(70));
++            Assert.That(dead.CurrentHp, Is.Zero);
++            Assert.That(result.Targets.Select(target => target.TargetKey),
++                Is.EqualTo(new[] { "a", "b" }));
++        }
++
++        [Test]
++        public void InsufficientMp_RejectsBeforeAnyHealingMutation()
++        {
++            CombatantState caster =
++                new(maxHp: 100, attack: 20, defense: 10, maxMp: 5);
++            CombatantState ally = AllyState();
++            Damage(ally, 40);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("ally", ally, 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartyAll,
++                AttributeImpactType.Absolute,
++                value: 30,
++                mpCost: 10);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(5));
++            Assert.That(ally.CurrentHp, Is.EqualTo(60));
++        }
++
++        [Test]
++        public void DefeatedSingleTarget_IsNotRevivedAndMpIsNotSpent()
++        {
++            CombatantState caster = Caster();
++            CombatantState dead = AllyState();
++            Defeat(dead);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("dead", dead, 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartySingle,
++                AttributeImpactType.RecoverToMax,
++                value: 0,
++                mpCost: 10);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill, "dead"));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(dead.CurrentHp, Is.Zero);
++        }
++
++        [Test]
++        public void NoLivingFirstPartyTargets_RejectsBeforeSpendingMp()
++        {
++            CombatantState caster = Caster();
++            CombatantState dead = AllyState();
++            Defeat(dead);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("dead", dead, 0, 0),
++                Enemy("enemy", AllyState(), 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartyAll,
++                AttributeImpactType.Absolute,
++                value: 20,
++                mpCost: 10);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++        }
++
++        [Test]
++        public void PercentageRecovery_IsRejectedBeforeMutation()
++        {
++            CombatantState caster = Caster();
++            CombatantState ally = AllyState();
++            Damage(ally, 30);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("ally", ally, 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartySingle,
++                AttributeImpactType.Percentage,
++                value: 25);
++
++            Assert.Throws<NotSupportedException>(() =>
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill, "ally"));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(ally.CurrentHp, Is.EqualTo(70));
++        }
++
++        [Test]
++        public void NonPositiveAbsoluteRecovery_IsRejectedBeforeMutation()
++        {
++            CombatantState caster = Caster();
++            CombatantState ally = AllyState();
++            Damage(ally, 30);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("ally", ally, 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartySingle,
++                AttributeImpactType.Absolute,
++                value: -20);
++
++            Assert.Throws<NotSupportedException>(() =>
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill, "ally"));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(ally.CurrentHp, Is.EqualTo(70));
++        }
++
++        [Test]
++        public void WrongSkillType_IsRejectedBeforeMutation()
++        {
++            CombatantState caster = Caster();
++            CombatantState ally = AllyState();
++            Damage(ally, 30);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("ally", ally, 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartySingle,
++                AttributeImpactType.Absolute,
++                value: 20,
++                type: SkillType.AssistMagic);
++
++            Assert.Throws<NotSupportedException>(() =>
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill, "ally"));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(ally.CurrentHp, Is.EqualTo(70));
++        }
++
++        [Test]
++        public void EnemyTargetRange_IsRejectedBeforeMutation()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                First("ally", AllyState(), 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.EnemyPartySingle,
++                AttributeImpactType.Absolute,
++                value: 20);
++
++            Assert.Throws<NotSupportedException>(() =>
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill, "ally"));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++        }
++
++        [Test]
++        public void AliasedPartyStates_AreRejectedBeforeMpOrHpMutation()
++        {
++            CombatantState caster = Caster();
++            CombatantState shared = AllyState();
++            Damage(shared, 40);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("a", shared, 0, 0),
++                First("b", shared, 0, 1),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartyAll,
++                AttributeImpactType.Absolute,
++                value: 20,
++                mpCost: 10);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(shared.CurrentHp, Is.EqualTo(60));
++        }
++
++        [Test]
++        public void ResultCollections_AreReadOnlyWrappersNotRawArrays()
++        {
++            CombatantState caster = Caster();
++            CombatantState ally = AllyState();
++            Damage(ally, 20);
++            CombatTargetSlot<string>[] slots =
++            {
++                First("ally", ally, 0, 0),
++            };
++            SkillDefinition skill = RecoverySkill(
++                TargetRangeType.FirstPartyAll,
++                AttributeImpactType.Absolute,
++                value: 10);
++
++            RecoverySkillCastResolution<string> result =
++                RecoverySkillResolver<string>.Resolve(caster, slots, skill);
++
++            Assert.That(result.CastEvents, Is.Not.InstanceOf<CombatEvent[]>());
++            Assert.That(
++                result.Targets,
++                Is.Not.InstanceOf<RecoveryTargetResolution<string>[]>());
++            Assert.That(result.Targets[0].Events, Is.Not.InstanceOf<CombatEvent[]>());
++        }
++
++        private static CombatantState Caster()
++        {
++            return new CombatantState(
++                maxHp: 100,
++                attack: 20,
++                defense: 10,
++                maxMp: 50);
++        }
++
++        private static CombatantState AllyState(int hp = 100)
++        {
++            return new CombatantState(
++                maxHp: hp,
++                attack: 10,
++                defense: 5);
++        }
++
++        private static CombatTargetSlot<string> First(
++            string key,
++            CombatantState state,
++            int row,
++            int column)
++        {
++            return new CombatTargetSlot<string>(
++                key,
++                state,
++                CombatParty.First,
++                row,
++                column);
++        }
++
++        private static CombatTargetSlot<string> Enemy(
++            string key,
++            CombatantState state,
++            int row,
++            int column)
++        {
++            return new CombatTargetSlot<string>(
++                key,
++                state,
++                CombatParty.Enemy,
++                row,
++                column);
++        }
++
++        private static void Damage(CombatantState target, int damage)
++        {
++            CombatantState attacker =
++                new(maxHp: 100, attack: damage + target.Defense, defense: 0);
++            NormalAttackResolver.Resolve(attacker, target);
++        }
++
++        private static void Defeat(CombatantState target)
++        {
++            CombatantState attacker =
++                new(maxHp: 100, attack: 9999, defense: 0);
++            NormalAttackResolver.Resolve(attacker, target);
++        }
++
++        private static SkillDefinition RecoverySkill(
++            TargetRangeType targetRange,
++            AttributeImpactType impactType,
++            int value,
++            int mpCost = 10,
++            SkillType type = SkillType.RecoverMagic)
++        {
++            return new SkillDefinition(
++                id: 8201,
++                name: "Recovery Test",
++                type,
++                element: ElementType.None,
++                targetRange,
++                mpCost,
++                spCost: 0,
++                visualArchetype: SkillVisualArchetype.SupportPulse,
++                visualProfileKey: "support.hp.basic",
++                effects: new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        impactType,
++                        value),
++                });
++        }
++    }
++}
