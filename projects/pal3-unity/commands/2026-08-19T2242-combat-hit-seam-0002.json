@@ -1,0 +1,21 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260819-2242-combat-hit-seam-0002",
+  "created_at": "2026-08-19T22:42:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Try the direct ChatGPT realtime PAL3 development loop on the first real combat-animation integration seam.",
+  "normalized_action": "wire_normal_attack_animation_hit_seam",
+  "target_surfaces": [
+    "CombatActorController.AnimationEventTriggered",
+    "CombatActorController.StartNormalAttackAsync",
+    "Combat/Core/SingleHitGate.cs"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "This patch proves animation-hit event plumbing and single-hit gating only. It does not yet prove runtime HP mutation, Unity compilation, or a complete combat loop.",
+  "status": "EXECUTING"
+}
