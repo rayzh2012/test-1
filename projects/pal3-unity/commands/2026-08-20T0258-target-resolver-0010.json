@@ -21,6 +21,8 @@
     "FAST_DOMAIN_TESTS"
   ],
   "claim_boundary": "Formation row/column coordinates are explicit adapter input. This step does not claim a proven mapping from PAL3 ElementPosition to row/column and does not yet apply one skill effect to multiple targets.",
-  "status": "EXECUTING",
+  "status": "VERIFIED",
+  "pull_request": 90,
+  "first_passing_fast_lane_run_id": 32352972869,
   "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0258-step5a-target-resolver-0010.json"
 }
