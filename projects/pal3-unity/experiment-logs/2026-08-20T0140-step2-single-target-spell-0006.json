@@ -4,7 +4,7 @@
   "roadmap_step": 2,
   "title": "First single-target damage spell execution",
   "created_at": "2026-08-20T01:40:00-04:00",
-  "status": "RUNNING",
+  "status": "VERIFYING",
   "base_control_ref": "master@a0a0efcd0fee949bf315a13f255bc365ac50dd5c",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
   "objective": "Prove that a presentation-independent enemy single-target damage skill can spend MP and mutate the same encounter-local target HP state already used by normal attacks.",
@@ -14,19 +14,43 @@
     "CombatantState MP state",
     "SingleTargetSkillResolver",
     "CombatRuntimeRegistry.ResolveSingleTargetSkill",
-    "fast-tests.json"
+    "fast-tests.json",
+    "realtime-control worker bootstrap",
+    "experiment-log protocol"
   ],
   "attempts": [
     {
       "attempt": 1,
-      "status": "RUNNING",
+      "status": "PASS",
       "description": "Add MP to encounter state; support DamageMagic + EnemyPartySingle + exactly one negative Absolute HP effect; reject unsupported mechanics before mutation.",
       "expected_tests": "existing 30 tests plus new single-target spell tests",
       "failure": null,
       "fix": null,
-      "evidence": null
+      "evidence": {
+        "fast_lane_run_id": 32336775009,
+        "fast_lane_status": "PASS",
+        "patch_stack": "0001 through 0006 check=true applied=true",
+        "tests": {
+          "passed": 39,
+          "failed": 0,
+          "skipped": 0,
+          "duration_ms": 38,
+          "compiler_warnings_observed": 0
+        },
+        "artifact_id": 9394917689,
+        "artifact_sha256": "46acfa800292101d8a3d6d2dc1f21f602730a337a1cfb87cf83a7bcf34b0f527",
+        "post_patch_source_files": 587,
+        "post_patch_source_lines": 60196
+      }
     }
   ],
-  "reusable_lessons": [],
-  "next_recommended_experiment": "If verified, Step 3: map real GDB SkillInfo into SkillDefinition without adding presentation assumptions."
+  "failures": [],
+  "reusable_lessons": [
+    "Optional maxMp on CombatantState preserves all existing 3-argument construction sites while adding encounter-local MP.",
+    "Validate unsupported skill mechanics before spending MP or applying HP mutation; failed feature expansion must be transaction-like.",
+    "Skill casts can mutate the exact same CombatRuntimeRegistry state as normal attacks; no second shadow battle-state model is needed.",
+    "The source audit's NotSupportedException/throw marker counts increase when we add deliberate guardrails. Future workers must not interpret raw marker growth as implementation regression without file-level semantics.",
+    "Experiment logs should record an empty failures array when an attempt succeeds first try; never invent failure history."
+  ],
+  "next_recommended_experiment": "Step 3: map real GDB SkillInfo into SkillDefinition without adding presentation assumptions, while preserving unsupported-field evidence explicitly."
 }
