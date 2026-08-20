@@ -1,0 +1,32 @@
+{
+  "schema_version": "pal3_experiment_log.v0.1",
+  "experiment_id": "pal3-exp-20260820-0208-step3-gdb-skill-mapping-0007",
+  "roadmap_step": 3,
+  "title": "Real GDB SkillInfo loss-aware mapping",
+  "created_at": "2026-08-20T02:08:00-04:00",
+  "status": "RUNNING",
+  "base_control_ref": "master@06411cd0174cc1928aa8190e96936cf5bdd0f38a",
+  "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "objective": "Compile the real upstream SkillInfo schema in the fast lane and project only representable semantics into SkillDefinition while preserving and reporting every source semantic that the current runtime domain cannot safely represent.",
+  "hypothesis": "A mapping result that retains the original SkillInfo, preserves all source elements, requires explicit visual binding, and emits structured blocking/info issues can prevent silent semantic loss while allowing simple skills to project into the existing runtime domain.",
+  "claim_boundary": "This experiment does not scan the commercial PAL3 GDB dataset, does not prove all real skills are execution-ready, does not implement multi-element runtime semantics, percentage resource costs, special consumption, success-rate behavior, special-skill behavior, Unity compile/runtime, or VFX.",
+  "changed_surfaces": [
+    "GdbSkillInfoMapper.cs",
+    "GdbSkillInfoMapperTests.cs",
+    "fast-tests.json real GDB source inclusion",
+    "pal3_fastlane.py define_constants support"
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "RUNNING",
+      "description": "Compile upstream GdbFile.cs with PAL3 conditional symbols; map simple absolute-cost single-element skills; preserve multi-element, percentage-cost, special-consume and progression/composite semantics as retained source plus structured issues.",
+      "expected_tests": "existing 39 tests plus 6 GDB mapping tests",
+      "failure": null,
+      "fix": null,
+      "evidence": null
+    }
+  ],
+  "reusable_lessons": [],
+  "next_recommended_experiment": "If verified, inspect actual GDB SkillInfo populations or promote the most common blocking semantic into the combat domain as the next isolated step."
+}
