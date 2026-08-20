@@ -1,0 +1,253 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/MultiTargetSkillResolver.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/MultiTargetSkillResolver.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/MultiTargetSkillResolver.cs
+@@ -0,0 +1,248 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity deterministic multi-target damage-skill execution.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Linq;
++    using Pal3.Core.Contract.Enums;
++
++    public sealed class TargetSkillResolution<TKey> where TKey : notnull
++    {
++        private readonly IReadOnlyList<CombatEvent> _events;
++
++        public TKey TargetKey { get; }
++        public int Damage { get; }
++        public bool IsTargetDefeated { get; }
++        public IReadOnlyList<CombatEvent> Events => _events;
++
++        public TargetSkillResolution(
++            TKey targetKey,
++            uint skillId,
++            int damage,
++            bool isTargetDefeated)
++        {
++            if (damage <= 0) throw new ArgumentOutOfRangeException(nameof(damage));
++
++            TargetKey = targetKey;
++            Damage = damage;
++            IsTargetDefeated = isTargetDefeated;
++
++            CombatEvent[] events = isTargetDefeated
++                ? new[]
++                {
++                    CombatEvent.ForDamage(skillId, damage),
++                    CombatEvent.ForTargetDefeated(skillId),
++                }
++                : new[]
++                {
++                    CombatEvent.ForDamage(skillId, damage),
++                };
++
++            _events = Array.AsReadOnly(events);
++        }
++    }
++
++    public sealed class MultiTargetSkillCastResolution<TKey> where TKey : notnull
++    {
++        private readonly IReadOnlyList<CombatEvent> _castEvents;
++        private readonly IReadOnlyList<TargetSkillResolution<TKey>> _targets;
++
++        public uint SkillId { get; }
++        public int MpSpent { get; }
++        public IReadOnlyList<CombatEvent> CastEvents => _castEvents;
++        public IReadOnlyList<TargetSkillResolution<TKey>> Targets => _targets;
++
++        public MultiTargetSkillCastResolution(
++            uint skillId,
++            int mpSpent,
++            IEnumerable<TargetSkillResolution<TKey>> targets)
++        {
++            if (skillId == 0) throw new ArgumentOutOfRangeException(nameof(skillId));
++            if (mpSpent < 0) throw new ArgumentOutOfRangeException(nameof(mpSpent));
++            if (targets == null) throw new ArgumentNullException(nameof(targets));
++
++            TargetSkillResolution<TKey>[] targetArray = targets.ToArray();
++            if (targetArray.Length == 0)
++            {
++                throw new ArgumentException(
++                    "A multi-target cast requires at least one resolved target.",
++                    nameof(targets));
++            }
++            if (targetArray.Any(target => target == null))
++            {
++                throw new ArgumentException(
++                    "Resolved targets cannot contain null entries.",
++                    nameof(targets));
++            }
++
++            SkillId = skillId;
++            MpSpent = mpSpent;
++            _castEvents = Array.AsReadOnly(new[] { CombatEvent.ForSkillCast(skillId) });
++            _targets = Array.AsReadOnly(targetArray);
++        }
++    }
++
++    /// <summary>
++    /// First multi-target mutation slice.
++    /// Scope remains narrow: enemy-all / enemy-row / enemy-column DamageMagic skills with
++    /// exactly one negative absolute HP effect and no SP cost. Target selection is delegated to
++    /// CombatTargetResolver so formation semantics stay pure and independently testable.
++    /// </summary>
++    public static class MultiTargetSkillResolver<TKey> where TKey : notnull
++    {
++        public static MultiTargetSkillCastResolution<TKey> Resolve(
++            CombatantState caster,
++            IEnumerable<CombatTargetSlot<TKey>> slots,
++            SkillDefinition skill)
++        {
++            ValidateCommonInputs(caster, slots, skill);
++            if (skill.TargetRange != TargetRangeType.EnemyPartyAll)
++            {
++                throw new ArgumentException(
++                    $"Target range {skill.TargetRange} requires an explicit anchor.",
++                    nameof(skill));
++            }
++
++            CombatTargetSlot<TKey>[] slotArray = slots.ToArray();
++            IReadOnlyList<TKey> targetKeys =
++                CombatTargetResolver<TKey>.Resolve(skill.TargetRange, slotArray);
++
++            return ResolveSelected(caster, slotArray, skill, targetKeys);
++        }
++
++        public static MultiTargetSkillCastResolution<TKey> Resolve(
++            CombatantState caster,
++            IEnumerable<CombatTargetSlot<TKey>> slots,
++            SkillDefinition skill,
++            TKey anchorKey)
++        {
++            ValidateCommonInputs(caster, slots, skill);
++            if (skill.TargetRange is not (
++                TargetRangeType.EnemyPartyOneRow or
++                TargetRangeType.EnemyPartyOneColumn))
++            {
++                throw new ArgumentException(
++                    $"Target range {skill.TargetRange} does not use a row/column anchor in this slice.",
++                    nameof(skill));
++            }
++
++            CombatTargetSlot<TKey>[] slotArray = slots.ToArray();
++            IReadOnlyList<TKey> targetKeys =
++                CombatTargetResolver<TKey>.Resolve(skill.TargetRange, slotArray, anchorKey);
++
++            return ResolveSelected(caster, slotArray, skill, targetKeys);
++        }
++
++        private static MultiTargetSkillCastResolution<TKey> ResolveSelected(
++            CombatantState caster,
++            IReadOnlyList<CombatTargetSlot<TKey>> slots,
++            SkillDefinition skill,
++            IReadOnlyList<TKey> targetKeys)
++        {
++            if (targetKeys.Count == 0)
++            {
++                throw new InvalidOperationException(
++                    "A multi-target damage skill requires at least one living enemy target.");
++            }
++
++            SkillEffectDefinition damageEffect = skill.Effects.Single();
++            int requestedDamage = checked(-damageEffect.Value);
++
++            if (caster.CurrentMp < skill.MpCost)
++            {
++                throw new InvalidOperationException("Insufficient MP.");
++            }
++
++            Dictionary<TKey, CombatantState> statesByKey = slots.ToDictionary(
++                slot => slot.Key,
++                slot => slot.State,
++                EqualityComparer<TKey>.Default);
++
++            CombatantState[] targets = targetKeys
++                .Select(key => statesByKey[key])
++                .ToArray();
++
++            if (!caster.TrySpendMp(skill.MpCost))
++            {
++                throw new InvalidOperationException("Insufficient MP.");
++            }
++
++            TargetSkillResolution<TKey>[] results =
++                new TargetSkillResolution<TKey>[targetKeys.Count];
++
++            for (int i = 0; i < targetKeys.Count; i++)
++            {
++                int appliedDamage = targets[i].ApplyDamage(requestedDamage);
++                results[i] = new TargetSkillResolution<TKey>(
++                    targetKeys[i],
++                    skill.Id,
++                    appliedDamage,
++                    !targets[i].IsAlive);
++            }
++
++            return new MultiTargetSkillCastResolution<TKey>(
++                skill.Id,
++                skill.MpCost,
++                results);
++        }
++
++        private static void ValidateCommonInputs(
++            CombatantState caster,
++            IEnumerable<CombatTargetSlot<TKey>> slots,
++            SkillDefinition skill)
++        {
++            if (caster == null) throw new ArgumentNullException(nameof(caster));
++            if (slots == null) throw new ArgumentNullException(nameof(slots));
++            if (skill == null) throw new ArgumentNullException(nameof(skill));
++            if (!caster.IsAlive)
++            {
++                throw new InvalidOperationException("A defeated combatant cannot cast a skill.");
++            }
++
++            ValidateSupportedSkill(skill);
++        }
++
++        private static void ValidateSupportedSkill(SkillDefinition skill)
++        {
++            if (skill.TargetRange is not (
++                TargetRangeType.EnemyPartyAll or
++                TargetRangeType.EnemyPartyOneRow or
++                TargetRangeType.EnemyPartyOneColumn))
++            {
++                throw new NotSupportedException(
++                    "This slice only supports enemy all/row/column target ranges.");
++            }
++
++            if (skill.Type != SkillType.DamageMagic)
++            {
++                throw new NotSupportedException(
++                    "This slice only supports damage magic.");
++            }
++
++            if (skill.SpCost != 0)
++            {
++                throw new NotSupportedException(
++                    "SP-consuming skills are not supported by this slice.");
++            }
++
++            if (skill.Effects.Count != 1)
++            {
++                throw new NotSupportedException(
++                    "This slice requires exactly one skill effect.");
++            }
++
++            SkillEffectDefinition effect = skill.Effects[0];
++            if (effect.Kind != SkillEffectKind.AttributeImpact ||
++                effect.AttributeType != ActorAttributeType.Hp ||
++                effect.AttributeImpactType != AttributeImpactType.Absolute ||
++                effect.Value >= 0)
++            {
++                throw new NotSupportedException(
++                    "This slice only supports negative absolute HP impact.");
++            }
++        }
++    }
++}
