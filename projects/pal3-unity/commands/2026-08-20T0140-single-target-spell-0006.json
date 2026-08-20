@@ -11,7 +11,8 @@
     "SingleTargetSkillResolver",
     "CombatRuntimeRegistry",
     "fast-tests.json",
-    "experiment-logs"
+    "experiment-logs",
+    "realtime-control worker bootstrap"
   ],
   "expected_gates": [
     "PATCH_APPLIES",
@@ -19,6 +20,13 @@
     "FAST_DOMAIN_TESTS"
   ],
   "claim_boundary": "Step 2 proves a deterministic single-target spell domain path only. It does not prove GDB mapping, original PAL3 formulas, Unity casting/VFX, Unity compile, runtime smoke, or playtest.",
-  "status": "EXECUTING",
-  "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0140-step2-single-target-spell-0006.json"
+  "status": "VERIFIED",
+  "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0140-step2-single-target-spell-0006.json",
+  "verification": {
+    "tests_passed": 39,
+    "tests_failed": 0,
+    "tests_skipped": 0,
+    "fast_lane_run_id": 32336914181,
+    "source_audit_run_id": 32336914194
+  }
 }
