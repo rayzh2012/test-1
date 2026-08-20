@@ -1,0 +1,29 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260820-0512-multi-target-skill-0011",
+  "created_at": "2026-08-20T05:12:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Continue PAL3 Step 5 from verified target selection into real multi-target skill mutation while preserving the combat-truth/presentation boundary.",
+  "normalized_action": "implement_enemy_multi_target_damage_skill_resolution_with_single_mp_spend_and_targeted_resolved_facts",
+  "target_surfaces": [
+    "MultiTargetSkillResolver",
+    "MultiTargetSkillCastResolution",
+    "TargetSkillResolution",
+    "CombatTargetResolver integration",
+    "fast-tests.json",
+    "experiment-logs",
+    "devlog/entries"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "MULTI_TARGET_ATOMIC_PRECONDITIONS",
+    "MP_SPENT_ONCE_PER_CAST",
+    "PER_TARGET_DAMAGE_FACTS",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "This step supports the already-defined negative absolute HP DamageMagic mechanic across enemy-all/row/column selections. It does not invent PAL3 damage formulas, support healing/status effects, infer ElementPosition geometry, or claim Unity runtime/VFX verification.",
+  "status": "EXECUTING",
+  "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0512-step5b-multi-target-skill-0011.json"
+}
