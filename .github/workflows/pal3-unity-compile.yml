@@ -1,0 +1,80 @@
+name: PAL3 Unity Compile Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "projects/pal3-unity/**"
+      - "tools/source_rewrite_controller.py"
+      - ".github/workflows/pal3-unity-compile.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  unity-compile:
+    name: Apply patch stack and build PAL3 Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v6.0.3
+
+      - name: Read PAL3 target
+        id: target
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          cfg = json.load(open("projects/pal3-unity/control.json", encoding="utf-8"))
+          print(f"repo={cfg['upstream_repository']}")
+          print(f"ref={cfg['upstream_ref']}")
+          PY
+
+      - name: Checkout pinned PAL3 upstream
+        uses: actions/checkout@v6.0.3
+        with:
+          repository: ${{ steps.target.outputs.repo }}
+          ref: ${{ steps.target.outputs.ref }}
+          path: .control/upstream
+          fetch-depth: 1
+          lfs: true
+
+      - name: Apply and audit ordered patch stack
+        run: |
+          python tools/source_rewrite_controller.py audit \
+            --config projects/pal3-unity/control.json \
+            --workspace .control/upstream \
+            --out out/pal3-unity
+
+      - name: Cache Unity Library
+        uses: actions/cache@v5.0.5
+        with:
+          path: .control/upstream/Library
+          key: PAL3-Unity-Library-${{ runner.os }}-${{ hashFiles('.control/upstream/ProjectSettings/ProjectVersion.txt', '.control/upstream/Packages/manifest.json', 'projects/pal3-unity/patches/*.patch') }}
+          restore-keys: |
+            PAL3-Unity-Library-${{ runner.os }}-
+
+      - name: Build patched PAL3 with Unity
+        uses: game-ci/unity-builder@v5
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: .control/upstream
+          targetPlatform: StandaloneLinux64
+          buildName: PAL3
+          versioning: Semantic
+          allowDirtyBuild: true
+
+      - name: Upload compile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pal3-unity-compile-evidence
+          path: |
+            out/pal3-unity/
+            build/
+          if-no-files-found: warn
