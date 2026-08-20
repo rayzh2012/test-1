@@ -18,5 +18,19 @@
     "FAST_DOMAIN_TESTS"
   ],
   "claim_boundary": "GDB HP/Attack/Defense seed encounter-local state only. Damage formula remains a feasibility baseline; this does not prove original PAL3 formula fidelity, visual HP UI, death animation, rewards, or Unity compilation.",
-  "status": "EXECUTING"
+  "status": "VERIFIED",
+  "verification": {
+    "source_control_audit": "PASS",
+    "fast_lane": "PASS",
+    "tests": {
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "compiler_warnings": 0
+    },
+    "fast_lane_run_id": 32327468253,
+    "evidence_artifact_id": 9391863511,
+    "evidence_sha256": "2615b8e13e82b14f7a5283caab780fcbc8b1e05156fe176d8a5b8fb32b03b553",
+    "unity_gate": "SUCCESS_WITH_BUILD_BLOCKED_NO_LICENSE"
+  }
 }
