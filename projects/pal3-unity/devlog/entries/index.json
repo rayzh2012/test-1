@@ -10,6 +10,15 @@
       "entry": "projects/pal3-unity/devlog/entries/2026-08-20T0208-step3-gdb-skill-mapping.md",
       "fast_lane_run_id": 32338925581,
       "artifact_id": 9395634316
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0229-step4a-skill-population-audit-0008",
+      "roadmap_step": "4A",
+      "status": "VERIFIED_WITH_DATA_INPUT_BLOCKER",
+      "entry": "projects/pal3-unity/devlog/entries/2026-08-20T0229-step4a-skill-population-audit.md",
+      "failed_fast_lane_run_id": 32339928133,
+      "passing_fast_lane_run_id": 32340164174,
+      "artifact_id": 9396063171
     }
   ]
 }
