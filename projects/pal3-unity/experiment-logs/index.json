@@ -22,11 +22,13 @@
     {
       "experiment_id": "pal3-exp-20260820-0208-step3-gdb-skill-mapping-0007",
       "roadmap_step": 3,
-      "status": "RUNNING",
+      "status": "VERIFYING_FINAL_HEAD",
       "terminal": false,
       "log": "projects/pal3-unity/experiment-logs/2026-08-20T0208-step3-gdb-skill-mapping-0007.json",
+      "human_entry": "projects/pal3-unity/devlog/entries/2026-08-20T0208-step3-gdb-skill-mapping.md",
       "branch": "agent/pal3-step3-gdb-skill-mapping-0007",
-      "pull_request": null,
+      "pull_request": 86,
+      "first_passing_fast_lane_run_id": 32338925581,
       "final_fast_lane_run_id": null
     }
   ]
