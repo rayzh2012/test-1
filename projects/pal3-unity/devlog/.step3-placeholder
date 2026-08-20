@@ -1,1 +1,0 @@
-Step 3 human devlog entry will be appended only after the experiment reaches a terminal VERIFIED/FAILED/BLOCKED state. Machine attempt history lives in experiment-logs/2026-08-20T0208-step3-gdb-skill-mapping-0007.json.
