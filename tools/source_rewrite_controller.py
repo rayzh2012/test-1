@@ -60,6 +60,28 @@ def git_head(workspace: Path) -> str | None:
         return None
 
 
+def expose_untracked_files_to_git_diff(workspace: Path) -> list[str]:
+    """Make patch-created untracked files visible to git diff without staging contents.
+
+    `git apply` leaves newly added files untracked. Plain `git diff`, including
+    `git diff --check`, otherwise ignores them. Intent-to-add entries preserve the
+    working-tree content while making those files auditable by the same diff path
+    used for modified tracked files.
+    """
+    proc = run(["git", "ls-files", "--others", "--exclude-standard"], workspace, check=False)
+    if proc.returncode != 0:
+        return []
+
+    untracked_files = [line for line in proc.stdout.splitlines() if line]
+    for start in range(0, len(untracked_files), 100):
+        chunk = untracked_files[start : start + 100]
+        add_proc = run(["git", "add", "--intent-to-add", "--", *chunk], workspace, check=False)
+        if add_proc.returncode != 0:
+            raise RuntimeError((add_proc.stderr or add_proc.stdout).strip())
+
+    return untracked_files
+
+
 def iter_source_files(workspace: Path, roots: Iterable[str]) -> Iterable[Path]:
     seen: set[Path] = set()
     for root in roots:
@@ -129,7 +151,12 @@ def scan_file(path: Path) -> tuple[int, dict[str, int]]:
     return line_count, counts
 
 
-def build_report(config: dict[str, Any], workspace: Path, patch_results: list[PatchResult]) -> dict[str, Any]:
+def build_report(
+    config: dict[str, Any],
+    workspace: Path,
+    patch_results: list[PatchResult],
+    untracked_files: list[str],
+) -> dict[str, Any]:
     source_roots = config.get("source_roots", ["Assets/Scripts"])
     files = list(iter_source_files(workspace, source_roots))
 
@@ -216,6 +243,7 @@ def build_report(config: dict[str, Any], workspace: Path, patch_results: list[Pa
             "marker_totals": dict(marker_totals),
             "marker_files": marker_files[:100],
             "patch_results": [r.__dict__ for r in patch_results],
+            "untracked_files_after_patch": untracked_files,
             "changed_files_after_patch": diff_name_only,
             "diff_stat": diff_stat,
             "diff_check_ok": diff_check_ok,
@@ -231,7 +259,7 @@ def build_report(config: dict[str, Any], workspace: Path, patch_results: list[Pa
             "note": "Rewrite priorities are intentionally left to the ChatGPT review step; the controller emits evidence, not model guesses.",
         },
         "audit": {
-            "controller_version": "0.1",
+            "controller_version": "0.2",
             "config_schema": config.get("schema_version"),
         },
     }
@@ -290,8 +318,9 @@ def audit(args: argparse.Namespace) -> int:
 
     patch_dir = (config_path.parent / config.get("patch_dir", "patches")).resolve()
     patch_results = apply_patch_stack(workspace, patch_dir)
+    untracked_files = expose_untracked_files_to_git_diff(workspace)
 
-    report = build_report(config, workspace, patch_results)
+    report = build_report(config, workspace, patch_results, untracked_files)
 
     json_path = out_dir / "source_control_report.json"
     md_path = out_dir / "source_control_report.md"
@@ -315,6 +344,7 @@ def audit(args: argparse.Namespace) -> int:
         "source_files": report["observed"]["source_file_count"],
         "total_lines": report["observed"]["total_lines"],
         "markers": report["observed"]["marker_totals"],
+        "changed_files": report["observed"]["changed_files_after_patch"],
         "report": str(json_path),
     }, ensure_ascii=False))
     return 0
