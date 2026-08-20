@@ -1,0 +1,230 @@
+diff --git a/Assets/Tests/EditMode/MultiTargetSkillPresentationPlannerTests.cs b/Assets/Tests/EditMode/MultiTargetSkillPresentationPlannerTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/MultiTargetSkillPresentationPlannerTests.cs
+@@ -0,0 +1,225 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Presentation
++{
++    using System;
++    using System.Linq;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Game.GameSystems.Combat.Domain;
++    using Pal3.Game.GameSystems.Combat.Presentation;
++
++    public sealed class MultiTargetSkillPresentationPlannerTests
++    {
++        [Test]
++        public void Build_PreservesAreaBurstAndProducesOneCastPlusOrderedTargetImpacts()
++        {
++            SkillDefinition skill = CreateSkill(
++                SkillVisualArchetype.AreaBurst,
++                "fire.area.basic");
++            MultiTargetSkillCastResolution<string> resolution = Resolution(
++                skill.Id,
++                new TargetSkillResolution<string>("enemy-a", skill.Id, 20, false),
++                new TargetSkillResolution<string>("enemy-b", skill.Id, 15, false));
++
++            MultiTargetSkillPresentationPlan<string> plan =
++                GenericMultiTargetSkillPresentationPlanner.Build(skill, resolution);
++
++            Assert.That(plan.SkillId, Is.EqualTo(skill.Id));
++            Assert.That(plan.Archetype, Is.EqualTo(SkillVisualArchetype.AreaBurst));
++            Assert.That(plan.VisualProfileKey, Is.EqualTo("fire.area.basic"));
++            Assert.That(plan.GlobalCues, Has.Count.EqualTo(1));
++            Assert.That(plan.GlobalCues[0].Kind, Is.EqualTo(SkillPresentationCueKind.Cast));
++            Assert.That(plan.Targets.Select(target => target.TargetKey),
++                Is.EqualTo(new[] { "enemy-a", "enemy-b" }));
++            Assert.That(plan.Targets[0].Cues.Single().Kind,
++                Is.EqualTo(SkillPresentationCueKind.Impact));
++            Assert.That(plan.Targets[0].Cues.Single().ResolvedAmount, Is.EqualTo(20));
++            Assert.That(plan.Targets[1].Cues.Single().ResolvedAmount, Is.EqualTo(15));
++        }
++
++        [Test]
++        public void Build_AddsDefeatCueOnlyToDefeatedTarget()
++        {
++            SkillDefinition skill = CreateSkill();
++            MultiTargetSkillCastResolution<string> resolution = Resolution(
++                skill.Id,
++                new TargetSkillResolution<string>("fragile", skill.Id, 10, true),
++                new TargetSkillResolution<string>("sturdy", skill.Id, 30, false));
++
++            MultiTargetSkillPresentationPlan<string> plan =
++                GenericMultiTargetSkillPresentationPlanner.Build(skill, resolution);
++
++            Assert.That(
++                plan.Targets.Single(target => target.TargetKey == "fragile")
++                    .Cues.Select(cue => cue.Kind),
++                Is.EqualTo(new[]
++                {
++                    SkillPresentationCueKind.Impact,
++                    SkillPresentationCueKind.TargetDefeated,
++                }));
++            Assert.That(
++                plan.Targets.Single(target => target.TargetKey == "sturdy")
++                    .Cues.Select(cue => cue.Kind),
++                Is.EqualTo(new[] { SkillPresentationCueKind.Impact }));
++        }
++
++        [Test]
++        public void Build_DoesNotMutateCasterOrTargets()
++        {
++            CombatantState caster =
++                new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatTargetSlot<string>[] slots =
++            {
++                Enemy("enemy-a", row: 0, column: 0, hp: 80),
++                Enemy("enemy-b", row: 0, column: 1, hp: 60),
++            };
++            SkillDefinition skill = CreateSkill();
++
++            MultiTargetSkillCastResolution<string> resolution =
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill);
++
++            int mpAfterResolution = caster.CurrentMp;
++            int hpAAfterResolution = slots[0].State.CurrentHp;
++            int hpBAfterResolution = slots[1].State.CurrentHp;
++
++            _ = GenericMultiTargetSkillPresentationPlanner.Build(skill, resolution);
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(mpAfterResolution));
++            Assert.That(slots[0].State.CurrentHp, Is.EqualTo(hpAAfterResolution));
++            Assert.That(slots[1].State.CurrentHp, Is.EqualTo(hpBAfterResolution));
++        }
++
++        [Test]
++        public void PlanCollections_AreReadOnlyWrappersNotRawArrays()
++        {
++            SkillDefinition skill = CreateSkill();
++            MultiTargetSkillCastResolution<string> resolution = Resolution(
++                skill.Id,
++                new TargetSkillResolution<string>("enemy", skill.Id, 20, false));
++
++            MultiTargetSkillPresentationPlan<string> plan =
++                GenericMultiTargetSkillPresentationPlanner.Build(skill, resolution);
++
++            Assert.That(plan.GlobalCues, Is.Not.InstanceOf<SkillPresentationCue[]>());
++            Assert.That(
++                plan.Targets,
++                Is.Not.InstanceOf<TargetSkillPresentationPlan<string>[]>());
++            Assert.That(
++                plan.Targets[0].Cues,
++                Is.Not.InstanceOf<SkillPresentationCue[]>());
++        }
++
++        [Test]
++        public void Build_RejectsMismatchedSkillId()
++        {
++            SkillDefinition skill = CreateSkill();
++            MultiTargetSkillCastResolution<string> resolution = Resolution(
++                skill.Id + 1,
++                new TargetSkillResolution<string>(
++                    "enemy",
++                    skill.Id + 1,
++                    20,
++                    false));
++
++            Assert.Throws<ArgumentException>(() =>
++                GenericMultiTargetSkillPresentationPlanner.Build(skill, resolution));
++        }
++
++        [Test]
++        public void Build_RejectsTargetEventSkillIdMismatch()
++        {
++            SkillDefinition skill = CreateSkill();
++            TargetSkillResolution<string> target =
++                new("enemy", skill.Id + 1, 20, false);
++            MultiTargetSkillCastResolution<string> resolution =
++                Resolution(skill.Id, target);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                GenericMultiTargetSkillPresentationPlanner.Build(skill, resolution));
++        }
++
++        [Test]
++        public void Build_RejectsDuplicateTargetKeys()
++        {
++            SkillDefinition skill = CreateSkill();
++            MultiTargetSkillCastResolution<string> resolution = Resolution(
++                skill.Id,
++                new TargetSkillResolution<string>("enemy", skill.Id, 20, false),
++                new TargetSkillResolution<string>("enemy", skill.Id, 20, false));
++
++            Assert.Throws<InvalidOperationException>(() =>
++                GenericMultiTargetSkillPresentationPlanner.Build(skill, resolution));
++        }
++
++        [Test]
++        public void Build_PreservesGroundFieldWithoutInventingTravelCue()
++        {
++            SkillDefinition skill = CreateSkill(
++                SkillVisualArchetype.GroundField,
++                "earth.field.basic");
++            MultiTargetSkillCastResolution<string> resolution = Resolution(
++                skill.Id,
++                new TargetSkillResolution<string>("enemy-a", skill.Id, 20, false),
++                new TargetSkillResolution<string>("enemy-b", skill.Id, 20, false));
++
++            MultiTargetSkillPresentationPlan<string> plan =
++                GenericMultiTargetSkillPresentationPlanner.Build(skill, resolution);
++
++            Assert.That(plan.Archetype, Is.EqualTo(SkillVisualArchetype.GroundField));
++            Assert.That(plan.VisualProfileKey, Is.EqualTo("earth.field.basic"));
++            Assert.That(
++                plan.GlobalCues.Concat(plan.Targets.SelectMany(target => target.Cues))
++                    .Any(cue => cue.Kind == SkillPresentationCueKind.Travel),
++                Is.False);
++        }
++
++        private static MultiTargetSkillCastResolution<string> Resolution(
++            uint skillId,
++            params TargetSkillResolution<string>[] targets)
++        {
++            return new MultiTargetSkillCastResolution<string>(
++                skillId,
++                mpSpent: 10,
++                targets);
++        }
++
++        private static SkillDefinition CreateSkill(
++            SkillVisualArchetype archetype = SkillVisualArchetype.AreaBurst,
++            string visualProfileKey = "fire.area.basic")
++        {
++            return new SkillDefinition(
++                id: 8101,
++                name: "Resolved Multi",
++                type: SkillType.DamageMagic,
++                element: ElementType.Fire,
++                targetRange: TargetRangeType.EnemyPartyAll,
++                mpCost: 10,
++                spCost: 0,
++                visualArchetype: archetype,
++                visualProfileKey,
++                effects: new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        AttributeImpactType.Absolute,
++                        value: -20),
++                });
++        }
++
++        private static CombatTargetSlot<string> Enemy(
++            string key,
++            int row,
++            int column,
++            int hp)
++        {
++            return new CombatTargetSlot<string>(
++                key,
++                new CombatantState(
++                    maxHp: hp,
++                    attack: 10,
++                    defense: 5),
++                CombatParty.Enemy,
++                row,
++                column);
++        }
++    }
++}

@@ -1,0 +1,39 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260820-0558-step5c-multi-target-presentation-0012",
+  "created_at": "2026-08-20T05:58:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Continue PAL3 Step 5 by carrying verified multi-target combat facts across the presentation boundary without granting presentation authority over combat truth.",
+  "normalized_action": "build_target_addressed_multi_target_presentation_plan_from_resolved_facts",
+  "target_surfaces": [
+    "MultiTargetSkillPresentationPlan<TKey>",
+    "TargetSkillPresentationPlan<TKey>",
+    "GenericMultiTargetSkillPresentationPlanner",
+    "fast-tests.json",
+    "experiment-logs",
+    "devlog/entries"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "ONE_GLOBAL_CAST_CUE",
+    "TARGET_ADDRESSED_IMPACT_CUES",
+    "TARGET_DEFEAT_FACT_MIRROR",
+    "ZERO_PRESENTATION_MUTATION",
+    "NO_INVENTED_TRAVEL_SEMANTICS",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "This step creates immutable target-addressed presentation plans from already-resolved multi-target facts. It does not select targets, spend MP, calculate damage, mutate HP, infer animation timing/spatial sequencing, add Unity objects/VFX, or claim Unity runtime verification.",
+  "status": "COMPLETED_VERIFIED",
+  "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0558-step5c-multi-target-presentation-0012.json",
+  "verification": {
+    "source_audit_run_id": 32357032521,
+    "fast_lane_run_id": 32357032514,
+    "tests_passed": 98,
+    "tests_failed": 0,
+    "tests_skipped": 0,
+    "artifact_id": 9402045720,
+    "artifact_sha256": "c3f8eebc58a5f7ab8905ecc9e8da1c9db970dfc3ac99c8b748095403721e1a97"
+  }
+}
