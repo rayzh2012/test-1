@@ -2,6 +2,19 @@
 
 Purpose: append-only, worker-readable engineering memory for the PAL3.Unity rewrite control plane.
 
+## Two-layer logging model
+
+This directory is the **machine-readable evidence/history layer**.
+
+The human-readable publication layer is:
+
+- `projects/pal3-unity/devlog/README.md`
+- `projects/pal3-unity/devlog/PAL3-AI-DEVLOG.md`
+
+Machine experiment logs preserve exact structured attempts, failures, fixes and evidence. The human devlog turns that history into a chronological engineering story suitable for a GitHub Gist, Medium, or another Markdown publishing surface.
+
+Neither layer replaces the other.
+
 ## Mandatory worker protocol
 
 Before starting a PAL3 combat/rewrite task, a worker must read:
@@ -10,7 +23,9 @@ Before starting a PAL3 combat/rewrite task, a worker must read:
 2. this README
 3. `projects/pal3-unity/experiment-logs/index.json`
 4. the latest relevant experiment log(s)
-5. the current command ledger entry for the task, if one exists
+5. `projects/pal3-unity/devlog/README.md`
+6. the tail/latest relevant section of `projects/pal3-unity/devlog/PAL3-AI-DEVLOG.md`
+7. the current command ledger entry for the task, if one exists
 
 Workers must not rely on chat history alone.
 
@@ -30,6 +45,8 @@ Each log records:
 - claim boundary: what was *not* proved
 - reusable lessons for future workers
 - next recommended experiment
+
+Every **material terminal experiment** must also be represented in the human devlog. If the experiment succeeded on the first attempt, the devlog must say so rather than inventing a failure. If the experiment failed before a later fix, that failure must remain visible in both histories.
 
 ## Failure classification
 
