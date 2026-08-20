@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   unity-compile:
-    name: Apply patch stack and build PAL3 Linux
+    name: Test CombatCore and build PAL3 Linux
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -47,6 +47,25 @@ jobs:
             --config projects/pal3-unity/control.json \
             --workspace .control/upstream \
             --out out/pal3-unity
+
+      - name: Run CombatCore domain tests with .NET
+        shell: bash
+        run: |
+          rm -rf .control/combatcore-dotnet
+          dotnet new nunit \
+            --name CombatCore.Tests \
+            --output .control/combatcore-dotnet \
+            --framework net8.0 \
+            --no-restore
+          rm -f .control/combatcore-dotnet/UnitTest1.cs
+          cp .control/upstream/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs \
+            .control/combatcore-dotnet/CombatCore.cs
+          cp .control/upstream/Assets/Tests/EditMode/CombatCoreTests.cs \
+            .control/combatcore-dotnet/CombatCoreTests.cs
+          dotnet test .control/combatcore-dotnet/CombatCore.Tests.csproj \
+            --configuration Release \
+            --logger "trx;LogFileName=combatcore.trx" \
+            --results-directory out/pal3-unity/dotnet-tests
 
       - name: Cache Unity Library
         uses: actions/cache@v5.0.5
