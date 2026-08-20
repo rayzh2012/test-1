@@ -15,6 +15,7 @@
     "Use additive MultiTargetSkillCastResolution<TKey> and TargetSkillResolution<TKey> types.",
     "Spend MP once per cast, never once per target.",
     "Reject invalid semantics, empty target sets, insufficient MP and damage overflow before any target mutation.",
+    "Reject aliased combatant-state instances before mutation, including caster-as-enemy-target aliasing.",
     "Delegate target discovery/order to verified CombatTargetResolver<TKey>.",
     "Preserve one overall SkillCast fact and target-associated Damage/TargetDefeated facts."
   ],
@@ -23,9 +24,9 @@
       "attempt": 1,
       "status": "RUNNING",
       "description": "Add an enemy all/row/column multi-target resolver and atomicity/event tests without modifying the verified single-target resolver or presentation planner.",
-      "expected_tests": "existing 74 tests plus 14 multi-target tests = 88",
+      "expected_tests": "existing 74 tests plus 16 multi-target tests = 90",
       "failure": null,
-      "fix": null,
+      "fix": "Pre-CI contract review added state-instance alias guards after identifying that unique keys alone would still allow two target keys to reference one CombatantState, or allow caster state to appear as an enemy target. Two regression tests were added before machine execution.",
       "evidence": null
     }
   ],
