@@ -18,10 +18,12 @@
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs",
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SkillDefinition.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillInfoMapper.cs",
-        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillPopulationAudit.cs"
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/GdbSkillPopulationAudit.cs",
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/SkillPresentationPlan.cs"
       ],
       "test_files": [
         "Assets/Tests/EditMode/CombatCoreTests.cs",
@@ -30,7 +32,8 @@
         "Assets/Tests/EditMode/SkillDefinitionTests.cs",
         "Assets/Tests/EditMode/SingleTargetSkillResolverTests.cs",
         "Assets/Tests/EditMode/GdbSkillInfoMapperTests.cs",
-        "Assets/Tests/EditMode/GdbSkillPopulationAuditTests.cs"
+        "Assets/Tests/EditMode/GdbSkillPopulationAuditTests.cs",
+        "Assets/Tests/EditMode/GenericSkillPresentationPlannerTests.cs"
       ]
     }
   ]

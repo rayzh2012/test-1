@@ -44,6 +44,18 @@
       "first_passing_fast_lane_run_id": 32340164174,
       "final_code_fast_lane_run_id": 32340164174,
       "data_input_status": "BLOCKED_NO_LAWFUL_GDB_INPUT_IN_CONNECTED_SOURCES"
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0242-step4b-generic-presentation-0009",
+      "roadmap_step": "4B",
+      "status": "VERIFIED",
+      "terminal": true,
+      "log": "projects/pal3-unity/experiment-logs/2026-08-20T0242-step4b-generic-presentation-0009.json",
+      "human_entry": "projects/pal3-unity/devlog/entries/2026-08-20T0242-step4b-generic-presentation.md",
+      "branch": "agent/pal3-step4b-generic-presentation-0009",
+      "pull_request": 88,
+      "first_passing_fast_lane_run_id": 32341131050,
+      "final_code_fast_lane_run_id": 32341367176
     }
   ]
 }

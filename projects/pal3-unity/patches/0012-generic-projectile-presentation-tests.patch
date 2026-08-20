@@ -1,0 +1,204 @@
+diff --git a/Assets/Tests/EditMode/GenericSkillPresentationPlannerTests.cs b/Assets/Tests/EditMode/GenericSkillPresentationPlannerTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/GenericSkillPresentationPlannerTests.cs
+@@ -0,0 +1,199 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Presentation
++{
++    using System;
++    using System.Linq;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Game.GameSystems.Combat.Domain;
++    using Pal3.Game.GameSystems.Combat.Presentation;
++
++    public sealed class GenericSkillPresentationPlannerTests
++    {
++        [Test]
++        public void DamageResolution_EmitsOrderedDomainFacts()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 80, attack: 10, defense: 5);
++            SkillDefinition skill = CreateDamageSkill();
++
++            SkillCastResolution resolution =
++                SingleTargetSkillResolver.Resolve(caster, target, skill);
++
++            Assert.That(
++                resolution.Events.Select(entry => entry.Kind),
++                Is.EqualTo(new[]
++                {
++                    CombatEventKind.SkillCast,
++                    CombatEventKind.Damage,
++                }));
++            Assert.That(resolution.Events[1].Amount, Is.EqualTo(30));
++        }
++
++        [Test]
++        public void LethalResolution_EmitsTargetDefeatedFact()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 20, attack: 10, defense: 5);
++            SkillDefinition skill = CreateDamageSkill(damage: 999);
++
++            SkillCastResolution resolution =
++                SingleTargetSkillResolver.Resolve(caster, target, skill);
++
++            Assert.That(resolution.IsTargetDefeated, Is.True);
++            Assert.That(
++                resolution.Events.Select(entry => entry.Kind),
++                Is.EqualTo(new[]
++                {
++                    CombatEventKind.SkillCast,
++                    CombatEventKind.Damage,
++                    CombatEventKind.TargetDefeated,
++                }));
++        }
++
++        [Test]
++        public void ProjectilePlanner_BuildsCastTravelImpactCueOrder()
++        {
++            (SkillDefinition skill, SkillCastResolution resolution) = ResolveDamageSpell();
++
++            SkillPresentationPlan plan =
++                GenericSkillPresentationPlanner.BuildProjectile(skill, resolution);
++
++            Assert.That(
++                plan.Cues.Select(cue => cue.Kind),
++                Is.EqualTo(new[]
++                {
++                    SkillPresentationCueKind.Cast,
++                    SkillPresentationCueKind.Travel,
++                    SkillPresentationCueKind.Impact,
++                }));
++            Assert.That(plan.Archetype, Is.EqualTo(SkillVisualArchetype.Projectile));
++            Assert.That(plan.VisualProfileKey, Is.EqualTo("thunder.projectile.basic"));
++        }
++
++        [Test]
++        public void ImpactCue_CarriesResolvedDamageWithoutRecalculation()
++        {
++            (SkillDefinition skill, SkillCastResolution resolution) = ResolveDamageSpell();
++
++            SkillPresentationPlan plan =
++                GenericSkillPresentationPlanner.BuildProjectile(skill, resolution);
++
++            SkillPresentationCue impact =
++                plan.Cues.Single(cue => cue.Kind == SkillPresentationCueKind.Impact);
++            Assert.That(impact.TriggerEventKind, Is.EqualTo(CombatEventKind.Damage));
++            Assert.That(impact.ResolvedAmount, Is.EqualTo(resolution.Damage));
++        }
++
++        [Test]
++        public void DefeatedTarget_AddsPresentationDefeatCue()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 20, attack: 10, defense: 5);
++            SkillDefinition skill = CreateDamageSkill(damage: 999);
++            SkillCastResolution resolution =
++                SingleTargetSkillResolver.Resolve(caster, target, skill);
++
++            SkillPresentationPlan plan =
++                GenericSkillPresentationPlanner.BuildProjectile(skill, resolution);
++
++            Assert.That(
++                plan.Cues.Last().Kind,
++                Is.EqualTo(SkillPresentationCueKind.TargetDefeated));
++            Assert.That(
++                plan.Cues.Last().TriggerEventKind,
++                Is.EqualTo(CombatEventKind.TargetDefeated));
++        }
++
++        [Test]
++        public void BuildingPresentationPlan_DoesNotMutateResolvedCombatState()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 80, attack: 10, defense: 5);
++            SkillDefinition skill = CreateDamageSkill(mpCost: 12, damage: 30);
++            SkillCastResolution resolution =
++                SingleTargetSkillResolver.Resolve(caster, target, skill);
++            int mpAfterResolution = caster.CurrentMp;
++            int hpAfterResolution = target.CurrentHp;
++
++            GenericSkillPresentationPlanner.BuildProjectile(skill, resolution);
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(mpAfterResolution));
++            Assert.That(target.CurrentHp, Is.EqualTo(hpAfterResolution));
++            Assert.That(caster.CurrentMp, Is.EqualTo(38));
++            Assert.That(target.CurrentHp, Is.EqualTo(50));
++        }
++
++        [Test]
++        public void ResolutionEventsAndPresentationCues_AreNotMutableArrayAliases()
++        {
++            (SkillDefinition skill, SkillCastResolution resolution) = ResolveDamageSpell();
++            SkillPresentationPlan plan =
++                GenericSkillPresentationPlanner.BuildProjectile(skill, resolution);
++
++            Assert.That(resolution.Events, Is.Not.InstanceOf<CombatEvent[]>());
++            Assert.That(plan.Cues, Is.Not.InstanceOf<SkillPresentationCue[]>());
++        }
++
++        [Test]
++        public void Planner_RejectsMismatchedSkillAndResolution()
++        {
++            (SkillDefinition skill, SkillCastResolution resolution) = ResolveDamageSpell();
++            SkillDefinition otherSkill = CreateDamageSkill(id: skill.Id + 1);
++
++            Assert.Throws<ArgumentException>(() =>
++                GenericSkillPresentationPlanner.BuildProjectile(otherSkill, resolution));
++        }
++
++        [Test]
++        public void Planner_RejectsUnsupportedVisualArchetype()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 80, attack: 10, defense: 5);
++            SkillDefinition projectileSkill = CreateDamageSkill();
++            SkillCastResolution resolution =
++                SingleTargetSkillResolver.Resolve(caster, target, projectileSkill);
++            SkillDefinition burstSkill = CreateDamageSkill(
++                archetype: SkillVisualArchetype.AreaBurst);
++
++            Assert.Throws<NotSupportedException>(() =>
++                GenericSkillPresentationPlanner.BuildProjectile(burstSkill, resolution));
++        }
++
++        private static (SkillDefinition Skill, SkillCastResolution Resolution) ResolveDamageSpell()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 80, attack: 10, defense: 5);
++            SkillDefinition skill = CreateDamageSkill();
++            SkillCastResolution resolution =
++                SingleTargetSkillResolver.Resolve(caster, target, skill);
++            return (skill, resolution);
++        }
++
++        private static SkillDefinition CreateDamageSkill(
++            uint id = 6001,
++            int mpCost = 12,
++            int damage = 30,
++            SkillVisualArchetype archetype = SkillVisualArchetype.Projectile)
++        {
++            return new SkillDefinition(
++                id,
++                name: "Generic Bolt",
++                type: SkillType.DamageMagic,
++                element: ElementType.Thunder,
++                targetRange: TargetRangeType.EnemyPartySingle,
++                mpCost,
++                spCost: 0,
++                visualArchetype: archetype,
++                visualProfileKey: archetype == SkillVisualArchetype.Projectile
++                    ? "thunder.projectile.basic"
++                    : "thunder.area.basic",
++                effects: new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        AttributeImpactType.Absolute,
++                        value: -damage),
++                });
++        }
++    }
++}

@@ -19,6 +19,15 @@
       "failed_fast_lane_run_id": 32339928133,
       "passing_fast_lane_run_id": 32340164174,
       "artifact_id": 9396063171
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0242-step4b-generic-presentation-0009",
+      "roadmap_step": "4B",
+      "status": "VERIFIED",
+      "entry": "projects/pal3-unity/devlog/entries/2026-08-20T0242-step4b-generic-presentation.md",
+      "first_passing_fast_lane_run_id": 32341131050,
+      "hardened_fast_lane_run_id": 32341367176,
+      "artifact_id": 9396458443
     }
   ]
 }

@@ -1,0 +1,269 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
+@@ -0,0 +1,52 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity immutable combat-event facts.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++
++    public enum CombatEventKind
++    {
++        SkillCast = 0,
++        Damage,
++        TargetDefeated,
++    }
++
++    /// <summary>
++    /// Immutable fact emitted after domain resolution. Presentation may consume these facts,
++    /// but it cannot use them to mutate combat truth.
++    /// </summary>
++    public readonly struct CombatEvent
++    {
++        public CombatEventKind Kind { get; }
++        public uint SkillId { get; }
++        public int Amount { get; }
++
++        private CombatEvent(CombatEventKind kind, uint skillId, int amount)
++        {
++            if (skillId == 0) throw new ArgumentOutOfRangeException(nameof(skillId));
++            if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
++
++            Kind = kind;
++            SkillId = skillId;
++            Amount = amount;
++        }
++
++        public static CombatEvent ForSkillCast(uint skillId)
++        {
++            return new CombatEvent(CombatEventKind.SkillCast, skillId, amount: 0);
++        }
++
++        public static CombatEvent ForDamage(uint skillId, int damage)
++        {
++            if (damage <= 0) throw new ArgumentOutOfRangeException(nameof(damage));
++            return new CombatEvent(CombatEventKind.Damage, skillId, damage);
++        }
++
++        public static CombatEvent ForTargetDefeated(uint skillId)
++        {
++            return new CombatEvent(CombatEventKind.TargetDefeated, skillId, amount: 0);
++        }
++    }
++}
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs
+@@ -5,15 +5,19 @@
+ namespace Pal3.Game.GameSystems.Combat.Domain
+ {
+     using System;
++    using System.Collections.Generic;
+     using System.Linq;
+     using Pal3.Core.Contract.Enums;
+ 
+     public readonly struct SkillCastResolution
+     {
++        private readonly IReadOnlyList<CombatEvent> _events;
++
+         public uint SkillId { get; }
+         public int MpSpent { get; }
+         public int Damage { get; }
+         public bool IsTargetDefeated { get; }
++        public IReadOnlyList<CombatEvent> Events => _events;
+ 
+         public SkillCastResolution(uint skillId, int mpSpent, int damage, bool isTargetDefeated)
+         {
+@@ -21,6 +25,20 @@
+             MpSpent = mpSpent;
+             Damage = damage;
+             IsTargetDefeated = isTargetDefeated;
++
++            CombatEvent[] events = isTargetDefeated
++                ? new[]
++                {
++                    CombatEvent.ForSkillCast(skillId),
++                    CombatEvent.ForDamage(skillId, damage),
++                    CombatEvent.ForTargetDefeated(skillId),
++                }
++                : new[]
++                {
++                    CombatEvent.ForSkillCast(skillId),
++                    CombatEvent.ForDamage(skillId, damage),
++                };
++            _events = Array.AsReadOnly(events);
+         }
+     }
+ 
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/SkillPresentationPlan.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/SkillPresentationPlan.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/SkillPresentationPlan.cs
+@@ -0,0 +1,163 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity generic skill-presentation planning contract.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Presentation
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Linq;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public enum SkillPresentationCueKind
++    {
++        Cast = 0,
++        Travel,
++        Impact,
++        TargetDefeated,
++    }
++
++    public readonly struct SkillPresentationCue
++    {
++        public SkillPresentationCueKind Kind { get; }
++        public CombatEventKind? TriggerEventKind { get; }
++        public int ResolvedAmount { get; }
++
++        public SkillPresentationCue(
++            SkillPresentationCueKind kind,
++            CombatEventKind? triggerEventKind,
++            int resolvedAmount = 0)
++        {
++            if (resolvedAmount < 0) throw new ArgumentOutOfRangeException(nameof(resolvedAmount));
++
++            Kind = kind;
++            TriggerEventKind = triggerEventKind;
++            ResolvedAmount = resolvedAmount;
++        }
++    }
++
++    /// <summary>
++    /// Immutable presentation instructions derived only from already-resolved combat facts.
++    /// This plan carries no mutable combat state and owns no damage/resource calculation.
++    /// </summary>
++    public sealed class SkillPresentationPlan
++    {
++        private readonly IReadOnlyList<SkillPresentationCue> _cues;
++
++        public uint SkillId { get; }
++        public SkillVisualArchetype Archetype { get; }
++        public string VisualProfileKey { get; }
++        public IReadOnlyList<SkillPresentationCue> Cues => _cues;
++
++        public SkillPresentationPlan(
++            uint skillId,
++            SkillVisualArchetype archetype,
++            string visualProfileKey,
++            IEnumerable<SkillPresentationCue> cues)
++        {
++            if (skillId == 0) throw new ArgumentOutOfRangeException(nameof(skillId));
++            if (string.IsNullOrWhiteSpace(visualProfileKey))
++            {
++                throw new ArgumentException("Visual profile key is required.", nameof(visualProfileKey));
++            }
++            if (cues == null) throw new ArgumentNullException(nameof(cues));
++
++            SkillPresentationCue[] cueArray = cues.ToArray();
++            if (cueArray.Length == 0)
++            {
++                throw new ArgumentException("A presentation plan requires at least one cue.", nameof(cues));
++            }
++            _cues = Array.AsReadOnly(cueArray);
++
++            SkillId = skillId;
++            Archetype = archetype;
++            VisualProfileKey = visualProfileKey;
++        }
++    }
++
++    /// <summary>
++    /// First reusable presentation planner. It supports only Projectile, intentionally.
++    /// It consumes immutable resolution events after combat truth has already been mutated.
++    /// No timing, prefab, sound, camera or Unity object is invented in this domain-fast slice.
++    /// </summary>
++    public static class GenericSkillPresentationPlanner
++    {
++        public static SkillPresentationPlan BuildProjectile(
++            SkillDefinition skill,
++            SkillCastResolution resolution)
++        {
++            if (skill == null) throw new ArgumentNullException(nameof(skill));
++            if (skill.Id != resolution.SkillId)
++            {
++                throw new ArgumentException(
++                    "Skill definition and resolution must refer to the same skill.",
++                    nameof(resolution));
++            }
++            if (skill.VisualArchetype != SkillVisualArchetype.Projectile)
++            {
++                throw new NotSupportedException(
++                    "This first presentation slice only supports Projectile skills.");
++            }
++
++            CombatEvent[] events = resolution.Events.ToArray();
++            CombatEvent castEvent = RequireSingleEvent(events, CombatEventKind.SkillCast);
++            CombatEvent damageEvent = RequireSingleEvent(events, CombatEventKind.Damage);
++            bool hasDefeatEvent = events.Any(entry => entry.Kind == CombatEventKind.TargetDefeated);
++
++            if (castEvent.SkillId != skill.Id || damageEvent.SkillId != skill.Id)
++            {
++                throw new InvalidOperationException("Resolution events contain a mismatched skill id.");
++            }
++            if (damageEvent.Amount != resolution.Damage)
++            {
++                throw new InvalidOperationException("Damage event must mirror resolved damage exactly.");
++            }
++            if (hasDefeatEvent != resolution.IsTargetDefeated)
++            {
++                throw new InvalidOperationException(
++                    "Defeat presentation must mirror the terminal target state.");
++            }
++
++            List<SkillPresentationCue> cues = new()
++            {
++                new SkillPresentationCue(
++                    SkillPresentationCueKind.Cast,
++                    CombatEventKind.SkillCast),
++                new SkillPresentationCue(
++                    SkillPresentationCueKind.Travel,
++                    triggerEventKind: null),
++                new SkillPresentationCue(
++                    SkillPresentationCueKind.Impact,
++                    CombatEventKind.Damage,
++                    resolvedAmount: damageEvent.Amount),
++            };
++
++            if (hasDefeatEvent)
++            {
++                cues.Add(new SkillPresentationCue(
++                    SkillPresentationCueKind.TargetDefeated,
++                    CombatEventKind.TargetDefeated));
++            }
++
++            return new SkillPresentationPlan(
++                skill.Id,
++                skill.VisualArchetype,
++                skill.VisualProfileKey,
++                cues);
++        }
++
++        private static CombatEvent RequireSingleEvent(
++            IEnumerable<CombatEvent> events,
++            CombatEventKind kind)
++        {
++            CombatEvent[] matches = events.Where(entry => entry.Kind == kind).ToArray();
++            if (matches.Length != 1)
++            {
++                throw new InvalidOperationException(
++                    $"Expected exactly one {kind} event but found {matches.Length}.");
++            }
++
++            return matches[0];
++        }
++    }
++}
