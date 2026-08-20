@@ -45,6 +45,14 @@
       "failed_source_audit_run_id": 32354067564,
       "passing_fast_lane_run_id": 32354285337,
       "artifact_id": 9401035886
+    },
+    {
+      "experiment_id": "pal3-exp-20260820-0558-step5c-multi-target-presentation-0012",
+      "roadmap_step": "5C",
+      "status": "VERIFIED",
+      "entry": "projects/pal3-unity/devlog/entries/2026-08-20T0558-step5c-multi-target-presentation.md",
+      "first_passing_fast_lane_run_id": 32357032514,
+      "artifact_id": 9402045720
     }
   ]
 }
