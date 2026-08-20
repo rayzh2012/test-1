@@ -1,0 +1,28 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260820-0242-generic-presentation-0009",
+  "created_at": "2026-08-20T02:42:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Continue the PAL3 combat and magic roadmap immediately after the verified population auditor, without inventing commercial-data frequencies.",
+  "normalized_action": "implement_domain_combat_events_and_first_generic_projectile_presentation_contract",
+  "target_surfaces": [
+    "CombatEvent",
+    "SkillCastResolution.Events",
+    "SkillPresentationPlan",
+    "GenericSkillPresentationPlanner",
+    "fast-tests.json",
+    "experiment-logs",
+    "devlog/entries"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "DOMAIN_EVENTS_VERIFIED",
+    "PRESENTATION_DOES_NOT_MUTATE_COMBAT_STATE",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "This step creates a Unity-independent presentation contract for the Projectile archetype. It does not claim Unity prefab playback, animation timing, camera, sound, VFX fidelity, Unity compilation, or runtime playability.",
+  "status": "EXECUTING",
+  "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-20T0242-step4b-generic-presentation-0009.json"
+}
