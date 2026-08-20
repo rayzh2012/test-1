@@ -1,0 +1,177 @@
+diff --git a/Assets/Tests/EditMode/GdbSkillPopulationAuditTests.cs b/Assets/Tests/EditMode/GdbSkillPopulationAuditTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/GdbSkillPopulationAuditTests.cs
+@@ -0,0 +1,230 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Linq;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Core.DataReader.Gdb;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class GdbSkillPopulationAuditTests
++    {
++        [Test]
++        public void EmptyPopulation_ReturnsZeroSummary()
++        {
++            GdbSkillPopulationAuditResult result =
++                GdbSkillPopulationAudit.Audit(Array.Empty<SkillInfo>());
++
++            Assert.That(result.TotalSkills, Is.Zero);
++            Assert.That(result.ExecutionReadySkills, Is.Zero);
++            Assert.That(result.BlockedSkills, Is.Zero);
++            Assert.That(result.ExecutionReadyRatio, Is.Zero);
++            Assert.That(result.Issues, Is.Empty);
++        }
++
++        [Test]
++        public void MixedPopulation_CountsReadyAndBlockedSkills()
++        {
++            SkillInfo ready = CreateBaseSkill(1001);
++            SkillInfo multiElement = CreateBaseSkill(1002);
++            multiElement.ElementAttributes = new HashSet<ObjectElementType>
++            {
++                ObjectElementType.Fire,
++                ObjectElementType.Wind,
++            };
++
++            SkillInfo percentageMp = CreateBaseSkill(1003);
++            percentageMp.MpConsumeImpactType = AttributeImpactType.Percentage;
++
++            SkillInfo specialConsume = CreateBaseSkill(1004);
++            specialConsume.SpecialConsumeType = 10;
++            specialConsume.SpecialConsumeValue = 50;
++
++            GdbSkillPopulationAuditResult result = GdbSkillPopulationAudit.Audit(
++                new[] { specialConsume, ready, percentageMp, multiElement });
++
++            Assert.That(result.TotalSkills, Is.EqualTo(4));
++            Assert.That(result.ExecutionReadySkills, Is.EqualTo(1));
++            Assert.That(result.BlockedSkills, Is.EqualTo(3));
++            Assert.That(result.ExecutionReadyRatio, Is.EqualTo(0.25d));
++        }
++
++        [Test]
++        public void IssueFrequency_CountsEveryAffectedSkill()
++        {
++            SkillInfo first = CreateBaseSkill(2001);
++            first.MpConsumeImpactType = AttributeImpactType.Percentage;
++            SkillInfo second = CreateBaseSkill(2002);
++            second.MpConsumeImpactType = AttributeImpactType.Percentage;
++
++            GdbSkillPopulationAuditResult result =
++                GdbSkillPopulationAudit.Audit(new[] { first, second });
++
++            GdbSkillIssuePopulation issue = result.Issues.Single(entry =>
++                entry.Code == "MP_CONSUMPTION_TYPE_NOT_REPRESENTABLE");
++
++            Assert.That(issue.Severity, Is.EqualTo(GdbSkillMappingIssueSeverity.Blocking));
++            Assert.That(issue.Occurrences, Is.EqualTo(2));
++            Assert.That(issue.ExampleSkillIds, Is.EqualTo(new uint[] { 2001, 2002 }));
++        }
++
++        [Test]
++        public void ExampleIds_AreSortedDistinctAndCapped()
++        {
++            SkillInfo s3 = CreateBaseSkill(3003);
++            SkillInfo s1 = CreateBaseSkill(3001);
++            SkillInfo s2 = CreateBaseSkill(3002);
++            s1.SpecialSkillId = 1;
++            s2.SpecialSkillId = 2;
++            s3.SpecialSkillId = 3;
++
++            GdbSkillPopulationAuditResult result = GdbSkillPopulationAudit.Audit(
++                new[] { s3, s1, s2 },
++                maxExampleSkillIdsPerIssue: 2);
++
++            GdbSkillIssuePopulation issue = result.Issues.Single(entry =>
++                entry.Code == "SPECIAL_SKILL_BEHAVIOR_NOT_REPRESENTABLE");
++
++            Assert.That(issue.Occurrences, Is.EqualTo(3));
++            Assert.That(issue.ExampleSkillIds, Is.EqualTo(new uint[] { 3001, 3002 }));
++        }
++
++        [Test]
++        public void InfoOnlyMetadata_DoesNotBlockExecutionReadiness()
++        {
++            SkillInfo source = CreateBaseSkill(4001);
++            source.RequiredActorLevel = 20;
++            source.NextLevelSkillId = 4002;
++
++            GdbSkillPopulationAuditResult result =
++                GdbSkillPopulationAudit.Audit(new[] { source });
++
++            Assert.That(result.ExecutionReadySkills, Is.EqualTo(1));
++            Assert.That(result.BlockedSkills, Is.Zero);
++            Assert.That(result.SkillsWithInfoOnly, Is.EqualTo(1));
++            Assert.That(result.Issues.Any(issue =>
++                issue.Code == "LEVEL_PROGRESSION_METADATA" &&
++                issue.Severity == GdbSkillMappingIssueSeverity.Info), Is.True);
++        }
++
++        [Test]
++        public void Audit_DoesNotMutateInputSkillSemantics()
++        {
++            SkillInfo source = CreateBaseSkill(5001);
++            source.ElementAttributes = new HashSet<ObjectElementType>
++            {
++                ObjectElementType.Fire,
++                ObjectElementType.Thunder,
++            };
++            source.MpConsumeImpactType = AttributeImpactType.Percentage;
++            source.MpConsumeValue = 15;
++
++            GdbSkillPopulationAudit.Audit(new[] { source });
++
++            Assert.That(source.ElementAttributes, Is.EquivalentTo(new[]
++            {
++                ObjectElementType.Fire,
++                ObjectElementType.Thunder,
++            }));
++            Assert.That(source.MpConsumeImpactType, Is.EqualTo(AttributeImpactType.Percentage));
++            Assert.That(source.MpConsumeValue, Is.EqualTo(15));
++        }
++
++        private static SkillInfo CreateBaseSkill(uint id)
++        {
++            return new SkillInfo
++            {
++                Id = id,
++                Type = SkillType.DamageMagic,
++                ElementAttributes = new HashSet<ObjectElementType> { ObjectElementType.Fire },
++                Name = $"Audit Skill {id}",
++                Description = "Synthetic population-audit fixture",
++                ApplicableActors = new HashSet<PlayerActorId>(),
++                TargetRangeType = TargetRangeType.EnemyPartySingle,
++                SpecialSkillId = 0,
++                AttributeImpacts = new Dictionary<ActorAttributeType, AttributeImpact>
++                {
++                    [ActorAttributeType.Hp] = new AttributeImpact
++                    {
++                        Type = AttributeImpactType.Absolute,
++                        Value = -20,
++                    },
++                },
++                SuccessRateLevel = 0,
++                CombatStateImpactTypes = new Dictionary<ActorCombatStateType, CombatStateImpactType>(),
++                SpConsumeImpactType = AttributeImpactType.Absolute,
++                MpConsumeImpactType = AttributeImpactType.Absolute,
++                SpConsumeValue = 0,
++                MpConsumeValue = 10,
++                SpecialConsumeType = -1,
++                SpecialConsumeImpactType = AttributeImpactType.Absolute,
++                SpecialConsumeValue = 0,
++                TimesBeforeLevelUp = Array.Empty<byte>(),
++                CompositeSkillIds = Array.Empty<uint>(),
++                CompositeRequiredSkillIds = Array.Empty<uint>(),
++                CompositeRequiredSkillLevels = Array.Empty<byte>(),
++                CompositeRequiredCurrentSkillLevels = Array.Empty<byte>(),
++                CompositeRequiredActorLevels = Array.Empty<byte>(),
++            };
++        }
++    }
++}
