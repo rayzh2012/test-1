@@ -1,0 +1,40 @@
+{
+  "schema_version": "pal3_experiment_log.v0.1",
+  "experiment_id": "pal3-exp-20260820-0614-step6a-hp-recovery-0013",
+  "roadmap_step": "6A",
+  "title": "Deterministic HP recovery for RecoverMagic",
+  "created_at": "2026-08-20T06:14:00-04:00",
+  "status": "RUNNING",
+  "base_control_ref": "master@39659a3904fcdab8f59e2ba0aae6badb7df3b021",
+  "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "objective": "Implement the first Step 6 healing/support mechanics slice using source-native RecoverMagic, FirstPartySingle/FirstPartyAll and HP Absolute/RecoverToMax semantics.",
+  "hypothesis": "A recovery resolver can reuse verified target selection and cost/atomicity patterns to spend MP once, restore living ally HP deterministically, support self-heal via a first-party anchor, emit explicit Healing facts including zero effective healing at full HP, and avoid revival or unsupported modifier semantics.",
+  "claim_boundary": "No Percentage healing formula, revival behavior, SP cost, attribute modifier, combat-state effect, Unity presentation/playback, or undocumented original PAL3 formula is introduced. RecoverMagic, target ranges and impact-type names come directly from pinned upstream enums.",
+  "design_constraints": [
+    "Append Healing to CombatEventKind without renumbering existing event kinds.",
+    "Add clamped RestoreHp to CombatantState without changing ApplyDamage semantics.",
+    "Support only RecoverMagic with exactly one HP effect and zero SP cost.",
+    "Support positive Absolute HP recovery and RecoverToMax.",
+    "Reject Percentage and other impact types until semantics are separately locked.",
+    "Reuse CombatTargetResolver<TKey> for FirstPartySingle/FirstPartyAll.",
+    "Allow caster state as the selected target for self-heal.",
+    "Do not revive defeated targets; dead targets are rejected/filtered by target selection.",
+    "Spend MP once per cast after all expected preconditions and identity checks.",
+    "Expose one SkillCast fact plus one target-addressed Healing fact per resolved target.",
+    "Allow Healing=0 for a legal cast on an already-full target.",
+    "Expose result/event collections through read-only wrappers."
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "RUNNING",
+      "description": "Add HP recovery primitives, recovery resolver, 15 regression tests, and wire the exact replayed sources into the .NET fast lane.",
+      "expected_tests": "existing 98 tests plus 15 recovery tests = 113",
+      "failure": null,
+      "fix": null,
+      "evidence": null
+    }
+  ],
+  "reusable_lessons": [],
+  "next_recommended_experiment": "If Step 6A verifies, continue Step 6B with attack/defense/speed/luck support modifiers, keeping lifecycle/state-engine concerns separated for Step 7."
+}
