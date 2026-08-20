@@ -1,0 +1,22 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260819-2307-runtime-hit-0003",
+  "created_at": "2026-08-19T23:07:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Continue the realtime PAL3 experiment and make the existing normal-attack animation hit mutate real encounter-local HP state.",
+  "normalized_action": "wire_runtime_normal_attack_damage",
+  "target_surfaces": [
+    "CombatManager.EnterCombat",
+    "CombatManager.OnNormalAttackHit",
+    "CombatRuntimeRegistry",
+    "Combat namespace hardening"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "GDB HP/Attack/Defense seed encounter-local state only. Damage formula remains a feasibility baseline; this does not prove original PAL3 formula fidelity, visual HP UI, death animation, rewards, or Unity compilation.",
+  "status": "EXECUTING"
+}
