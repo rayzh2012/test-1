@@ -1,0 +1,13 @@
+{
+  "schema_version": "fangame-release-manifest.v0.1",
+  "game_id": "example-game",
+  "title": "Example Game",
+  "release_id": "example-game-v1.1-fixed",
+  "version": "1.1",
+  "release_kind": "FIX",
+  "parent_release_id": "example-game-v1.0-original",
+  "content_root_sha256": "<deterministic tree hash>",
+  "total_files": 0,
+  "total_bytes": 0,
+  "files": []
+}
