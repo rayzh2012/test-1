@@ -1,0 +1,33 @@
+{
+  "schema_version": "pal3_experiment_log.v0.1",
+  "experiment_id": "pal3-exp-20260820-0242-step4b-generic-presentation-0009",
+  "roadmap_step": "4B",
+  "title": "Domain combat events plus first generic Projectile presentation contract",
+  "created_at": "2026-08-20T02:42:00-04:00",
+  "status": "RUNNING",
+  "base_control_ref": "master@e4d5198f15945c92e8b417238eb843d7bda70635",
+  "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "objective": "Close the missing CombatEvent seam from the skill resolver and prove that a generic Projectile presentation plan consumes immutable resolved combat facts without owning or mutating damage/resource truth.",
+  "hypothesis": "If SkillCastResolution emits immutable SkillCast/Damage/TargetDefeated facts and a pure-C# Projectile planner consumes only those facts plus SkillDefinition presentation metadata, then Unity/VFX can later attach to that plan without gaining authority over combat mechanics.",
+  "claim_boundary": "No UnityEngine dependency, prefab playback, timing values, camera, sound, VFX fidelity, Unity compile/runtime or original PAL3 visual fidelity is claimed by this experiment.",
+  "changed_surfaces": [
+    "CombatEvent.cs",
+    "SingleTargetSkillResolver.cs",
+    "SkillPresentationPlan.cs",
+    "GenericSkillPresentationPlannerTests.cs",
+    "fast-tests.json"
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "RUNNING",
+      "description": "Emit immutable combat facts from the already-resolved single-target skill result; build a timing-free generic Projectile cue plan and verify that planning cannot mutate encounter HP/MP.",
+      "expected_tests": "existing 51 tests plus 8 presentation/event tests = 59",
+      "failure": null,
+      "fix": null,
+      "evidence": null
+    }
+  ],
+  "reusable_lessons": [],
+  "next_recommended_experiment": "If verified, add the thinnest Unity-facing adapter that consumes SkillPresentationPlan when Unity activation becomes available, or continue domain targeting work without changing presentation authority."
+}
