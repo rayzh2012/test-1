@@ -1,0 +1,361 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
+@@ -2,19 +2,24 @@
+     {
+         public int MaxHp { get; }
+         public int CurrentHp { get; private set; }
++        public int MaxMp { get; }
++        public int CurrentMp { get; private set; }
+         public int Attack { get; }
+         public int Defense { get; }
+ 
+         public bool IsAlive => CurrentHp > 0;
+ 
+-        public CombatantState(int maxHp, int attack, int defense)
++        public CombatantState(int maxHp, int attack, int defense, int maxMp = 0)
+         {
+             if (maxHp <= 0) throw new ArgumentOutOfRangeException(nameof(maxHp));
+             if (attack < 0) throw new ArgumentOutOfRangeException(nameof(attack));
+             if (defense < 0) throw new ArgumentOutOfRangeException(nameof(defense));
++            if (maxMp < 0) throw new ArgumentOutOfRangeException(nameof(maxMp));
+ 
+             MaxHp = maxHp;
+             CurrentHp = maxHp;
++            MaxMp = maxMp;
++            CurrentMp = maxMp;
+             Attack = attack;
+             Defense = defense;
+         }
+@@ -28,4 +33,13 @@
+             CurrentHp -= appliedDamage;
+             return appliedDamage;
+         }
++
++        internal bool TrySpendMp(int amount)
++        {
++            if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
++            if (CurrentMp < amount) return false;
++
++            CurrentMp -= amount;
++            return true;
++        }
+     }
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs
+@@ -3,4 +3,12 @@
+             return NormalAttackResolver.Resolve(Get(attacker), Get(defender));
+         }
+ 
++        public SkillCastResolution ResolveSingleTargetSkill(
++            TKey caster,
++            TKey target,
++            SkillDefinition skill)
++        {
++            return SingleTargetSkillResolver.Resolve(Get(caster), Get(target), skill);
++        }
++
+         public void Clear()
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SingleTargetSkillResolver.cs
+@@ -0,0 +1,100 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity first single-target skill execution slice.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Linq;
++    using Pal3.Core.Contract.Enums;
++
++    public readonly struct SkillCastResolution
++    {
++        public uint SkillId { get; }
++        public int MpSpent { get; }
++        public int Damage { get; }
++        public bool IsTargetDefeated { get; }
++
++        public SkillCastResolution(uint skillId, int mpSpent, int damage, bool isTargetDefeated)
++        {
++            SkillId = skillId;
++            MpSpent = mpSpent;
++            Damage = damage;
++            IsTargetDefeated = isTargetDefeated;
++        }
++    }
++
++    /// <summary>
++    /// First deterministic skill executor.
++    /// Scope is deliberately narrow: enemy single-target damage skills with one absolute HP effect.
++    /// Unsupported mechanics fail before spending resources or mutating target state.
++    /// </summary>
++    public static class SingleTargetSkillResolver
++    {
++        public static SkillCastResolution Resolve(
++            CombatantState caster,
++            CombatantState target,
++            SkillDefinition skill)
++        {
++            if (caster == null) throw new ArgumentNullException(nameof(caster));
++            if (target == null) throw new ArgumentNullException(nameof(target));
++            if (skill == null) throw new ArgumentNullException(nameof(skill));
++            if (!caster.IsAlive) throw new InvalidOperationException("A defeated combatant cannot cast a skill.");
++            if (!target.IsAlive) throw new InvalidOperationException("A defeated combatant cannot be targeted.");
++
++            ValidateSupportedSkill(skill);
++
++            if (!caster.TrySpendMp(skill.MpCost))
++            {
++                throw new InvalidOperationException("Insufficient MP.");
++            }
++
++            SkillEffectDefinition damageEffect = skill.Effects.Single();
++            int requestedDamage = checked(-damageEffect.Value);
++            int appliedDamage = target.ApplyDamage(requestedDamage);
++
++            return new SkillCastResolution(
++                skill.Id,
++                skill.MpCost,
++                appliedDamage,
++                !target.IsAlive);
++        }
++
++        private static void ValidateSupportedSkill(SkillDefinition skill)
++        {
++            if (skill.TargetRange != TargetRangeType.EnemyPartySingle)
++            {
++                throw new NotSupportedException(
++                    "This slice only supports enemy single-target skills.");
++            }
++
++            if (skill.Type != SkillType.DamageMagic)
++            {
++                throw new NotSupportedException(
++                    "This slice only supports damage magic.");
++            }
++
++            if (skill.SpCost != 0)
++            {
++                throw new NotSupportedException(
++                    "SP-consuming skills are not supported by this slice.");
++            }
++
++            if (skill.Effects.Count != 1)
++            {
++                throw new NotSupportedException(
++                    "This slice requires exactly one skill effect.");
++            }
++
++            SkillEffectDefinition effect = skill.Effects[0];
++            if (effect.Kind != SkillEffectKind.AttributeImpact ||
++                effect.AttributeType != ActorAttributeType.Hp ||
++                effect.AttributeImpactType != AttributeImpactType.Absolute ||
++                effect.Value >= 0)
++            {
++                throw new NotSupportedException(
++                    "This slice only supports negative absolute HP impact.");
++            }
++        }
++    }
++}
+diff --git a/Assets/Tests/EditMode/SingleTargetSkillResolverTests.cs b/Assets/Tests/EditMode/SingleTargetSkillResolverTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/SingleTargetSkillResolverTests.cs
+@@ -0,0 +1,192 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class SingleTargetSkillResolverTests
++    {
++        [Test]
++        public void DamageSpell_SpendsMpAndDamagesOnlyTarget()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 80, attack: 10, defense: 5, maxMp: 0);
++            SkillDefinition skill = CreateDamageSkill(mpCost: 12, damage: 30);
++
++            SkillCastResolution result = SingleTargetSkillResolver.Resolve(caster, target, skill);
++
++            Assert.That(result.SkillId, Is.EqualTo(2001));
++            Assert.That(result.MpSpent, Is.EqualTo(12));
++            Assert.That(result.Damage, Is.EqualTo(30));
++            Assert.That(caster.CurrentHp, Is.EqualTo(100));
++            Assert.That(caster.CurrentMp, Is.EqualTo(38));
++            Assert.That(target.CurrentHp, Is.EqualTo(50));
++            Assert.That(result.IsTargetDefeated, Is.False);
++        }
++
++        [Test]
++        public void DamageSpell_ClampsAtRemainingHpAndMarksDefeat()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 20, attack: 10, defense: 5);
++            SkillDefinition skill = CreateDamageSkill(mpCost: 10, damage: 999);
++
++            SkillCastResolution result = SingleTargetSkillResolver.Resolve(caster, target, skill);
++
++            Assert.That(result.Damage, Is.EqualTo(20));
++            Assert.That(target.CurrentHp, Is.Zero);
++            Assert.That(result.IsTargetDefeated, Is.True);
++            Assert.That(caster.CurrentMp, Is.EqualTo(40));
++        }
++
++        [Test]
++        public void InsufficientMp_RejectsWithoutMutation()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 5);
++            CombatantState target = new(maxHp: 80, attack: 10, defense: 5);
++            SkillDefinition skill = CreateDamageSkill(mpCost: 12, damage: 30);
++
++            Assert.Throws<InvalidOperationException>(
++                () => SingleTargetSkillResolver.Resolve(caster, target, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(5));
++            Assert.That(target.CurrentHp, Is.EqualTo(80));
++        }
++
++        [Test]
++        public void DefeatedCaster_CannotCast()
++        {
++            CombatantState killer = new(maxHp: 100, attack: 999, defense: 0);
++            CombatantState caster = new(maxHp: 20, attack: 20, defense: 0, maxMp: 50);
++            CombatantState target = new(maxHp: 80, attack: 10, defense: 5);
++            SkillDefinition skill = CreateDamageSkill(mpCost: 12, damage: 30);
++            NormalAttackResolver.Resolve(killer, caster);
++
++            Assert.Throws<InvalidOperationException>(
++                () => SingleTargetSkillResolver.Resolve(caster, target, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(target.CurrentHp, Is.EqualTo(80));
++        }
++
++        [Test]
++        public void DefeatedTarget_CannotBeTargeted()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 20, attack: 10, defense: 0);
++            SkillDefinition skill = CreateDamageSkill(mpCost: 12, damage: 30);
++            SingleTargetSkillResolver.Resolve(caster, target, skill);
++
++            Assert.Throws<InvalidOperationException>(
++                () => SingleTargetSkillResolver.Resolve(caster, target, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(38));
++        }
++
++        [Test]
++        public void UnsupportedTargetRange_RejectsBeforeSpendingMp()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 80, attack: 10, defense: 5);
++            SkillDefinition skill = CreateDamageSkill(
++                mpCost: 12,
++                damage: 30,
++                targetRange: TargetRangeType.EnemyPartyAll);
++
++            Assert.Throws<NotSupportedException>(
++                () => SingleTargetSkillResolver.Resolve(caster, target, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(target.CurrentHp, Is.EqualTo(80));
++        }
++
++        [Test]
++        public void UnsupportedExtraEffect_RejectsBeforeSpendingMp()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 50);
++            CombatantState target = new(maxHp: 80, attack: 10, defense: 5);
++            SkillDefinition skill = new(
++                id: 2002,
++                name: "Test Burning Bolt",
++                type: SkillType.DamageMagic,
++                element: ElementType.Fire,
++                targetRange: TargetRangeType.EnemyPartySingle,
++                mpCost: 12,
++                spCost: 0,
++                visualArchetype: SkillVisualArchetype.Projectile,
++                visualProfileKey: "fire.projectile.basic",
++                effects: new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        AttributeImpactType.Absolute,
++                        value: -30),
++                    SkillEffectDefinition.ForCombatState(
++                        ActorCombatStateType.PoisonFire,
++                        CombatStateImpactType.Increase),
++                });
++
++            Assert.Throws<NotSupportedException>(
++                () => SingleTargetSkillResolver.Resolve(caster, target, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(target.CurrentHp, Is.EqualTo(80));
++        }
++
++        [Test]
++        public void RuntimeRegistry_UsesSameEncounterStateForSkillCast()
++        {
++            object casterKey = new();
++            object targetKey = new();
++            CombatRuntimeRegistry<object> registry = new();
++            registry.Register(casterKey, new CombatantState(100, 20, 10, maxMp: 40));
++            registry.Register(targetKey, new CombatantState(70, 10, 5));
++            SkillDefinition skill = CreateDamageSkill(mpCost: 10, damage: 25);
++
++            SkillCastResolution result =
++                registry.ResolveSingleTargetSkill(casterKey, targetKey, skill);
++
++            Assert.That(result.Damage, Is.EqualTo(25));
++            Assert.That(registry.Get(casterKey).CurrentMp, Is.EqualTo(30));
++            Assert.That(registry.Get(targetKey).CurrentHp, Is.EqualTo(45));
++        }
++
++        [Test]
++        public void ZeroCostDamageSpell_DoesNotChangeMp()
++        {
++            CombatantState caster = new(maxHp: 100, attack: 20, defense: 10, maxMp: 15);
++            CombatantState target = new(maxHp: 80, attack: 10, defense: 5);
++            SkillDefinition skill = CreateDamageSkill(mpCost: 0, damage: 10);
++
++            SingleTargetSkillResolver.Resolve(caster, target, skill);
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(15));
++            Assert.That(target.CurrentHp, Is.EqualTo(70));
++        }
++
++        private static SkillDefinition CreateDamageSkill(
++            int mpCost,
++            int damage,
++            TargetRangeType targetRange = TargetRangeType.EnemyPartySingle)
++        {
++            return new SkillDefinition(
++                id: 2001,
++                name: "Test Arc Bolt",
++                type: SkillType.DamageMagic,
++                element: ElementType.Thunder,
++                targetRange,
++                mpCost,
++                spCost: 0,
++                visualArchetype: SkillVisualArchetype.Projectile,
++                visualProfileKey: "thunder.projectile.basic",
++                effects: new[]
++                {
++                    SkillEffectDefinition.ForAttribute(
++                        ActorAttributeType.Hp,
++                        AttributeImpactType.Absolute,
++                        value: -damage),
++                });
++        }
++    }
++}
