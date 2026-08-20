@@ -1,5 +1,5 @@
 {
-  "schema_version": "pal3_realtime_control.v0.1",
+  "schema_version": "pal3_realtime_control.v0.2",
   "project_id": "pal3-unity",
   "mode": "chatgpt_direct",
   "transport": "conversation_to_github",
@@ -7,6 +7,19 @@
   "upstream_execution": "pinned_checkout_plus_ordered_patch_stack",
   "cursor_required": false,
   "command_log_dir": "commands",
+  "experiment_log_dir": "experiment-logs",
+  "worker_bootstrap": {
+    "mandatory": true,
+    "read_before_action": [
+      "combat-magic-roadmap.md",
+      "experiment-logs/README.md",
+      "experiment-logs/index.json",
+      "latest_relevant_experiment_logs",
+      "current_command_record"
+    ],
+    "history_rule": "Do not erase failed attempts after a later fix succeeds.",
+    "parallel_rule": "Workers must claim isolated roadmap steps or isolated subproblems and re-read the experiment index before writing."
+  },
   "lanes": {
     "fast": {
       "purpose": "low-latency feedback for each ChatGPT-authored change",
@@ -34,13 +47,15 @@
     "observed_inferred_separation": true,
     "do_not_promote_static_to_runtime": true,
     "record_environment_blockers_separately": true,
-    "one_command_record_per_material_change": true
+    "one_command_record_per_material_change": true,
+    "one_experiment_log_per_material_attempt": true,
+    "terminal_experiment_logs_are_append_only": true
   },
   "interaction_contract": {
     "read_only_requests": "inspect immediately",
     "explicit_continue_or_change_requests": "create smallest auditable change and verify",
-    "failed_fast_gate": "stop feature expansion and inspect failure",
-    "passed_fast_gate": "eligible for next small iteration",
+    "failed_fast_gate": "record failure in experiment log, stop feature expansion, and inspect failure",
+    "passed_fast_gate": "record machine evidence and become eligible for next small iteration",
     "unity_blocked_only": "continue pure-domain work but do not claim Unity integration"
   }
 }
