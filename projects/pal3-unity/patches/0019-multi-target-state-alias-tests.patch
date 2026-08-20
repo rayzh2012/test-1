@@ -1,0 +1,52 @@
+diff --git a/Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs b/Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs
+--- a/Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs
++++ b/Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs
+@@ -333,6 +333,48 @@ namespace Pal3.Game.Tests.GameSystems.Combat.Domain
+             Assert.That(result.Targets, Is.Not.InstanceOf<TargetSkillResolution<string>[]>());
+             Assert.That(result.Targets[0].Events, Is.Not.InstanceOf<CombatEvent[]>());
+         }
++
++        [Test]
++        public void DistinctTargetKeys_CannotAliasSameCombatantState()
++        {
++            CombatantState caster = Caster();
++            CombatantState sharedEnemy = new(maxHp: 100, attack: 10, defense: 5);
++            CombatTargetSlot<string>[] slots =
++            {
++                new("enemy-a", sharedEnemy, CombatParty.Enemy, row: 0, column: 0),
++                new("enemy-b", sharedEnemy, CombatParty.Enemy, row: 0, column: 1),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartyAll,
++                mpCost: 10,
++                damage: 20);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(sharedEnemy.CurrentHp, Is.EqualTo(100));
++        }
++
++        [Test]
++        public void CasterState_CannotAlsoBeSelectedEnemyTarget()
++        {
++            CombatantState caster = Caster();
++            CombatTargetSlot<string>[] slots =
++            {
++                new("caster-alias", caster, CombatParty.Enemy, row: 0, column: 0),
++            };
++            SkillDefinition skill = CreateDamageSkill(
++                TargetRangeType.EnemyPartyAll,
++                mpCost: 10,
++                damage: 20);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                MultiTargetSkillResolver<string>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(50));
++            Assert.That(caster.CurrentHp, Is.EqualTo(100));
++        }
+ 
+         private static CombatantState Caster()
+         {
