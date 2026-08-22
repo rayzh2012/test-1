@@ -1,0 +1,13 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
+@@ -78,7 +78,7 @@ namespace Pal3.Game.GameSystems.Combat.Domain
+             uint skillId,
+             ActorCombatStateType stateType,
+             CombatStateImpactType impactType)
+         {
+-            if (impactType == CombatStateImpactType.None)
++            if (impactType == Pal3.Core.Contract.Enums.CombatStateImpactType.None)
+             {
+                 throw new ArgumentOutOfRangeException(nameof(impactType));
+             }

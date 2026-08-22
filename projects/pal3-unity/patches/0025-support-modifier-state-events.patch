@@ -1,0 +1,167 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs
+@@ -5,6 +5,8 @@
+ namespace Pal3.Game.GameSystems.Combat.Domain
+ {
+     using System;
++    using System.Collections.Generic;
++    using Pal3.Core.Contract.Enums;
+ 
+     /// <summary>
+     /// Outcome of the smallest deterministic 1v1 combat slice.
+@@ -27,10 +29,38 @@
+         public int CurrentHp { get; private set; }
+         public int MaxMp { get; }
+         public int CurrentMp { get; private set; }
++        private readonly HashSet<ActorCombatStateType> _combatStates = new();
++
+         public int Attack { get; }
+         public int Defense { get; }
+ 
+         public bool IsAlive => CurrentHp > 0;
++
++        public bool HasCombatState(ActorCombatStateType state)
++        {
++            return _combatStates.Contains(state);
++        }
++
++        public int GetSupportModifierPercent(ActorAttributeType attributeType)
++        {
++            return attributeType switch
++            {
++                ActorAttributeType.Attack => GetModifierPercent(
++                    ActorCombatStateType.AttackIncrease,
++                    ActorCombatStateType.AttackDecrease),
++                ActorAttributeType.Defense => GetModifierPercent(
++                    ActorCombatStateType.DefenseIncrease,
++                    ActorCombatStateType.DefenseDecrease),
++                ActorAttributeType.Speed => GetModifierPercent(
++                    ActorCombatStateType.SpeedIncrease,
++                    ActorCombatStateType.SpeedDecrease),
++                ActorAttributeType.Luck => GetModifierPercent(
++                    ActorCombatStateType.LuckIncrease,
++                    ActorCombatStateType.LuckDecrease),
++                _ => throw new NotSupportedException(
++                    $"{attributeType} is not a Step 6B support-modifier attribute."),
++            };
++        }
+ 
+         public CombatantState(int maxHp, int attack, int defense, int maxMp = 0)
+         {
+@@ -76,6 +106,34 @@
+             CurrentMp -= amount;
+             return true;
+         }
++
++        internal bool ApplyCombatState(ActorCombatStateType state)
++        {
++            return _combatStates.Add(state);
++        }
++
++        internal bool RemoveCombatState(ActorCombatStateType state)
++        {
++            return _combatStates.Remove(state);
++        }
++
++        private int GetModifierPercent(
++            ActorCombatStateType increaseState,
++            ActorCombatStateType decreaseState)
++        {
++            bool increased = _combatStates.Contains(increaseState);
++            bool decreased = _combatStates.Contains(decreaseState);
++
++            if (increased && decreased)
++            {
++                throw new InvalidOperationException(
++                    "Opposing support modifier states cannot be active simultaneously.");
++            }
++
++            if (increased) return 10;
++            if (decreased) return -10;
++            return 0;
++        }
+     }
+ 
+     public readonly struct NormalAttackResolution
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatEvent.cs
+@@ -5,6 +5,7 @@
+ namespace Pal3.Game.GameSystems.Combat.Domain
+ {
+     using System;
++    using Pal3.Core.Contract.Enums;
+ 
+     public enum CombatEventKind
+     {
+@@ -12,6 +13,7 @@
+         Damage,
+         TargetDefeated,
+         Healing,
++        CombatStateChanged,
+     }
+ 
+     /// <summary>
+@@ -23,15 +25,35 @@
+         public CombatEventKind Kind { get; }
+         public uint SkillId { get; }
+         public int Amount { get; }
++        public ActorCombatStateType? CombatStateType { get; }
++        public CombatStateImpactType? CombatStateImpactType { get; }
+ 
+-        private CombatEvent(CombatEventKind kind, uint skillId, int amount)
++        private CombatEvent(
++            CombatEventKind kind,
++            uint skillId,
++            int amount,
++            ActorCombatStateType? combatStateType = null,
++            CombatStateImpactType? combatStateImpactType = null)
+         {
+             if (skillId == 0) throw new ArgumentOutOfRangeException(nameof(skillId));
+             if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
++            if (combatStateType.HasValue != combatStateImpactType.HasValue)
++            {
++                throw new ArgumentException(
++                    "Combat-state type and impact must either both be present or both be absent.");
++            }
++            if (combatStateImpactType == Pal3.Core.Contract.Enums.CombatStateImpactType.None)
++            {
++                throw new ArgumentOutOfRangeException(
++                    nameof(combatStateImpactType),
++                    "Combat-state events cannot encode a no-op impact.");
++            }
+ 
+             Kind = kind;
+             SkillId = skillId;
+             Amount = amount;
++            CombatStateType = combatStateType;
++            CombatStateImpactType = combatStateImpactType;
+         }
+ 
+         public static CombatEvent ForSkillCast(uint skillId)
+@@ -51,6 +73,24 @@
+             return new CombatEvent(CombatEventKind.Healing, skillId, healing);
+         }
+ 
++        public static CombatEvent ForCombatStateChange(
++            uint skillId,
++            ActorCombatStateType stateType,
++            CombatStateImpactType impactType)
++        {
++            if (impactType == CombatStateImpactType.None)
++            {
++                throw new ArgumentOutOfRangeException(nameof(impactType));
++            }
++
++            return new CombatEvent(
++                CombatEventKind.CombatStateChanged,
++                skillId,
++                amount: 0,
++                stateType,
++                impactType);
++        }
++
+         public static CombatEvent ForTargetDefeated(uint skillId)
+         {
+             return new CombatEvent(CombatEventKind.TargetDefeated, skillId, amount: 0);

@@ -1,0 +1,407 @@
+diff --git a/Assets/Tests/EditMode/SupportModifierSkillResolverTests.cs b/Assets/Tests/EditMode/SupportModifierSkillResolverTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/SupportModifierSkillResolverTests.cs
+@@ -0,0 +1,402 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class SupportModifierSkillResolverTests
++    {
++        [TestCase(ActorCombatStateType.AttackIncrease, ActorAttributeType.Attack, 10)]
++        [TestCase(ActorCombatStateType.AttackDecrease, ActorAttributeType.Attack, -10)]
++        [TestCase(ActorCombatStateType.DefenseIncrease, ActorAttributeType.Defense, 10)]
++        [TestCase(ActorCombatStateType.DefenseDecrease, ActorAttributeType.Defense, -10)]
++        [TestCase(ActorCombatStateType.SpeedIncrease, ActorAttributeType.Speed, 10)]
++        [TestCase(ActorCombatStateType.SpeedDecrease, ActorAttributeType.Speed, -10)]
++        [TestCase(ActorCombatStateType.LuckIncrease, ActorAttributeType.Luck, 10)]
++        [TestCase(ActorCombatStateType.LuckDecrease, ActorAttributeType.Luck, -10)]
++        public void ApplySupportState_ExposesSourceGroundedTenPercentModifier(
++            ActorCombatStateType stateType,
++            ActorAttributeType attributeType,
++            int expectedPercent)
++        {
++            object targetKey = new();
++            CombatantState caster = NewState(maxMp: 20);
++            CombatantState target = NewState();
++            SkillDefinition skill = CreateSupportSkill(
++                stateType,
++                CombatStateImpactType.Increase,
++                mpCost: 5);
++
++            SupportModifierSkillCastResolution<object> result =
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    SingleFirstPartySlot(targetKey, target),
++                    skill,
++                    targetKey);
++
++            Assert.That(target.HasCombatState(stateType), Is.True);
++            Assert.That(target.GetSupportModifierPercent(attributeType), Is.EqualTo(expectedPercent));
++            Assert.That(caster.CurrentMp, Is.EqualTo(15));
++            Assert.That(result.MpSpent, Is.EqualTo(5));
++            Assert.That(result.Targets[0].ModifierPercent, Is.EqualTo(expectedPercent));
++        }
++
++        [Test]
++        public void ApplySupportState_EmitsTypedCombatStateFact()
++        {
++            object targetKey = new();
++            CombatantState caster = NewState(maxMp: 10);
++            CombatantState target = NewState();
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.DefenseIncrease,
++                CombatStateImpactType.Increase,
++                mpCost: 2);
++
++            SupportModifierSkillCastResolution<object> result =
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    SingleFirstPartySlot(targetKey, target),
++                    skill,
++                    targetKey);
++
++            CombatEvent targetEvent = result.Targets[0].Events[0];
++            Assert.That(result.CastEvents[0].Kind, Is.EqualTo(CombatEventKind.SkillCast));
++            Assert.That(targetEvent.Kind, Is.EqualTo(CombatEventKind.CombatStateChanged));
++            Assert.That(targetEvent.SkillId, Is.EqualTo(skill.Id));
++            Assert.That(targetEvent.CombatStateType, Is.EqualTo(ActorCombatStateType.DefenseIncrease));
++            Assert.That(targetEvent.CombatStateImpactType, Is.EqualTo(CombatStateImpactType.Increase));
++            Assert.That(targetEvent.Amount, Is.Zero);
++        }
++
++        [Test]
++        public void RemoveSupportState_ClearsPresenceAndReturnsNeutralModifier()
++        {
++            object targetKey = new();
++            CombatantState caster = NewState(maxMp: 10);
++            CombatantState target = NewState();
++            target.ApplyCombatState(ActorCombatStateType.AttackIncrease);
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.AttackIncrease,
++                CombatStateImpactType.Remove,
++                mpCost: 3);
++
++            SupportModifierSkillCastResolution<object> result =
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    SingleFirstPartySlot(targetKey, target),
++                    skill,
++                    targetKey);
++
++            Assert.That(target.HasCombatState(ActorCombatStateType.AttackIncrease), Is.False);
++            Assert.That(target.GetSupportModifierPercent(ActorAttributeType.Attack), Is.Zero);
++            Assert.That(result.Targets[0].ModifierPercent, Is.Zero);
++            Assert.That(result.Targets[0].ImpactType, Is.EqualTo(CombatStateImpactType.Remove));
++            Assert.That(caster.CurrentMp, Is.EqualTo(7));
++        }
++
++        [Test]
++        public void PartyAll_AppliesInDeterministicFormationOrderAndSpendsMpOnce()
++        {
++            object casterKey = new();
++            object allyLateKey = new();
++            object allyEarlyKey = new();
++            CombatantState caster = NewState(maxMp: 30);
++            CombatantState allyLate = NewState();
++            CombatantState allyEarly = NewState();
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.SpeedIncrease,
++                CombatStateImpactType.Increase,
++                mpCost: 8,
++                targetRange: TargetRangeType.FirstPartyAll);
++
++            CombatTargetSlot<object>[] slots =
++            {
++                new(allyLateKey, allyLate, CombatParty.First, row: 1, column: 0),
++                new(casterKey, caster, CombatParty.First, row: 0, column: 0),
++                new(allyEarlyKey, allyEarly, CombatParty.First, row: 0, column: 1),
++            };
++
++            SupportModifierSkillCastResolution<object> result =
++                SupportModifierSkillResolver<object>.Resolve(caster, slots, skill);
++
++            Assert.That(result.Targets[0].TargetKey, Is.SameAs(casterKey));
++            Assert.That(result.Targets[1].TargetKey, Is.SameAs(allyEarlyKey));
++            Assert.That(result.Targets[2].TargetKey, Is.SameAs(allyLateKey));
++            Assert.That(caster.CurrentMp, Is.EqualTo(22));
++            Assert.That(caster.GetSupportModifierPercent(ActorAttributeType.Speed), Is.EqualTo(10));
++            Assert.That(allyEarly.GetSupportModifierPercent(ActorAttributeType.Speed), Is.EqualTo(10));
++            Assert.That(allyLate.GetSupportModifierPercent(ActorAttributeType.Speed), Is.EqualTo(10));
++        }
++
++        [Test]
++        public void SelfSupport_IsAllowedThroughFirstPartySingleAnchor()
++        {
++            object casterKey = new();
++            CombatantState caster = NewState(maxMp: 10);
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.LuckIncrease,
++                CombatStateImpactType.Increase,
++                mpCost: 1);
++
++            SupportModifierSkillResolver<object>.Resolve(
++                caster,
++                SingleFirstPartySlot(casterKey, caster),
++                skill,
++                casterKey);
++
++            Assert.That(caster.GetSupportModifierPercent(ActorAttributeType.Luck), Is.EqualTo(10));
++            Assert.That(caster.CurrentMp, Is.EqualTo(9));
++        }
++
++        [Test]
++        public void DuplicateApply_RejectsBeforeSpendingMp()
++        {
++            object targetKey = new();
++            CombatantState caster = NewState(maxMp: 10);
++            CombatantState target = NewState();
++            target.ApplyCombatState(ActorCombatStateType.AttackIncrease);
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.AttackIncrease,
++                CombatStateImpactType.Increase,
++                mpCost: 4);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    SingleFirstPartySlot(targetKey, target),
++                    skill,
++                    targetKey));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(10));
++            Assert.That(target.GetSupportModifierPercent(ActorAttributeType.Attack), Is.EqualTo(10));
++        }
++
++        [Test]
++        public void OpposingState_RejectsBeforeSpendingMp()
++        {
++            object targetKey = new();
++            CombatantState caster = NewState(maxMp: 10);
++            CombatantState target = NewState();
++            target.ApplyCombatState(ActorCombatStateType.DefenseDecrease);
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.DefenseIncrease,
++                CombatStateImpactType.Increase,
++                mpCost: 4);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    SingleFirstPartySlot(targetKey, target),
++                    skill,
++                    targetKey));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(10));
++            Assert.That(target.GetSupportModifierPercent(ActorAttributeType.Defense), Is.EqualTo(-10));
++        }
++
++        [Test]
++        public void RemoveMissingState_RejectsBeforeSpendingMp()
++        {
++            object targetKey = new();
++            CombatantState caster = NewState(maxMp: 10);
++            CombatantState target = NewState();
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.SpeedIncrease,
++                CombatStateImpactType.Remove,
++                mpCost: 4);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    SingleFirstPartySlot(targetKey, target),
++                    skill,
++                    targetKey));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(10));
++        }
++
++        [Test]
++        public void InsufficientMp_RejectsWithoutStateMutation()
++        {
++            object targetKey = new();
++            CombatantState caster = NewState(maxMp: 2);
++            CombatantState target = NewState();
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.AttackIncrease,
++                CombatStateImpactType.Increase,
++                mpCost: 5);
++
++            Assert.Throws<InvalidOperationException>(() =>
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    SingleFirstPartySlot(targetKey, target),
++                    skill,
++                    targetKey));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(2));
++            Assert.That(target.HasCombatState(ActorCombatStateType.AttackIncrease), Is.False);
++        }
++
++        [Test]
++        public void PartyAll_AliasedTargetStatesRejectBeforeSpendingMp()
++        {
++            object key1 = new();
++            object key2 = new();
++            CombatantState caster = NewState(maxMp: 10);
++            CombatantState aliased = NewState();
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.LuckDecrease,
++                CombatStateImpactType.Increase,
++                mpCost: 4,
++                targetRange: TargetRangeType.FirstPartyAll);
++
++            CombatTargetSlot<object>[] slots =
++            {
++                new(key1, aliased, CombatParty.First, row: 0, column: 0),
++                new(key2, aliased, CombatParty.First, row: 0, column: 1),
++            };
++
++            Assert.Throws<InvalidOperationException>(() =>
++                SupportModifierSkillResolver<object>.Resolve(caster, slots, skill));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(10));
++            Assert.That(aliased.HasCombatState(ActorCombatStateType.LuckDecrease), Is.False);
++        }
++
++        [Test]
++        public void UnsupportedNonModifierCombatState_IsRejected()
++        {
++            object targetKey = new();
++            CombatantState caster = NewState(maxMp: 10);
++            CombatantState target = NewState();
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.PoisonFire,
++                CombatStateImpactType.Increase,
++                mpCost: 1);
++
++            Assert.Throws<NotSupportedException>(() =>
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    SingleFirstPartySlot(targetKey, target),
++                    skill,
++                    targetKey));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(10));
++        }
++
++        [Test]
++        public void WrongSkillType_IsRejected()
++        {
++            object targetKey = new();
++            CombatantState caster = NewState(maxMp: 10);
++            CombatantState target = NewState();
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.AttackIncrease,
++                CombatStateImpactType.Increase,
++                mpCost: 1,
++                skillType: SkillType.RecoverMagic);
++
++            Assert.Throws<NotSupportedException>(() =>
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    SingleFirstPartySlot(targetKey, target),
++                    skill,
++                    targetKey));
++        }
++
++        [Test]
++        public void EnemyTargetRange_IsRejected()
++        {
++            CombatantState caster = NewState(maxMp: 10);
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.AttackIncrease,
++                CombatStateImpactType.Increase,
++                mpCost: 1,
++                targetRange: TargetRangeType.EnemyPartySingle);
++
++            Assert.Throws<NotSupportedException>(() =>
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    Array.Empty<CombatTargetSlot<object>>(),
++                    skill,
++                    new object()));
++        }
++
++        [Test]
++        public void SpConsumingSupportSkill_IsRejectedBeforeMpMutation()
++        {
++            object targetKey = new();
++            CombatantState caster = NewState(maxMp: 10);
++            CombatantState target = NewState();
++            SkillDefinition skill = CreateSupportSkill(
++                ActorCombatStateType.AttackIncrease,
++                CombatStateImpactType.Increase,
++                mpCost: 2,
++                spCost: 3);
++
++            Assert.Throws<NotSupportedException>(() =>
++                SupportModifierSkillResolver<object>.Resolve(
++                    caster,
++                    SingleFirstPartySlot(targetKey, target),
++                    skill,
++                    targetKey));
++
++            Assert.That(caster.CurrentMp, Is.EqualTo(10));
++        }
++
++        [Test]
++        public void UnsupportedAttributeQuery_IsRejected()
++        {
++            CombatantState state = NewState();
++
++            Assert.Throws<NotSupportedException>(() =>
++                state.GetSupportModifierPercent(ActorAttributeType.Hp));
++        }
++
++        private static CombatantState NewState(int maxMp = 0)
++        {
++            return new CombatantState(maxHp: 100, attack: 30, defense: 20, maxMp);
++        }
++
++        private static CombatTargetSlot<object>[] SingleFirstPartySlot(
++            object key,
++            CombatantState state)
++        {
++            return new[]
++            {
++                new CombatTargetSlot<object>(
++                    key,
++                    state,
++                    CombatParty.First,
++                    row: 0,
++                    column: 0),
++            };
++        }
++
++        private static SkillDefinition CreateSupportSkill(
++            ActorCombatStateType stateType,
++            CombatStateImpactType impactType,
++            int mpCost,
++            TargetRangeType targetRange = TargetRangeType.FirstPartySingle,
++            SkillType skillType = SkillType.AssistMagic,
++            int spCost = 0)
++        {
++            return new SkillDefinition(
++                id: 3001,
++                name: "Test Support",
++                type: skillType,
++                element: ElementType.None,
++                targetRange,
++                mpCost,
++                spCost,
++                visualArchetype: SkillVisualArchetype.SupportPulse,
++                visualProfileKey: "support.modifier.basic",
++                effects: new[]
++                {
++                    SkillEffectDefinition.ForCombatState(stateType, impactType),
++                });
++        }
++    }
++}
