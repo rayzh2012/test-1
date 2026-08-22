@@ -23,6 +23,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
+      - name: Install test dependency
+        run: python3 -m pip install pytest
       - name: Syntax check
         run: |
           python3 -m py_compile \
