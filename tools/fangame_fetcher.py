@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, hashlib, json, os, re, shutil, subprocess, sys, time
+import argparse, hashlib, json, os, re, subprocess
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -8,152 +8,259 @@ import requests
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
 ARCHIVE_EXTS = ('.zip','.rar','.7z','.exe','.tar','.gz','.xz')
 
+
 def sha256(path):
-    h=hashlib.sha256()
-    with open(path,'rb') as f:
-        for b in iter(lambda:f.read(1024*1024),b''): h.update(b)
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for b in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(b)
     return h.hexdigest()
 
+
 def archive_head_ok(path):
-    with open(path,'rb') as f: h=f.read(16)
-    return h.startswith(b'Rar!\x1a\x07') or h.startswith(b'PK\x03\x04') or h.startswith(b'7z\xbc\xaf\x27\x1c') or h.startswith(b'MZ')
+    with open(path, 'rb') as f:
+        h = f.read(16)
+    return (
+        h.startswith(b'Rar!\x1a\x07')
+        or h.startswith(b'PK\x03\x04')
+        or h.startswith(b'7z\xbc\xaf\x27\x1c')
+        or h.startswith(b'MZ')
+    )
+
 
 def extract_links(base, text):
-    out=[]
-    pats=[r'href=["\']([^"\']+)["\']',r'src=["\']([^"\']+)["\']',r'(?:https?|ftp)://[^\s"\'<>]+']
+    out = []
+    pats = [
+        r'href=["\']([^"\']+)["\']',
+        r'src=["\']([^"\']+)["\']',
+        r'(?:https?|ftp)://[^\s"\'<>]+'
+    ]
     for p in pats:
-        for m in re.findall(p,text,re.I):
-            if isinstance(m,tuple): m=m[0]
-            m=m.replace('&amp;','&').replace('\\/','/')
-            if m.startswith('//'): m='https:'+m
-            out.append(urljoin(base,m))
-    scored=[]
+        for m in re.findall(p, text, re.I):
+            if isinstance(m, tuple):
+                m = m[0]
+            m = m.replace('&amp;', '&').replace('\\/', '/')
+            if m.startswith('//'):
+                m = 'https:' + m
+            out.append(urljoin(base, m))
+    scored = []
     for u in out:
-        lu=u.lower()
-        score=0
-        if any(x in lu for x in ARCHIVE_EXTS): score+=6
-        if any(x in lu for x in ('download','down','file','attach','mediafire','qiannao','115.com')): score+=3
-        if any(x in lu for x in ('javascript:','#')): score-=10
-        if score>0: scored.append((score,u))
-    return [u for _,u in sorted(scored,reverse=True)]
+        lu = u.lower()
+        score = 0
+        if any(x in lu for x in ARCHIVE_EXTS):
+            score += 6
+        if any(x in lu for x in ('download','down','file','attach','mediafire','qiannao','115.com')):
+            score += 3
+        if any(x in lu for x in ('javascript:','#')):
+            score -= 10
+        if score > 0:
+            scored.append((score, u))
+    return [u for _, u in sorted(scored, reverse=True)]
 
-def fetch_http(session,url,outdir,min_mb,report):
-    q=[url]; seen=set()
-    while q and len(seen)<80:
-        u=q.pop(0)
-        if u in seen: continue
+
+def fetch_http(session, url, outdir, min_mb, report):
+    q = [url]
+    seen = set()
+    while q and len(seen) < 80:
+        u = q.pop(0)
+        if u in seen:
+            continue
         seen.add(u)
         if u.lower().startswith('ftp://'):
-            result=fetch_ftp(u,outdir,min_mb,report)
-            if result: return result
+            result = fetch_ftp(u, outdir, min_mb, report)
+            if result:
+                return result
             continue
         try:
-            r=session.get(u,timeout=45,allow_redirects=True,stream=True)
-            ct=(r.headers.get('content-type') or '').lower()
-            cl=int(r.headers.get('content-length') or 0)
-            report['attempts'].append({'url':u,'status':r.status_code,'final_url':r.url,'content_type':ct,'content_length':cl})
-            if r.status_code!=200: continue
-            if 'text/html' in ct or cl==0 and r.url.lower().endswith(('.html','.htm','.php','.page','/')):
-                text=r.content.decode(r.encoding or 'utf-8','ignore')
-                q.extend(x for x in extract_links(r.url,text) if x not in seen)
+            r = session.get(u, timeout=45, allow_redirects=True, stream=True)
+            ct = (r.headers.get('content-type') or '').lower()
+            cl = int(r.headers.get('content-length') or 0)
+            report['attempts'].append({
+                'url': u, 'status': r.status_code, 'final_url': r.url,
+                'content_type': ct, 'content_length': cl
+            })
+            if r.status_code != 200:
                 continue
-            cd=r.headers.get('content-disposition') or ''
-            name=None
-            m=re.search(r'filename\*?=(?:UTF-8\'\')?["\']?([^"\';]+)',cd,re.I)
-            if m: name=m.group(1)
+            if 'text/html' in ct or (cl == 0 and r.url.lower().endswith(('.html','.htm','.php','.page','/'))):
+                text = r.content.decode(r.encoding or 'utf-8', 'ignore')
+                q.extend(x for x in extract_links(r.url, text) if x not in seen)
+                continue
+            cd = r.headers.get('content-disposition') or ''
+            name = None
+            m = re.search(r'filename\*?=(?:UTF-8\'\')?["\']?([^"\';]+)', cd, re.I)
+            if m:
+                name = m.group(1)
             if not name:
-                name=os.path.basename(urlparse(r.url).path) or 'download.bin'
-            path=Path(outdir)/name
-            n=0
-            with open(path,'wb') as f:
-                for chunk in r.iter_content(1024*1024):
-                    if chunk: f.write(chunk); n+=len(chunk)
-            if n < min_mb*1024*1024 or not archive_head_ok(path):
+                name = os.path.basename(urlparse(r.url).path) or 'download.bin'
+            path = Path(outdir) / name
+            n = 0
+            with open(path, 'wb') as f:
+                for chunk in r.iter_content(1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+                        n += len(chunk)
+            if n < min_mb * 1024 * 1024 or not archive_head_ok(path):
                 path.unlink(missing_ok=True)
                 continue
             return path
         except Exception as e:
-            report['attempts'].append({'url':u,'error':repr(e)})
+            report['attempts'].append({'url': u, 'error': repr(e)})
     return None
 
-def fetch_itch(session,url,outdir,min_mb,report):
-    """Resolve itch.io's public free-download handshake without credentials."""
-    page=url.rstrip('/')
-    headers={'Referer':url,'X-Requested-With':'XMLHttpRequest'}
+
+def fetch_itch(session, url, outdir, min_mb, report, desired_upload_id=None):
+    """Resolve itch.io public free downloads; optionally lock to one upload ID."""
+    page = url.rstrip('/')
+    headers = {'Referer': url, 'X-Requested-With': 'XMLHttpRequest'}
     try:
-        r=session.get(page,timeout=45,allow_redirects=True)
-        report['attempts'].append({'url':page,'transport':'itch-page','status':r.status_code,'content_type':(r.headers.get('content-type') or '').lower()})
-        if r.status_code!=200: return None
-        text=r.text
-        upload_ids=re.findall(r'data-upload_id=["\'](\d+)["\']',text,re.I)
+        r = session.get(page, timeout=45, allow_redirects=True)
+        report['attempts'].append({
+            'url': page, 'transport': 'itch-page', 'status': r.status_code,
+            'content_type': (r.headers.get('content-type') or '').lower()
+        })
+        if r.status_code != 200:
+            return None
+        text = r.text
+        upload_ids = re.findall(r'data-upload_id=["\'](\d+)["\']', text, re.I)
         if not upload_ids:
-            d=session.post(page+'/download_url',headers=headers,timeout=45,allow_redirects=True)
-            rec={'url':page+'/download_url','transport':'itch-download-page','status':d.status_code,'content_type':(d.headers.get('content-type') or '').lower()}
-            report['attempts'].append(rec)
-            if d.status_code==200:
-                try: temp=d.json().get('url')
-                except Exception: temp=None
+            d = session.post(page + '/download_url', headers=headers, timeout=45, allow_redirects=True)
+            report['attempts'].append({
+                'url': page + '/download_url', 'transport': 'itch-download-page',
+                'status': d.status_code,
+                'content_type': (d.headers.get('content-type') or '').lower()
+            })
+            if d.status_code == 200:
+                try:
+                    temp = d.json().get('url')
+                except Exception:
+                    temp = None
                 if temp:
-                    rr=session.get(temp,timeout=45,allow_redirects=True)
-                    report['attempts'].append({'url':temp,'transport':'itch-temp-page','status':rr.status_code,'final_url':rr.url})
-                    if rr.status_code==200:
-                        text=rr.text
-                        page=rr.url.split('?')[0].rstrip('/')
-                        upload_ids=re.findall(r'data-upload_id=["\'](\d+)["\']',text,re.I)
-        # preserve order but remove duplicates
-        upload_ids=list(dict.fromkeys(upload_ids))
-        report['attempts'].append({'url':url,'transport':'itch-upload-discovery','upload_ids':upload_ids})
+                    rr = session.get(temp, timeout=45, allow_redirects=True)
+                    report['attempts'].append({
+                        'url': temp, 'transport': 'itch-temp-page',
+                        'status': rr.status_code, 'final_url': rr.url
+                    })
+                    if rr.status_code == 200:
+                        text = rr.text
+                        page = rr.url.split('?')[0].rstrip('/')
+                        upload_ids = re.findall(r'data-upload_id=["\'](\d+)["\']', text, re.I)
+
+        upload_ids = list(dict.fromkeys(upload_ids))
+        report['attempts'].append({
+            'url': url, 'transport': 'itch-upload-discovery',
+            'upload_ids': upload_ids, 'desired_upload_id': str(desired_upload_id) if desired_upload_id else None
+        })
+
+        if desired_upload_id is not None:
+            desired = str(desired_upload_id)
+            if desired not in upload_ids:
+                report['attempts'].append({
+                    'url': url, 'transport': 'itch-upload-select',
+                    'desired_upload_id': desired, 'found': False
+                })
+                return None
+            upload_ids = [desired]
+            report['attempts'].append({
+                'url': url, 'transport': 'itch-upload-select',
+                'desired_upload_id': desired, 'found': True
+            })
+
         for uid in upload_ids:
-            endpoint=page+'/file/'+uid+'?source=view_game&as_props=1&after_download_lightbox=true'
-            p=session.post(endpoint,headers={'Referer':page,'X-Requested-With':'XMLHttpRequest'},timeout=45,allow_redirects=True)
-            rec={'url':endpoint,'transport':'itch-file-resolve','status':p.status_code,'content_type':(p.headers.get('content-type') or '').lower()}
-            dl=None
-            if p.status_code==200:
-                try: dl=p.json().get('url')
-                except Exception: pass
-            if dl: rec['resolved_url']=dl
+            endpoint = page + '/file/' + uid + '?source=view_game&as_props=1&after_download_lightbox=true'
+            p = session.post(
+                endpoint,
+                headers={'Referer': page, 'X-Requested-With': 'XMLHttpRequest'},
+                timeout=45,
+                allow_redirects=True
+            )
+            rec = {
+                'url': endpoint, 'transport': 'itch-file-resolve',
+                'upload_id': uid, 'status': p.status_code,
+                'content_type': (p.headers.get('content-type') or '').lower()
+            }
+            dl = None
+            if p.status_code == 200:
+                try:
+                    dl = p.json().get('url')
+                except Exception:
+                    pass
+            if dl:
+                rec['resolved_url'] = dl
             report['attempts'].append(rec)
             if dl:
-                result=fetch_http(session,dl,outdir,min_mb,report)
-                if result: return result
+                result = fetch_http(session, dl, outdir, min_mb, report)
+                if result:
+                    return result
     except Exception as e:
-        report['attempts'].append({'url':url,'transport':'itch','error':repr(e)})
+        report['attempts'].append({'url': url, 'transport': 'itch', 'error': repr(e)})
     return None
 
-def fetch_ftp(url,outdir,min_mb,report):
-    name=os.path.basename(urlparse(url).path) or 'download.rar'
-    path=Path(outdir)/name
-    for cmd in (["curl","-L","--fail","--connect-timeout","20","--max-time","900","-o",str(path),url],
-                ["wget","-O",str(path),url]):
+
+def fetch_ftp(url, outdir, min_mb, report):
+    """Bound old FTP probes so dead hosts cannot occupy a rescue lane for ~15 minutes."""
+    name = os.path.basename(urlparse(url).path) or 'download.rar'
+    path = Path(outdir) / name
+    commands = [
+        ['curl','-L','--fail','--connect-timeout','15','--max-time','90','-o',str(path),url],
+        ['wget','--timeout=20','--tries=1','-O',str(path),url],
+    ]
+    for cmd in commands:
         try:
-            p=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=950)
-            report['attempts'].append({'url':url,'transport':cmd[0],'returncode':p.returncode,'log_tail':p.stdout[-1200:]})
-            if p.returncode==0 and path.exists() and path.stat().st_size>=min_mb*1024*1024 and archive_head_ok(path): return path
+            p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=120)
+            report['attempts'].append({
+                'url': url, 'transport': cmd[0], 'returncode': p.returncode,
+                'log_tail': p.stdout[-1200:]
+            })
+            if p.returncode == 0 and path.exists() and path.stat().st_size >= min_mb * 1024 * 1024 and archive_head_ok(path):
+                return path
         except Exception as e:
-            report['attempts'].append({'url':url,'transport':cmd[0],'error':repr(e)})
-    path.unlink(missing_ok=True); return None
+            report['attempts'].append({'url': url, 'transport': cmd[0], 'error': repr(e)})
+    path.unlink(missing_ok=True)
+    return None
+
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('target'); ap.add_argument('-o','--out',default='out'); args=ap.parse_args()
-    spec=json.load(open(args.target,encoding='utf-8'))
-    out=Path(args.out); out.mkdir(parents=True,exist_ok=True)
-    report={'name':spec['name'],'version':spec.get('version'),'engine':spec.get('engine'),'sources':spec['sources'],'attempts':[],'success':False}
-    s=requests.Session(); s.headers.update({'User-Agent':UA,'Accept':'*/*'})
-    min_mb=int(spec.get('min_mb',10))
-    result=None
+    ap = argparse.ArgumentParser()
+    ap.add_argument('target')
+    ap.add_argument('-o', '--out', default='out')
+    args = ap.parse_args()
+
+    spec = json.load(open(args.target, encoding='utf-8'))
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    report = {
+        'name': spec['name'], 'version': spec.get('version'),
+        'engine': spec.get('engine'), 'sources': spec['sources'],
+        'itch_upload_id': spec.get('itch_upload_id'),
+        'attempts': [], 'success': False
+    }
+    s = requests.Session()
+    s.headers.update({'User-Agent': UA, 'Accept': '*/*'})
+    min_mb = int(spec.get('min_mb', 10))
+    result = None
     for u in spec['sources']:
-        host=urlparse(u).netloc.lower()
+        host = urlparse(u).netloc.lower()
         if u.startswith('ftp://'):
-            result=fetch_ftp(u,out,min_mb,report)
-        elif host.endswith('.itch.io') or host=='itch.io':
-            result=fetch_itch(s,u,out,min_mb,report)
+            result = fetch_ftp(u, out, min_mb, report)
+        elif host.endswith('.itch.io') or host == 'itch.io':
+            result = fetch_itch(s, u, out, min_mb, report, spec.get('itch_upload_id'))
         else:
-            result=fetch_http(s,u,out,min_mb,report)
-        if result: break
+            result = fetch_http(s, u, out, min_mb, report)
+        if result:
+            break
+
     if not result:
-        json.dump(report,open(out/'fetch_report.json','w'),ensure_ascii=False,indent=2); raise SystemExit(2)
-    report.update({'success':True,'file':result.name,'bytes':result.stat().st_size,'sha256':sha256(result)})
-    json.dump(report,open(out/'fetch_report.json','w'),ensure_ascii=False,indent=2)
-    open(out/'SHA256.txt','w').write(f"{report['sha256']}  {result.name}\n")
-    print(json.dumps(report,ensure_ascii=False,indent=2))
-if __name__=='__main__': main()
+        json.dump(report, open(out / 'fetch_report.json', 'w'), ensure_ascii=False, indent=2)
+        raise SystemExit(2)
+
+    report.update({
+        'success': True, 'file': result.name,
+        'bytes': result.stat().st_size, 'sha256': sha256(result)
+    })
+    json.dump(report, open(out / 'fetch_report.json', 'w'), ensure_ascii=False, indent=2)
+    open(out / 'SHA256.txt', 'w').write(f"{report['sha256']}  {result.name}\n")
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+
+if __name__ == '__main__':
+    main()
