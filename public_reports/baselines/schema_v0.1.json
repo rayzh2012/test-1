@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ordinary_rpg_baseline_corpus.v0.1",
+  "title": "Ordinary RPG Baseline Corpus",
+  "type": "object",
+  "required": ["schema", "corpus_id", "corpus_version", "provenance_status", "measurement_contract", "games"],
+  "properties": {
+    "schema": {"const": "ordinary_rpg_baseline_corpus.v0.1"},
+    "corpus_id": {"type": "string"},
+    "corpus_version": {"type": "string"},
+    "provenance_status": {"enum": ["VERIFIED", "PARTIAL", "DRAFT"]},
+    "measurement_contract": {
+      "type": "object",
+      "required": ["normalized_schema", "parser_family_rule", "production_percentile_min_n"],
+      "properties": {
+        "normalized_schema": {"const": "fangame.normalized_profile.v0.1"},
+        "parser_family_rule": {"const": "EXACT_MATCH"},
+        "production_percentile_min_n": {"type": "integer", "minimum": 5}
+      },
+      "additionalProperties": true
+    },
+    "games": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["schema", "game_id", "title", "engine", "parser_family", "metrics", "derived", "progression"],
+        "properties": {
+          "schema": {"const": "fangame.normalized_profile.v0.1"},
+          "parser_family": {"enum": ["MV_JSON", "RGSS_MARSHAL", "RPG2000_2003", "OTHER_VERSIONED"]}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
