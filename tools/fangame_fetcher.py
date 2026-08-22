@@ -20,7 +20,7 @@ def archive_head_ok(path):
 
 def extract_links(base, text):
     out=[]
-    pats=[r'href=["\']([^"\']+)["\']',r'src=["\']([^"\']+)["\']',r'https?://[^\s"\'<>]+']
+    pats=[r'href=["\']([^"\']+)["\']',r'src=["\']([^"\']+)["\']',r'(?:https?|ftp)://[^\s"\'<>]+']
     for p in pats:
         for m in re.findall(p,text,re.I):
             if isinstance(m,tuple): m=m[0]
@@ -43,6 +43,10 @@ def fetch_http(session,url,outdir,min_mb,report):
         u=q.pop(0)
         if u in seen: continue
         seen.add(u)
+        if u.lower().startswith('ftp://'):
+            result=fetch_ftp(u,outdir,min_mb,report)
+            if result: return result
+            continue
         try:
             r=session.get(u,timeout=45,allow_redirects=True,stream=True)
             ct=(r.headers.get('content-type') or '').lower()
