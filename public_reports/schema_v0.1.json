@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rayzh2012/test-1/public_reports/schema_v0.1.json",
+  "title": "Fangame Public Analysis v0.1",
+  "type": "object",
+  "required": ["schema", "identity", "observed", "derived", "progression", "system_evidence", "descriptors", "baseline", "publication_policy"],
+  "properties": {
+    "schema": {"const": "fangame.public_analysis.v0.1"},
+    "descriptor_version": {"type": "string"},
+    "identity": {
+      "type": "object",
+      "required": ["game_id", "title", "version", "engine", "sha256", "bytes"],
+      "properties": {
+        "game_id": {"type": "string"},
+        "title": {"type": "string"},
+        "version": {"type": "string"},
+        "engine": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "bytes": {"type": "integer", "minimum": 0},
+        "source_url": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "reproducibility": {"type": "object"},
+    "observed": {"type": "object"},
+    "derived": {"type": "object"},
+    "progression": {"type": "object"},
+    "system_evidence": {"type": "object"},
+    "descriptors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "evidence"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"type": "string"},
+          "evidence": {}
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "required": ["status", "comparison"],
+      "properties": {
+        "status": {"type": "string"},
+        "comparison": {}
+      }
+    },
+    "publication_policy": {
+      "type": "object",
+      "required": ["contains_game_binary", "contains_private_drive_ids", "contains_personal_fit", "percentile_claims_require_compatible_baseline"],
+      "properties": {
+        "contains_game_binary": {"const": false},
+        "contains_private_drive_ids": {"const": false},
+        "contains_personal_fit": {"const": false},
+        "percentile_claims_require_compatible_baseline": {"const": true}
+      }
+    }
+  }
+}

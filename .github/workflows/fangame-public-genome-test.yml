@@ -1,0 +1,35 @@
+name: Fangame Public Genome Test
+
+on:
+  push:
+    paths:
+      - 'tools/rpgmaker_mv_genome.py'
+      - 'tools/fangame_public_report.py'
+      - 'tools/fangame_genome_runner.py'
+      - 'tests/test_mv_public_genome.py'
+      - '.github/workflows/fangame-public-genome-test.yml'
+  pull_request:
+    paths:
+      - 'tools/rpgmaker_mv_genome.py'
+      - 'tools/fangame_public_report.py'
+      - 'tools/fangame_genome_runner.py'
+      - 'tests/test_mv_public_genome.py'
+      - '.github/workflows/fangame-public-genome-test.yml'
+  workflow_dispatch:
+
+jobs:
+  synthetic-mv-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install test dependency
+        run: python3 -m pip install pytest
+      - name: Syntax check
+        run: |
+          python3 -m py_compile \
+            tools/rpgmaker_mv_genome.py \
+            tools/fangame_public_report.py \
+            tools/fangame_genome_runner.py
+      - name: Run synthetic MV genome/public-report test
+        run: python3 -m pytest -q tests/test_mv_public_genome.py
