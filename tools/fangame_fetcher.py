@@ -76,6 +76,50 @@ def fetch_http(session,url,outdir,min_mb,report):
             report['attempts'].append({'url':u,'error':repr(e)})
     return None
 
+def fetch_itch(session,url,outdir,min_mb,report):
+    """Resolve itch.io's public free-download handshake without credentials."""
+    page=url.rstrip('/')
+    headers={'Referer':url,'X-Requested-With':'XMLHttpRequest'}
+    try:
+        r=session.get(page,timeout=45,allow_redirects=True)
+        report['attempts'].append({'url':page,'transport':'itch-page','status':r.status_code,'content_type':(r.headers.get('content-type') or '').lower()})
+        if r.status_code!=200: return None
+        text=r.text
+        upload_ids=re.findall(r'data-upload_id=["\'](\d+)["\']',text,re.I)
+        if not upload_ids:
+            d=session.post(page+'/download_url',headers=headers,timeout=45,allow_redirects=True)
+            rec={'url':page+'/download_url','transport':'itch-download-page','status':d.status_code,'content_type':(d.headers.get('content-type') or '').lower()}
+            report['attempts'].append(rec)
+            if d.status_code==200:
+                try: temp=d.json().get('url')
+                except Exception: temp=None
+                if temp:
+                    rr=session.get(temp,timeout=45,allow_redirects=True)
+                    report['attempts'].append({'url':temp,'transport':'itch-temp-page','status':rr.status_code,'final_url':rr.url})
+                    if rr.status_code==200:
+                        text=rr.text
+                        page=rr.url.split('?')[0].rstrip('/')
+                        upload_ids=re.findall(r'data-upload_id=["\'](\d+)["\']',text,re.I)
+        # preserve order but remove duplicates
+        upload_ids=list(dict.fromkeys(upload_ids))
+        report['attempts'].append({'url':url,'transport':'itch-upload-discovery','upload_ids':upload_ids})
+        for uid in upload_ids:
+            endpoint=page+'/file/'+uid+'?source=view_game&as_props=1&after_download_lightbox=true'
+            p=session.post(endpoint,headers={'Referer':page,'X-Requested-With':'XMLHttpRequest'},timeout=45,allow_redirects=True)
+            rec={'url':endpoint,'transport':'itch-file-resolve','status':p.status_code,'content_type':(p.headers.get('content-type') or '').lower()}
+            dl=None
+            if p.status_code==200:
+                try: dl=p.json().get('url')
+                except Exception: pass
+            if dl: rec['resolved_url']=dl
+            report['attempts'].append(rec)
+            if dl:
+                result=fetch_http(session,dl,outdir,min_mb,report)
+                if result: return result
+    except Exception as e:
+        report['attempts'].append({'url':url,'transport':'itch','error':repr(e)})
+    return None
+
 def fetch_ftp(url,outdir,min_mb,report):
     name=os.path.basename(urlparse(url).path) or 'download.rar'
     path=Path(outdir)/name
@@ -98,7 +142,13 @@ def main():
     min_mb=int(spec.get('min_mb',10))
     result=None
     for u in spec['sources']:
-        result=fetch_ftp(u,out,min_mb,report) if u.startswith('ftp://') else fetch_http(s,u,out,min_mb,report)
+        host=urlparse(u).netloc.lower()
+        if u.startswith('ftp://'):
+            result=fetch_ftp(u,out,min_mb,report)
+        elif host.endswith('.itch.io') or host=='itch.io':
+            result=fetch_itch(s,u,out,min_mb,report)
+        else:
+            result=fetch_http(s,u,out,min_mb,report)
         if result: break
     if not result:
         json.dump(report,open(out/'fetch_report.json','w'),ensure_ascii=False,indent=2); raise SystemExit(2)
