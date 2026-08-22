@@ -7,114 +7,56 @@ on:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
-      - name: Fetch exact Pokémon Unchosen ENG v1.5.10 itch upload
+      - name: Fetch verified Magic Baby Memorial package
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf out && mkdir -p out/parts
-          python3 - <<'PY'
-          import hashlib, json, os, re, requests
-          from pathlib import Path
-          page='https://aldrine.itch.io/pokemon-unchosen'
-          upload_id='18873269'
-          s=requests.Session(); s.headers.update({'User-Agent':'Mozilla/5.0','Accept':'*/*'})
-          ep=f'{page}/file/{upload_id}?source=view_game&as_props=1&after_download_lightbox=true'
-          p=s.post(ep,headers={'Referer':page,'X-Requested-With':'XMLHttpRequest'},timeout=45)
-          p.raise_for_status()
-          dl=p.json().get('url')
-          if not dl: raise SystemExit('itch did not return a public download URL')
-          r=s.get(dl,headers={'Referer':page},stream=True,allow_redirects=True,timeout=60)
-          r.raise_for_status()
-          tmp=Path('out/unchosen.download')
-          h=hashlib.sha256(); n=0
-          with tmp.open('wb') as f:
-              for chunk in r.iter_content(1024*1024):
-                  if chunk:
-                      f.write(chunk); h.update(chunk); n += len(chunk)
-          head=tmp.open('rb').read(16)
-          if head.startswith(b'PK\x03\x04'): ext='zip'
-          elif head.startswith(b'Rar!\x1a\x07'): ext='rar'
-          elif head.startswith(b'7z\xbc\xaf\x27\x1c'): ext='7z'
-          else: raise SystemExit(f'unrecognized archive head: {head!r}')
-          if n < 900_000_000: raise SystemExit(f'payload too small: {n}')
-          name=f'Pokemon Unchosen ENG V1.5.10 (JoiPlay).{ext}'
-          final=Path('out')/name; tmp.rename(final)
-          sha=h.hexdigest()
-          report={'name':'Pokemon Unchosen','version':'1.5.10 ENG JoiPlay','source':page,'itch_upload_id':upload_id,'resolved_url_host':requests.utils.urlparse(r.url).netloc,'file':name,'bytes':n,'sha256':sha,'archive_type':ext,'success':True}
-          Path('out/fetch_report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
-          Path('out/SHA256.txt').write_text(f'{sha}  {name}\n',encoding='utf-8')
-          Path('out/ORIGINAL_FILENAME.txt').write_text(name+'\n',encoding='utf-8')
-          print(json.dumps(report,ensure_ascii=False,indent=2))
-          PY
-          game=$(cat out/ORIGINAL_FILENAME.txt)
-          split -b 75M -d -a 3 "out/$game" "out/parts/$game.part"
-          cp out/SHA256.txt out/fetch_report.json out/ORIGINAL_FILENAME.txt out/parts/
-          rm "out/$game"
-          ls -lah out/parts
-      - name: Upload part000
-        if: hashFiles('out/parts/*.part000') != ''
+          mkdir -p out
+          curl -fL --retry 3 --connect-timeout 20 --max-time 900 \
+            -A 'Mozilla/5.0' \
+            -o out/mlbbhjdjb.rar \
+            'https://99dj.197784.com/9dj2/mlbbhjdjb.rar'
+          test $(stat -c%s out/mlbbhjdjb.rar) -gt 50000000
+          sha256sum out/mlbbhjdjb.rar | tee out/SHA256.txt
+          file out/mlbbhjdjb.rar
+          split -b 80M -d -a 2 out/mlbbhjdjb.rar out/mlbbhjdjb.rar.part
+          cat > out/README_合并.txt <<'EOF'
+          魔力宝贝纪念版 2012 全剧情版
+          将三个分卷放在同一目录后合并：
+          macOS/Linux: cat mlbbhjdjb.rar.part00 mlbbhjdjb.rar.part01 mlbbhjdjb.rar.part02 > mlbbhjdjb.rar
+          Windows CMD: copy /b mlbbhjdjb.rar.part00+mlbbhjdjb.rar.part01+mlbbhjdjb.rar.part02 mlbbhjdjb.rar
+          完整RAR SHA256: 683190cf5ae8f1bd746691cdc0c3c6828b28128bc7cd6e0d63a5961e1456c1c4
+          EOF
+          rm out/mlbbhjdjb.rar
+          ls -lah out
+      - name: Upload part00
         uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part000', path: 'out/parts/*.part000', retention-days: 7, compression-level: 0}
-      - name: Upload part001
-        if: hashFiles('out/parts/*.part001') != ''
+        with:
+          name: mlbbhjdjb-rar-part00
+          path: out/mlbbhjdjb.rar.part00
+          compression-level: 0
+          retention-days: 7
+      - name: Upload part01
         uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part001', path: 'out/parts/*.part001', retention-days: 7, compression-level: 0}
-      - name: Upload part002
-        if: hashFiles('out/parts/*.part002') != ''
+        with:
+          name: mlbbhjdjb-rar-part01
+          path: out/mlbbhjdjb.rar.part01
+          compression-level: 0
+          retention-days: 7
+      - name: Upload part02
         uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part002', path: 'out/parts/*.part002', retention-days: 7, compression-level: 0}
-      - name: Upload part003
-        if: hashFiles('out/parts/*.part003') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part003', path: 'out/parts/*.part003', retention-days: 7, compression-level: 0}
-      - name: Upload part004
-        if: hashFiles('out/parts/*.part004') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part004', path: 'out/parts/*.part004', retention-days: 7, compression-level: 0}
-      - name: Upload part005
-        if: hashFiles('out/parts/*.part005') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part005', path: 'out/parts/*.part005', retention-days: 7, compression-level: 0}
-      - name: Upload part006
-        if: hashFiles('out/parts/*.part006') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part006', path: 'out/parts/*.part006', retention-days: 7, compression-level: 0}
-      - name: Upload part007
-        if: hashFiles('out/parts/*.part007') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part007', path: 'out/parts/*.part007', retention-days: 7, compression-level: 0}
-      - name: Upload part008
-        if: hashFiles('out/parts/*.part008') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part008', path: 'out/parts/*.part008', retention-days: 7, compression-level: 0}
-      - name: Upload part009
-        if: hashFiles('out/parts/*.part009') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part009', path: 'out/parts/*.part009', retention-days: 7, compression-level: 0}
-      - name: Upload part010
-        if: hashFiles('out/parts/*.part010') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part010', path: 'out/parts/*.part010', retention-days: 7, compression-level: 0}
-      - name: Upload part011
-        if: hashFiles('out/parts/*.part011') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part011', path: 'out/parts/*.part011', retention-days: 7, compression-level: 0}
-      - name: Upload part012
-        if: hashFiles('out/parts/*.part012') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part012', path: 'out/parts/*.part012', retention-days: 7, compression-level: 0}
-      - name: Upload part013
-        if: hashFiles('out/parts/*.part013') != ''
-        uses: actions/upload-artifact@v4
-        with: {name: 'unchosen-eng-v1510-part013', path: 'out/parts/*.part013', retention-days: 7, compression-level: 0}
+        with:
+          name: mlbbhjdjb-rar-part02
+          path: out/mlbbhjdjb.rar.part02
+          compression-level: 0
+          retention-days: 7
       - name: Upload metadata
         uses: actions/upload-artifact@v4
         with:
-          name: unchosen-eng-v1510-metadata
+          name: mlbbhjdjb-metadata
           path: |
-            out/parts/SHA256.txt
-            out/parts/fetch_report.json
-            out/parts/ORIGINAL_FILENAME.txt
+            out/SHA256.txt
+            out/README_合并.txt
           retention-days: 7
