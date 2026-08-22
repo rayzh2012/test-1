@@ -13,19 +13,14 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import requests
-          from urllib.parse import urlparse, unquote
+          import re, requests
           page='https://aldrine.itch.io/pokemon-unchosen'
-          ids=['18657503','18872857','18873269']
           s=requests.Session(); s.headers['User-Agent']='Mozilla/5.0'
-          for uid in ids:
-              ep=f'{page}/file/{uid}?source=view_game&as_props=1&after_download_lightbox=true'
-              p=s.post(ep,headers={'Referer':page,'X-Requested-With':'XMLHttpRequest'},timeout=30)
-              print('RESOLVE',uid,p.status_code)
-              dl=p.json().get('url') if p.ok else None
-              if not dl:
-                  continue
-              print('SIGNED_BASENAME',uid,unquote(urlparse(dl).path.split('/')[-1]))
-              h=s.head(dl,allow_redirects=True,timeout=30)
-              print('HEAD',uid,h.status_code,'LEN',h.headers.get('content-length'),'CD',h.headers.get('content-disposition'),'FINAL',unquote(urlparse(h.url).path.split('/')[-1]))
+          text=s.get(page,timeout=30).text
+          for uid in ['18657503','18872857','18873269']:
+              m=re.search(r'data-upload_id=["\']'+uid+r'["\']',text,re.I)
+              if not m:
+                  print('NO_MATCH',uid); continue
+              raw=text[max(0,m.start()-650):min(len(text),m.end()+850)]
+              print('\n===UPLOAD',uid,'===\n',raw.replace('\n',' ')[:1500])
           PY
