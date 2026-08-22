@@ -33,10 +33,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - sample_id: crysalis-vxace
-            target: baseline_targets/crysalis_vxace_official.json
           - sample_id: a-kings-son-v16
             target: baseline_targets/a_kings_son_v16_mv.json
+          - sample_id: eclipsia-chronicles-vxace
+            target: baseline_targets/eclipsia_chronicles_vxace.json
+          - sample_id: royal-blood-vxace
+            target: baseline_targets/royal_blood_vxace.json
     steps:
       - uses: actions/checkout@v5
       - name: Install archive and RGSS dependencies
