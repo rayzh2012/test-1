@@ -1,0 +1,37 @@
+name: Probe Unchosen itch uploads
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Resolve public itch upload metadata only
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html, re, requests
+          url='https://aldrine.itch.io/pokemon-unchosen'
+          s=requests.Session(); s.headers['User-Agent']='Mozilla/5.0'
+          r=s.get(url,timeout=30); r.raise_for_status(); text=r.text; page=url
+          ids=re.findall(r'data-upload_id=["\'](\d+)["\']',text,re.I)
+          if not ids:
+              d=s.post(url+'/download_url',headers={'Referer':url,'X-Requested-With':'XMLHttpRequest'},timeout=30)
+              d.raise_for_status(); temp=d.json().get('url'); print('TEMP_PAGE',temp)
+              rr=s.get(temp,timeout=30); rr.raise_for_status(); text=rr.text; page=rr.url
+          print('PAGE',page)
+          seen=set()
+          for m in re.finditer(r'data-upload_id=["\'](\d+)["\']',text,re.I):
+              uid=m.group(1)
+              if uid in seen: continue
+              seen.add(uid)
+              context=text[max(0,m.start()-1400):min(len(text),m.end()+1800)]
+              context=re.sub(r'<script.*?</script>',' ',context,flags=re.I|re.S)
+              context=re.sub(r'<style.*?</style>',' ',context,flags=re.I|re.S)
+              context=re.sub(r'<[^>]+>',' ',context)
+              context=html.unescape(context)
+              context=re.sub(r'\s+',' ',context).strip()
+              print('UPLOAD',uid,'CONTEXT',context[:2400])
+          PY
