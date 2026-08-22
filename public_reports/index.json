@@ -9,6 +9,17 @@
       "json": "public_reports/pokemon_unchosen_v1.5.10_eng_joiplay.json",
       "markdown": "public_reports/pokemon_unchosen_v1.5.10_eng_joiplay.md",
       "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING"
+    },
+    {
+      "game_id": "ordinary-a-kings-son-v1.6",
+      "title": "A King's Son",
+      "version": "1.6",
+      "engine": "RPG Maker MV",
+      "sha256": "4462623cec4ba1b840c4f942c065b35b4e6bf6f8eb8777f55cb019111c895091",
+      "corpus_role": "ordinary_rpg_reference",
+      "json": "public_reports/ordinary_a_kings_son_v1.6.json",
+      "markdown": "public_reports/ordinary_a_kings_son_v1.6.md",
+      "baseline_status": "MV_JSON_DRAFT_N1_NO_PRODUCTION_PERCENTILES"
     }
   ]
 }
