@@ -26,6 +26,7 @@
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatTargetResolver.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/MultiTargetSkillResolver.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/RecoverySkillResolver.cs",
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SupportModifierSkillResolver.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/SkillPresentationPlan.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/MultiTargetSkillPresentationPlan.cs"
       ],
@@ -41,7 +42,8 @@
         "Assets/Tests/EditMode/CombatTargetResolverTests.cs",
         "Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs",
         "Assets/Tests/EditMode/MultiTargetSkillPresentationPlannerTests.cs",
-        "Assets/Tests/EditMode/RecoverySkillResolverTests.cs"
+        "Assets/Tests/EditMode/RecoverySkillResolverTests.cs",
+        "Assets/Tests/EditMode/SupportModifierSkillResolverTests.cs"
       ]
     }
   ]
