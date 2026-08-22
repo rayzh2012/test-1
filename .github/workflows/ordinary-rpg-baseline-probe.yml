@@ -1,0 +1,84 @@
+name: Ordinary RPG Baseline Probe
+
+on:
+  push:
+    paths:
+      - 'baseline_targets/**'
+      - 'tools/fangame_fetcher.py'
+      - 'tools/fangame_inspect.py'
+      - 'tools/fangame_genome_runner.py'
+      - 'tools/fangame_normalized_profile.py'
+      - 'tools/rpgmaker_mv_genome.py'
+      - 'tools/fangame_profile_contract.py'
+      - '.github/workflows/ordinary-rpg-baseline-probe.yml'
+  pull_request:
+    paths:
+      - 'baseline_targets/**'
+      - 'tools/fangame_fetcher.py'
+      - 'tools/fangame_inspect.py'
+      - 'tools/fangame_genome_runner.py'
+      - 'tools/fangame_normalized_profile.py'
+      - 'tools/rpgmaker_mv_genome.py'
+      - 'tools/fangame_profile_contract.py'
+      - '.github/workflows/ordinary-rpg-baseline-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sample_id: crysalis-vxace
+            target: baseline_targets/crysalis_vxace_official.json
+          - sample_id: a-kings-son-v16
+            target: baseline_targets/a_kings_son_v16_mv.json
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install archive and RGSS dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools ruby
+      - name: Run universal structural analysis
+        run: |
+          python3 tools/fangame_genome_runner.py \
+            --target-json "${{ matrix.target }}" \
+            --outdir "out/${{ matrix.sample_id }}" \
+            --workdir "work/${{ matrix.sample_id }}" \
+            --skip-perceptual
+      - name: Enforce normalized baseline contract
+        run: |
+          python3 tools/fangame_profile_contract.py \
+            "out/${{ matrix.sample_id }}/normalized_profile.json" \
+            --out "out/${{ matrix.sample_id }}/baseline_profile.json"
+      - name: Verify publication boundary and baseline readiness
+        run: |
+          python3 - "out/${{ matrix.sample_id }}" <<'PY'
+          import json, pathlib, sys
+          root=pathlib.Path(sys.argv[1])
+          required=['normalized_profile.json','baseline_profile.json','public_report.json','public_report.md','public_registry_entry.json','genome_summary.json','genome_audit.json']
+          missing=[x for x in required if not (root/x).exists()]
+          assert not missing, missing
+          p=json.load(open(root/'baseline_profile.json',encoding='utf-8'))
+          assert p['schema']=='fangame.normalized_profile.v0.1'
+          assert p['parser_family'] in {'MV_JSON','RGSS_MARSHAL'}
+          assert p['baseline_status']=='REAL_ORDINARY_RPG_BASELINE_PENDING'
+          pub=json.load(open(root/'public_report.json',encoding='utf-8'))
+          assert pub['publication_policy']['contains_game_binary'] is False
+          assert pub['publication_policy']['contains_private_drive_ids'] is False
+          print(json.dumps({'game_id':p.get('game_id'),'title':p.get('title'),'engine':p.get('engine'),'parser_family':p.get('parser_family'),'maps':(p.get('metrics') or {}).get('maps')},ensure_ascii=False,indent=2))
+          PY
+      - name: Upload metrics only
+        uses: actions/upload-artifact@v4
+        with:
+          name: ordinary-rpg-baseline-${{ matrix.sample_id }}
+          path: |
+            out/${{ matrix.sample_id }}/baseline_profile.json
+            out/${{ matrix.sample_id }}/public_report.json
+            out/${{ matrix.sample_id }}/public_report.md
+            out/${{ matrix.sample_id }}/public_registry_entry.json
+            out/${{ matrix.sample_id }}/genome_summary.json
+            out/${{ matrix.sample_id }}/genome_audit.json
+          retention-days: 14
