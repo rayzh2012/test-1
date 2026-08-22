@@ -1,0 +1,94 @@
+{
+  "schema": "ordinary_rpg_baseline_corpus.v0.1",
+  "corpus_id": "ordinary-rpg-mv-json",
+  "corpus_version": "0.1-draft.1",
+  "provenance_status": "VERIFIED",
+  "corpus_state": "DRAFT_N1_NO_PRODUCTION_PERCENTILES",
+  "measurement_contract": {
+    "normalized_schema": "fangame.normalized_profile.v0.1",
+    "parser_family_rule": "EXACT_MATCH",
+    "parser_family": "MV_JSON",
+    "production_percentile_min_n": 20,
+    "current_compatible_n": 1,
+    "production_percentiles_enabled": false
+  },
+  "games": [
+    {
+      "schema": "fangame.normalized_profile.v0.1",
+      "game_id": "ordinary-a-kings-son-v1.6",
+      "title": "A King's Son",
+      "version": "1.6",
+      "engine": "RPG Maker MV",
+      "sha256": "4462623cec4ba1b840c4f942c065b35b4e6bf6f8eb8777f55cb019111c895091",
+      "bytes": 202420886,
+      "source_url": "https://enzevil.itch.io/a-kings-son",
+      "metrics": {
+        "maps": 23,
+        "events": 576,
+        "event_pages": 888,
+        "event_commands": 9666,
+        "dialogue_blocks": 1547,
+        "dialogue_lines": 3906,
+        "dialogue_chars": 89537,
+        "choice_commands": 72,
+        "choice_options": 149,
+        "conditional_branches": 201,
+        "transfers": 71,
+        "battle_calls": 25,
+        "shops": 5,
+        "enabled_plugins": 3,
+        "total_plugins": 5,
+        "image_count": 176,
+        "audio_count": 136,
+        "actors": 5,
+        "classes": 5,
+        "skills": 56,
+        "items": 25,
+        "weapons": 20,
+        "armors": 20,
+        "enemies": 15,
+        "troops": 20,
+        "states": 20,
+        "common_events": 4
+      },
+      "derived": {
+        "events_per_map": 25.043478260869566,
+        "event_commands_per_map": 420.2608695652174,
+        "dialogue_chars_per_map": 3892.913043478261,
+        "dialogue_chars_per_event": 155.44618055555554,
+        "choice_options_per_map": 6.478260869565218,
+        "conditional_branches_per_map": 8.73913043478261,
+        "transfers_per_map": 3.0869565217391304,
+        "battle_calls_per_map": 1.0869565217391304,
+        "shops_per_100_maps": 21.73913043478261,
+        "maps_with_events_ratio": 1.0
+      },
+      "progression": {
+        "random_encounter_map_ratio": 0.0,
+        "encounter_step_median": null,
+        "enemy_exp_median": 50.0,
+        "enemy_gold_median": 0.0,
+        "equipment_price_median": 600.0
+      },
+      "system_evidence": {
+        "difficulty_slider_plugin": false,
+        "autosave_plugin": false,
+        "quest_journal_plugin": false,
+        "new_game_plus_plugin": false,
+        "speed_up_plugin": false,
+        "letbs_related_enabled_plugins": 0
+      },
+      "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING",
+      "corpus_role": "ordinary_rpg_reference",
+      "source_kind": "public_free_original_game",
+      "provenance_note": "Released free original RPG Maker MV game. Binary was analyzed transiently and is not committed to the public corpus.",
+      "parser_family": "MV_JSON",
+      "profile_contract_version": "fangame.normalized_profile.contract.v0.2",
+      "baseline_compatibility": {
+        "normalized_schema": "fangame.normalized_profile.v0.1",
+        "parser_family": "MV_JSON",
+        "rule": "EXACT_SCHEMA_AND_PARSER_FAMILY"
+      }
+    }
+  ]
+}
