@@ -1,0 +1,14 @@
+{
+  "schema": "fangame.public_report_index.v0.1",
+  "reports": [
+    {
+      "game_id": "pokemon_unchosen_v1.5.10_eng_joiplay",
+      "title": "Pokémon Unchosen",
+      "version": "1.5.10 ENG JoiPlay",
+      "engine": "RPG Maker MV + LeTBS",
+      "json": "public_reports/pokemon_unchosen_v1.5.10_eng_joiplay.json",
+      "markdown": "public_reports/pokemon_unchosen_v1.5.10_eng_joiplay.md",
+      "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING"
+    }
+  ]
+}
