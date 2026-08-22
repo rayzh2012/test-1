@@ -1,0 +1,42 @@
+{
+  "schema_version": "pal3_chat_command.v0.1",
+  "command_id": "pal3-20260822-0352-step6b-support-modifiers-0014",
+  "created_at": "2026-08-22T03:52:00-04:00",
+  "source": "chatgpt_conversation",
+  "actor": "chatgpt",
+  "normalized_user_intent": "Continue the PAL3 open-source rewrite and preserve each material engineering increment as a publication-ready log, with GitHub Gist, Medium and Zhihu as mirror targets when writable transports are available.",
+  "normalized_action": "implement_step6b_source_grounded_temporary_attack_defense_speed_luck_modifier_states_and_assist_magic_resolution",
+  "target_surfaces": [
+    "CombatantState combat-state presence",
+    "CombatantState.GetSupportModifierPercent",
+    "CombatEvent typed combat-state facts",
+    "SupportModifierSkillResolver<TKey>",
+    "SupportModifierSkillCastResolution<TKey>",
+    "SupportModifierTargetResolution<TKey>",
+    "fast-tests.json",
+    "realtime-control publication targets",
+    "experiment-logs",
+    "devlog/entries"
+  ],
+  "expected_gates": [
+    "PATCH_APPLIES",
+    "DIFF_CHECK",
+    "EIGHT_SOURCE_GROUNDED_SUPPORT_STATES",
+    "FIRST_PARTY_SINGLE_ALL",
+    "APPLY_REMOVE_STATE",
+    "MP_SPENT_ONCE",
+    "OPPOSITE_STATE_CONFLICT_REJECTED",
+    "NO_DURATION_STACKING_REFRESH_ROUNDING_INVENTION",
+    "TYPED_COMBAT_STATE_EVENTS",
+    "ATOMIC_PRECONDITIONS",
+    "FAST_DOMAIN_TESTS"
+  ],
+  "claim_boundary": "Pinned upstream explicitly labels Attack/Defense/Speed/Luck increase/decrease combat states as temporary +/-10%. This experiment models state presence, typed state-change facts, targeting and resource transaction semantics only. It does not claim original PAL3 duration, stacking, refresh/cancellation, integer stat rounding, scheduler integration, Unity presentation, full Unity compile/runtime, or original formula fidelity.",
+  "status": "PENDING_CI",
+  "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-22T0352-step6b-support-modifiers-0014.json",
+  "publication": {
+    "canonical": "repository_markdown",
+    "mirrors": ["github_gist", "medium", "zhihu"],
+    "mirror_policy": "publish_when_writable_transport_exists_without_blocking_engineering"
+  }
+}
