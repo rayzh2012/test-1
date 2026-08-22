@@ -10,6 +10,7 @@ on:
       - 'tools/fangame_normalized_profile.py'
       - 'tools/rpgmaker_mv_genome.py'
       - 'tools/fangame_profile_contract.py'
+      - 'tools/fangame_public_report.py'
       - '.github/workflows/ordinary-rpg-baseline-probe.yml'
   pull_request:
     paths:
@@ -20,6 +21,7 @@ on:
       - 'tools/fangame_normalized_profile.py'
       - 'tools/rpgmaker_mv_genome.py'
       - 'tools/fangame_profile_contract.py'
+      - 'tools/fangame_public_report.py'
       - '.github/workflows/ordinary-rpg-baseline-probe.yml'
   workflow_dispatch:
 
@@ -48,16 +50,25 @@ jobs:
             --outdir "out/${{ matrix.sample_id }}" \
             --workdir "work/${{ matrix.sample_id }}" \
             --skip-perceptual
-      - name: Enforce normalized baseline contract
+      - name: Enforce stable normalized baseline contract
         run: |
           python3 tools/fangame_profile_contract.py \
             "out/${{ matrix.sample_id }}/normalized_profile.json" \
+            --target-json "${{ matrix.target }}" \
             --out "out/${{ matrix.sample_id }}/baseline_profile.json"
+      - name: Regenerate public report from contracted identity
+        run: |
+          python3 tools/fangame_public_report.py \
+            "out/${{ matrix.sample_id }}/baseline_profile.json" \
+            --out-json "out/${{ matrix.sample_id }}/public_report.json" \
+            --out-md "out/${{ matrix.sample_id }}/public_report.md" \
+            --registry-entry-out "out/${{ matrix.sample_id }}/public_registry_entry.json" \
+            --parser-version "ordinary-rpg-probe.v0.1"
       - name: Verify publication boundary and baseline readiness
         run: |
-          python3 - "out/${{ matrix.sample_id }}" <<'PY'
+          python3 - "out/${{ matrix.sample_id }}" "${{ matrix.target }}" <<'PY'
           import json, pathlib, sys
-          root=pathlib.Path(sys.argv[1])
+          root=pathlib.Path(sys.argv[1]); target=json.load(open(sys.argv[2],encoding='utf-8'))
           required=['normalized_profile.json','baseline_profile.json','public_report.json','public_report.md','public_registry_entry.json','genome_summary.json','genome_audit.json']
           missing=[x for x in required if not (root/x).exists()]
           assert not missing, missing
@@ -65,7 +76,10 @@ jobs:
           assert p['schema']=='fangame.normalized_profile.v0.1'
           assert p['parser_family'] in {'MV_JSON','RGSS_MARSHAL'}
           assert p['baseline_status']=='REAL_ORDINARY_RPG_BASELINE_PENDING'
+          assert p['game_id']==target['game_id']
+          assert p.get('corpus_role')=='ordinary_rpg_reference'
           pub=json.load(open(root/'public_report.json',encoding='utf-8'))
+          assert pub['identity']['game_id']==target['game_id']
           assert pub['publication_policy']['contains_game_binary'] is False
           assert pub['publication_policy']['contains_private_drive_ids'] is False
           print(json.dumps({'game_id':p.get('game_id'),'title':p.get('title'),'engine':p.get('engine'),'parser_family':p.get('parser_family'),'maps':(p.get('metrics') or {}).get('maps')},ensure_ascii=False,indent=2))
