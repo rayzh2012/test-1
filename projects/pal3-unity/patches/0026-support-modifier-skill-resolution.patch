@@ -1,0 +1,353 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SupportModifierSkillResolver.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SupportModifierSkillResolver.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/SupportModifierSkillResolver.cs
+@@ -0,0 +1,348 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity deterministic Step 6B support-modifier skill execution.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Linq;
++    using Pal3.Core.Contract.Enums;
++
++    public sealed class SupportModifierTargetResolution<TKey> where TKey : notnull
++    {
++        private readonly IReadOnlyList<CombatEvent> _events;
++
++        public TKey TargetKey { get; }
++        public ActorCombatStateType StateType { get; }
++        public CombatStateImpactType ImpactType { get; }
++        public int ModifierPercent { get; }
++        public IReadOnlyList<CombatEvent> Events => _events;
++
++        public SupportModifierTargetResolution(
++            TKey targetKey,
++            uint skillId,
++            ActorCombatStateType stateType,
++            CombatStateImpactType impactType,
++            int modifierPercent)
++        {
++            if (targetKey is null) throw new ArgumentNullException(nameof(targetKey));
++            if (impactType == CombatStateImpactType.None)
++            {
++                throw new ArgumentOutOfRangeException(nameof(impactType));
++            }
++
++            TargetKey = targetKey;
++            StateType = stateType;
++            ImpactType = impactType;
++            ModifierPercent = modifierPercent;
++            _events = Array.AsReadOnly(new[]
++            {
++                CombatEvent.ForCombatStateChange(skillId, stateType, impactType),
++            });
++        }
++    }
++
++    public sealed class SupportModifierSkillCastResolution<TKey> where TKey : notnull
++    {
++        private readonly IReadOnlyList<CombatEvent> _castEvents;
++        private readonly IReadOnlyList<SupportModifierTargetResolution<TKey>> _targets;
++
++        public uint SkillId { get; }
++        public int MpSpent { get; }
++        public IReadOnlyList<CombatEvent> CastEvents => _castEvents;
++        public IReadOnlyList<SupportModifierTargetResolution<TKey>> Targets => _targets;
++
++        public SupportModifierSkillCastResolution(
++            uint skillId,
++            int mpSpent,
++            IEnumerable<SupportModifierTargetResolution<TKey>> targets)
++        {
++            if (skillId == 0) throw new ArgumentOutOfRangeException(nameof(skillId));
++            if (mpSpent < 0) throw new ArgumentOutOfRangeException(nameof(mpSpent));
++            if (targets == null) throw new ArgumentNullException(nameof(targets));
++
++            SupportModifierTargetResolution<TKey>[] targetArray = targets.ToArray();
++            if (targetArray.Length == 0)
++            {
++                throw new ArgumentException(
++                    "A support-modifier cast requires at least one resolved target.",
++                    nameof(targets));
++            }
++            if (targetArray.Any(target => target == null))
++            {
++                throw new ArgumentException(
++                    "Support-modifier targets cannot contain null entries.",
++                    nameof(targets));
++            }
++            if (targetArray
++                .Select(target => target.TargetKey)
++                .Distinct(EqualityComparer<TKey>.Default)
++                .Count() != targetArray.Length)
++            {
++                throw new InvalidOperationException(
++                    "Support-modifier target keys must be unique.");
++            }
++
++            SkillId = skillId;
++            MpSpent = mpSpent;
++            _castEvents = Array.AsReadOnly(new[] { CombatEvent.ForSkillCast(skillId) });
++            _targets = Array.AsReadOnly(targetArray);
++        }
++    }
++
++    /// <summary>
++    /// Source-grounded Step 6B slice for the eight PAL3 temporary +/-10% support states:
++    /// attack, defense, speed and luck increase/decrease.
++    ///
++    /// This slice models state presence and the exact percentage stated by pinned upstream enums.
++    /// It deliberately does not invent duration, stacking, refresh, cancellation, stat rounding,
++    /// turn scheduling, or Unity presentation behavior.
++    /// </summary>
++    public static class SupportModifierSkillResolver<TKey> where TKey : notnull
++    {
++        public static SupportModifierSkillCastResolution<TKey> Resolve(
++            CombatantState caster,
++            IEnumerable<CombatTargetSlot<TKey>> slots,
++            SkillDefinition skill)
++        {
++            ValidateCommonInputs(caster, slots, skill);
++            if (skill.TargetRange != TargetRangeType.FirstPartyAll)
++            {
++                throw new ArgumentException(
++                    $"Target range {skill.TargetRange} requires an explicit ally anchor.",
++                    nameof(skill));
++            }
++
++            CombatTargetSlot<TKey>[] slotArray = slots.ToArray();
++            IReadOnlyList<TKey> targetKeys =
++                CombatTargetResolver<TKey>.Resolve(skill.TargetRange, slotArray);
++
++            return ResolveSelected(caster, slotArray, skill, targetKeys);
++        }
++
++        public static SupportModifierSkillCastResolution<TKey> Resolve(
++            CombatantState caster,
++            IEnumerable<CombatTargetSlot<TKey>> slots,
++            SkillDefinition skill,
++            TKey anchorKey)
++        {
++            ValidateCommonInputs(caster, slots, skill);
++            if (skill.TargetRange != TargetRangeType.FirstPartySingle)
++            {
++                throw new ArgumentException(
++                    $"Target range {skill.TargetRange} does not use a single-ally anchor in this slice.",
++                    nameof(skill));
++            }
++
++            CombatTargetSlot<TKey>[] slotArray = slots.ToArray();
++            IReadOnlyList<TKey> targetKeys =
++                CombatTargetResolver<TKey>.Resolve(skill.TargetRange, slotArray, anchorKey);
++
++            return ResolveSelected(caster, slotArray, skill, targetKeys);
++        }
++
++        private static SupportModifierSkillCastResolution<TKey> ResolveSelected(
++            CombatantState caster,
++            IReadOnlyList<CombatTargetSlot<TKey>> slots,
++            SkillDefinition skill,
++            IReadOnlyList<TKey> targetKeys)
++        {
++            if (targetKeys.Count == 0)
++            {
++                throw new InvalidOperationException(
++                    "A support-modifier skill requires at least one living first-party target.");
++            }
++
++            Dictionary<TKey, CombatantState> statesByKey = slots.ToDictionary(
++                slot => slot.Key,
++                slot => slot.State,
++                EqualityComparer<TKey>.Default);
++
++            CombatantState[] targets = targetKeys
++                .Select(key => statesByKey[key])
++                .ToArray();
++
++            ValidateDistinctTargetStates(targets);
++
++            SkillEffectDefinition effect = skill.Effects.Single();
++            ActorCombatStateType stateType = effect.CombatStateType;
++            ActorCombatStateType oppositeState = OppositeState(stateType);
++
++            foreach (CombatantState target in targets)
++            {
++                if (effect.CombatStateImpactType == CombatStateImpactType.Increase)
++                {
++                    if (target.HasCombatState(stateType))
++                    {
++                        throw new InvalidOperationException(
++                            $"Support state {stateType} is already active.");
++                    }
++                    if (target.HasCombatState(oppositeState))
++                    {
++                        throw new InvalidOperationException(
++                            $"Opposing support state {oppositeState} is already active.");
++                    }
++                }
++                else if (!target.HasCombatState(stateType))
++                {
++                    throw new InvalidOperationException(
++                        $"Support state {stateType} is not active and cannot be removed.");
++                }
++            }
++
++            if (caster.CurrentMp < skill.MpCost)
++            {
++                throw new InvalidOperationException("Insufficient MP.");
++            }
++
++            if (!caster.TrySpendMp(skill.MpCost))
++            {
++                throw new InvalidOperationException("Insufficient MP.");
++            }
++
++            SupportModifierTargetResolution<TKey>[] results =
++                new SupportModifierTargetResolution<TKey>[targetKeys.Count];
++
++            for (int i = 0; i < targetKeys.Count; i++)
++            {
++                bool changed = effect.CombatStateImpactType switch
++                {
++                    CombatStateImpactType.Increase => targets[i].ApplyCombatState(stateType),
++                    CombatStateImpactType.Remove => targets[i].RemoveCombatState(stateType),
++                    _ => throw new InvalidOperationException("Unsupported combat-state impact."),
++                };
++                if (!changed)
++                {
++                    throw new InvalidOperationException(
++                        "Validated support-state mutation unexpectedly produced no change.");
++                }
++
++                ActorAttributeType attribute = SupportStateDescriptor(stateType).Attribute;
++                results[i] = new SupportModifierTargetResolution<TKey>(
++                    targetKeys[i],
++                    skill.Id,
++                    stateType,
++                    effect.CombatStateImpactType,
++                    targets[i].GetSupportModifierPercent(attribute));
++            }
++
++            return new SupportModifierSkillCastResolution<TKey>(
++                skill.Id,
++                skill.MpCost,
++                results);
++        }
++
++        private static void ValidateDistinctTargetStates(IReadOnlyList<CombatantState> targets)
++        {
++            for (int i = 0; i < targets.Count; i++)
++            {
++                for (int j = 0; j < i; j++)
++                {
++                    if (ReferenceEquals(targets[i], targets[j]))
++                    {
++                        throw new InvalidOperationException(
++                            "Selected support target keys must refer to distinct combatant states.");
++                    }
++                }
++            }
++        }
++
++        private static void ValidateCommonInputs(
++            CombatantState caster,
++            IEnumerable<CombatTargetSlot<TKey>> slots,
++            SkillDefinition skill)
++        {
++            if (caster == null) throw new ArgumentNullException(nameof(caster));
++            if (slots == null) throw new ArgumentNullException(nameof(slots));
++            if (skill == null) throw new ArgumentNullException(nameof(skill));
++            if (!caster.IsAlive)
++            {
++                throw new InvalidOperationException("A defeated combatant cannot cast a skill.");
++            }
++
++            ValidateSupportedSkill(skill);
++        }
++
++        private static void ValidateSupportedSkill(SkillDefinition skill)
++        {
++            if (skill.TargetRange is not (
++                TargetRangeType.FirstPartySingle or
++                TargetRangeType.FirstPartyAll))
++            {
++                throw new NotSupportedException(
++                    "This support-modifier slice only supports first-party single/all targets.");
++            }
++
++            if (skill.Type != SkillType.AssistMagic)
++            {
++                throw new NotSupportedException(
++                    "This support-modifier slice only supports AssistMagic.");
++            }
++
++            if (skill.SpCost != 0)
++            {
++                throw new NotSupportedException(
++                    "SP-consuming support skills are not supported by this slice.");
++            }
++
++            if (skill.Effects.Count != 1)
++            {
++                throw new NotSupportedException(
++                    "This support-modifier slice requires exactly one skill effect.");
++            }
++
++            SkillEffectDefinition effect = skill.Effects[0];
++            if (effect.Kind != SkillEffectKind.CombatStateImpact)
++            {
++                throw new NotSupportedException(
++                    "This support-modifier slice only supports combat-state effects.");
++            }
++
++            _ = SupportStateDescriptor(effect.CombatStateType);
++
++            if (effect.CombatStateImpactType is not (
++                CombatStateImpactType.Increase or
++                CombatStateImpactType.Remove))
++            {
++                throw new NotSupportedException(
++                    $"Combat-state impact {effect.CombatStateImpactType} is not supported.");
++            }
++        }
++
++        private static (ActorAttributeType Attribute, int ModifierPercent)
++            SupportStateDescriptor(ActorCombatStateType stateType)
++        {
++            return stateType switch
++            {
++                ActorCombatStateType.AttackIncrease => (ActorAttributeType.Attack, 10),
++                ActorCombatStateType.AttackDecrease => (ActorAttributeType.Attack, -10),
++                ActorCombatStateType.DefenseIncrease => (ActorAttributeType.Defense, 10),
++                ActorCombatStateType.DefenseDecrease => (ActorAttributeType.Defense, -10),
++                ActorCombatStateType.SpeedIncrease => (ActorAttributeType.Speed, 10),
++                ActorCombatStateType.SpeedDecrease => (ActorAttributeType.Speed, -10),
++                ActorCombatStateType.LuckIncrease => (ActorAttributeType.Luck, 10),
++                ActorCombatStateType.LuckDecrease => (ActorAttributeType.Luck, -10),
++                _ => throw new NotSupportedException(
++                    $"Combat state {stateType} is not a Step 6B support modifier."),
++            };
++        }
++
++        private static ActorCombatStateType OppositeState(ActorCombatStateType stateType)
++        {
++            return stateType switch
++            {
++                ActorCombatStateType.AttackIncrease => ActorCombatStateType.AttackDecrease,
++                ActorCombatStateType.AttackDecrease => ActorCombatStateType.AttackIncrease,
++                ActorCombatStateType.DefenseIncrease => ActorCombatStateType.DefenseDecrease,
++                ActorCombatStateType.DefenseDecrease => ActorCombatStateType.DefenseIncrease,
++                ActorCombatStateType.SpeedIncrease => ActorCombatStateType.SpeedDecrease,
++                ActorCombatStateType.SpeedDecrease => ActorCombatStateType.SpeedIncrease,
++                ActorCombatStateType.LuckIncrease => ActorCombatStateType.LuckDecrease,
++                ActorCombatStateType.LuckDecrease => ActorCombatStateType.LuckIncrease,
++                _ => throw new NotSupportedException(
++                    $"Combat state {stateType} is not a Step 6B support modifier."),
++            };
++        }
++    }
++}
