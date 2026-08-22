@@ -140,6 +140,13 @@ def test_mv_genome_to_public_report(tmp_path):
     assert n["game_id"] == "fixture-rpg"
     assert n["baseline_status"] == "REAL_ORDINARY_RPG_BASELINE_PENDING"
 
+    # Simulate fields that can exist in the private Feature Store but must never
+    # leak through the public-report whitelist.
+    n["evidence_drive_id"] = "PRIVATE_DRIVE_SENTINEL_123"
+    n["personal_fit_score_5"] = 4.9
+    n["private_notes"] = "PRIVATE_NOTE_SENTINEL"
+    normalized.write_text(json.dumps(n, ensure_ascii=False), encoding="utf-8")
+
     public_json = tmp_path / "public.json"
     public_md = tmp_path / "public.md"
     registry = tmp_path / "entry.json"
@@ -152,6 +159,7 @@ def test_mv_genome_to_public_report(tmp_path):
     pub = json.loads(public_json.read_text(encoding="utf-8"))
     ent = json.loads(registry.read_text(encoding="utf-8"))
     md = public_md.read_text(encoding="utf-8")
+    serialized = json.dumps(pub, ensure_ascii=False)
     assert pub["identity"]["game_id"] == "fixture-rpg"
     assert pub["observed"]["event_commands"] == 11
     assert pub["observed"]["actors"] == 1
@@ -159,7 +167,11 @@ def test_mv_genome_to_public_report(tmp_path):
     assert pub["baseline"]["status"] == "REAL_ORDINARY_RPG_BASELINE_PENDING"
     assert pub["publication_policy"]["contains_game_binary"] is False
     assert pub["publication_policy"]["contains_private_drive_ids"] is False
-    assert "private" not in json.dumps(pub).lower()
+    assert "PRIVATE_DRIVE_SENTINEL_123" not in serialized
+    assert "PRIVATE_NOTE_SENTINEL" not in serialized
+    assert "evidence_drive_id" not in pub
+    assert "personal_fit_score_5" not in pub
+    assert "private_notes" not in pub
     assert ent["game_id"] == "fixture-rpg"
     assert ent["baseline_status"] == "REAL_ORDINARY_RPG_BASELINE_PENDING"
     assert "Structural feature vector" in md
