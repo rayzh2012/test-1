@@ -4,6 +4,8 @@
   "engine": "RPG Maker 2003",
   "min_mb": 100,
   "sources": [
+    "ftp://6rdown:dl@zh99998.vicp.net/game018_仙剑续传宿命篇2003.rar",
+    "http://d24.games.sina.com.cn/demo/xanjianxuzhuan-sumingpian.rar",
     "https://games.sina.com.cn/downgames/demo/pcgames/2005-08-16/141291888.shtml",
     "https://mip.ali213.net/down/PALSuMing.html",
     "https://www.ali213.net/zt/chinesepaladinsm/",
@@ -11,7 +13,8 @@
     "https://rpg.blue/thread-128518-1-1.html"
   ],
   "identity_notes": [
-    "Project1 historical exact filename: game018_仙剑续传宿命篇2003.rar",
+    "Project1 2009 FTP index gives host zh99998.vicp.net, user 6rdown, password dl, and exact file game018_仙剑续传宿命篇2003.rar.",
+    "Sina 2005 download page exposes original binary fingerprint xanjianxuzhuan-sumingpian.rar, size field 120176 KB.",
     "Do not accept xianjianqixiazhuanwaizhuansumingjue.rar; that is 创毅制作群《仙剑奇侠传外传：宿命诀》, a separate title already rescued."
   ]
 }
