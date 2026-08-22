@@ -1,0 +1,71 @@
+{
+  "schema": "fangame.public_analysis.v0.1",
+  "descriptor_version": "fangame.public_descriptors.v0.1",
+  "identity": {
+    "game_id": "pokemon_unchosen_v1.5.10_eng_joiplay",
+    "title": "Pokémon Unchosen",
+    "version": "1.5.10 ENG JoiPlay",
+    "engine": "RPG Maker MV + LeTBS",
+    "sha256": "e4bc61584b70929b456c3022b0a13d1c6c75c5bdf3424091c157d494e185d613",
+    "bytes": 1008732457,
+    "source_url": "https://aldrine.itch.io/pokemon-unchosen"
+  },
+  "reproducibility": {
+    "input_schema": "fangame.normalized_profile.v0.1",
+    "parser_version": "mv-genome.v0.1 + normalized_profile.v0.1",
+    "analysis_version": "fangame.public_descriptors.v0.1"
+  },
+  "observed": {
+    "maps": 547,
+    "events": 16538,
+    "event_pages": 32037,
+    "event_commands": 205650,
+    "dialogue_blocks": 7866,
+    "dialogue_chars": 357172,
+    "choice_options": 7823,
+    "battle_calls": 3880,
+    "shops": 10,
+    "enabled_plugins": 252
+  },
+  "derived": {
+    "events_per_map": 30.23400365630713,
+    "event_commands_per_map": 375.95978062157224,
+    "dialogue_chars_per_map": 652.9652650822669,
+    "choice_options_per_map": 14.30164533820841
+  },
+  "progression": {
+    "random_encounter_map_ratio": 0.0,
+    "encounter_step_median": null,
+    "enemy_exp_median": 200.0,
+    "enemy_gold_median": 0.0,
+    "equipment_price_median": 10000.0
+  },
+  "system_evidence": {
+    "difficulty_slider_plugin": true,
+    "autosave_plugin": true,
+    "quest_journal_plugin": true,
+    "new_game_plus_plugin": true,
+    "speed_up_plugin": true,
+    "letbs_related_enabled_plugins": 37
+  },
+  "descriptors": [
+    {"id": "large_map_surface", "kind": "ABSOLUTE_HEURISTIC", "evidence": "maps=547"},
+    {"id": "heavy_event_scripting", "kind": "ABSOLUTE_HEURISTIC", "evidence": "event_commands=205650"},
+    {"id": "broad_plugin_surface", "kind": "ABSOLUTE_HEURISTIC", "evidence": "enabled_plugins=252"},
+    {"id": "no_native_random_encounter_maps", "kind": "OBSERVED_STRUCTURE", "evidence": "random_encounter_map_ratio=0"},
+    {"id": "scripted_or_event_driven_combat_structure", "kind": "DERIVED_STRUCTURE", "evidence": "battle_calls=3880; random_encounter_map_ratio=0"},
+    {"id": "dialogue_dense_absolute", "kind": "ABSOLUTE_HEURISTIC", "evidence": "dialogue_chars_per_map=652.97"},
+    {"id": "choice_dense_absolute", "kind": "ABSOLUTE_HEURISTIC", "evidence": "choice_options_per_map=14.30"},
+    {"id": "multiple_explicit_qol_or_meta_systems", "kind": "OBSERVED_SYSTEM_EVIDENCE", "evidence": ["autosave_plugin", "difficulty_slider_plugin", "new_game_plus_plugin", "quest_journal_plugin", "speed_up_plugin"]}
+  ],
+  "baseline": {
+    "status": "REAL_ORDINARY_RPG_BASELINE_PENDING",
+    "comparison": null
+  },
+  "publication_policy": {
+    "contains_game_binary": false,
+    "contains_private_drive_ids": false,
+    "contains_personal_fit": false,
+    "percentile_claims_require_compatible_baseline": true
+  }
+}
