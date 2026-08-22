@@ -4,8 +4,8 @@
   "roadmap_step": "6B1",
   "title": "Source-grounded temporary support modifier states",
   "created_at": "2026-08-22T03:52:00-04:00",
-  "status": "PENDING_TERMINAL_GATE_AFTER_HARNESS_FIX",
-  "terminal": false,
+  "status": "VERIFIED_DOMAIN_UNITY_BLOCKED_NO_LICENSE",
+  "terminal": true,
   "base_control_ref": "master@f4f0cce9f4617969e336e6baae7b653e18f4bfbb",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
   "objective": "Continue Roadmap Step 6 by implementing the eight source-declared temporary attack/defense/speed/luck increase/decrease states and an AssistMagic resolver for first-party single/all targets.",
@@ -69,12 +69,42 @@
       "compile_gate_error": "Legacy compile-gate scratch project copied only CombatCore.cs and CombatCoreTests.cs, so new ActorEnums/CombatEnums dependencies were absent.",
       "compile_gate_classification": "CONTROL_PLANE_HARNESS_DRIFT, not PAL3 domain failure",
       "fix": "Replace the compile gate's hand-maintained two-file .NET scratch test with the same fast-tests.json + pal3_fastlane.py manifest used by the verified Chat Fast Lane, preventing future dependency drift."
+    },
+    {
+      "attempt": 3,
+      "head_sha": "3a277d968cdacce0cc88717c896a4e8e04e1577c",
+      "source_audit_run_id": 32561349662,
+      "source_audit": "PASS",
+      "fast_lane_run_id": 32561349663,
+      "fast_lane": "PASS",
+      "tests_total": 135,
+      "tests_passed": 135,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "duration_ms": 171,
+      "fast_lane_artifact_id": 9472863161,
+      "fast_lane_artifact_sha256": "02e0f9b519de330d8ca9948d93ac11910b27af744ccf895307d11550bbc12a29",
+      "compile_gate_run_id": 32561349674,
+      "compile_gate": "PASS_DOMAIN_GATE",
+      "compile_gate_artifact_id": 9472864077,
+      "compile_gate_artifact_sha256": "0a55e765811bc568def4d04cc6485d26f33461645dbde67706828e1489e03e50",
+      "unity_compile": "BLOCKED_NO_LICENSE",
+      "note": "The repaired compile gate replayed the same registered fast-test manifest successfully. Unity import/build remained skipped because activation material is absent."
     }
   ],
+  "verified_behavior": [
+    "All eight upstream temporary Attack/Defense/Speed/Luck increase/decrease states expose -10/0/+10 percent metadata.",
+    "AssistMagic supports living first-party single and first-party all targets in deterministic formation order.",
+    "MP is spent once only after target/state/resource preconditions pass.",
+    "Duplicate apply, missing-state remove, opposing-state conflict, unsupported state/type/range/SP cost and aliased target states reject before mutation.",
+    "One immutable SkillCast fact plus one typed CombatStateChanged fact per resolved target is emitted.",
+    "No duration, stacking, refresh/cancel or effective-stat rounding semantics were invented."
+  ],
   "claim_boundary": "This experiment models only source-declared temporary +/-10% support-state presence, first-party targeting, MP transaction and typed state-change facts. It does not establish original PAL3 duration, stacking, refresh/cancellation, effective integer stat rounding, real GDB population frequency, Unity compile/runtime, iOS or playtest behavior.",
-  "next_if_pass": "Inspect original data/runtime evidence for modifier duration/rounding before consuming support percentages in normal-attack or scheduler math; otherwise proceed to another source-grounded support sub-slice.",
+  "next_if_pass": "Highest information gain is to inspect source/data/runtime evidence for modifier duration and stat rounding before consuming these percentages in attack/defense/scheduler math. Lifecycle-heavy poison/control/reflection states remain Step 7.",
   "publication": {
     "canonical_entry_required_on_terminal": true,
+    "canonical_entry": "projects/pal3-unity/devlog/entries/2026-08-22T0352-step6b-support-modifiers.md",
     "targets": ["repository_markdown", "github_gist", "medium", "zhihu"],
     "external_mirror_status": "DEFERRED_UNTIL_WRITABLE_TRANSPORT"
   }

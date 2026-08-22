@@ -105,6 +105,22 @@
       "failed_fast_lane_run_id": 32358054901,
       "first_passing_source_audit_run_id": 32358257767,
       "first_passing_fast_lane_run_id": 32358257771
+    },
+    {
+      "experiment_id": "pal3-exp-20260822-0352-step6b-support-modifiers-0014",
+      "roadmap_step": "6B1",
+      "status": "VERIFIED_DOMAIN_UNITY_BLOCKED_NO_LICENSE",
+      "terminal": true,
+      "log": "projects/pal3-unity/experiment-logs/2026-08-22T0352-step6b-support-modifiers-0014.json",
+      "human_entry": "projects/pal3-unity/devlog/entries/2026-08-22T0352-step6b-support-modifiers.md",
+      "branch": "agent/pal3-step6b-support-modifiers-0014",
+      "pull_request": 102,
+      "failed_fast_lane_run_id": 32561216579,
+      "first_passing_fast_lane_run_id": 32561268552,
+      "final_prepublication_source_audit_run_id": 32561349662,
+      "final_prepublication_fast_lane_run_id": 32561349663,
+      "compile_gate_run_id": 32561349674,
+      "unity_status": "BLOCKED_NO_LICENSE"
     }
   ]
 }

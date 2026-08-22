@@ -32,11 +32,19 @@
     "FAST_DOMAIN_TESTS"
   ],
   "claim_boundary": "Pinned upstream explicitly labels Attack/Defense/Speed/Luck increase/decrease combat states as temporary +/-10%. This experiment models state presence, typed state-change facts, targeting and resource transaction semantics only. It does not claim original PAL3 duration, stacking, refresh/cancellation, integer stat rounding, scheduler integration, Unity presentation, full Unity compile/runtime, or original formula fidelity.",
-  "status": "PENDING_CI",
+  "status": "COMPLETED_VERIFIED_DOMAIN_UNITY_BLOCKED_NO_LICENSE",
+  "pull_request": 102,
+  "final_source_audit_run_id": 32561349662,
+  "final_fast_lane_run_id": 32561349663,
+  "final_fast_lane_tests": {"total":135,"passed":135,"failed":0,"skipped":0},
+  "compile_gate_run_id": 32561349674,
+  "unity_status": "BLOCKED_NO_LICENSE",
   "experiment_log": "projects/pal3-unity/experiment-logs/2026-08-22T0352-step6b-support-modifiers-0014.json",
+  "human_devlog_entry": "projects/pal3-unity/devlog/entries/2026-08-22T0352-step6b-support-modifiers.md",
   "publication": {
     "canonical": "repository_markdown",
     "mirrors": ["github_gist", "medium", "zhihu"],
-    "mirror_policy": "publish_when_writable_transport_exists_without_blocking_engineering"
+    "mirror_policy": "publish_when_writable_transport_exists_without_blocking_engineering",
+    "external_mirror_status": "DEFERRED_UNTIL_WRITABLE_TRANSPORT"
   }
 }
