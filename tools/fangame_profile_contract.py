@@ -2,7 +2,7 @@
 import argparse, json
 from pathlib import Path
 
-CONTRACT_VERSION = "fangame.normalized_profile.contract.v0.1"
+CONTRACT_VERSION = "fangame.normalized_profile.contract.v0.2"
 SCHEMA = "fangame.normalized_profile.v0.1"
 
 
@@ -17,15 +17,44 @@ def infer_parser_family(engine):
     return None
 
 
+def load(path):
+    return json.loads(Path(path).read_text(encoding="utf-8")) if path else {}
+
+
+def first_source(target):
+    if target.get("source_url"):
+        return target["source_url"]
+    if target.get("source"):
+        return target["source"]
+    sources = target.get("sources")
+    return sources[0] if isinstance(sources, list) and sources else None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("profile")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--target-json")
     args = ap.parse_args()
 
-    p = json.loads(Path(args.profile).read_text(encoding="utf-8"))
+    p = load(args.profile)
+    target = load(args.target_json)
     if p.get("schema") != SCHEMA:
         raise SystemExit(f"incompatible normalized schema: {p.get('schema')!r}")
+
+    # Stable corpus identity comes from the declared target, never from a parser slug,
+    # while measured bytes/SHA and structural metrics remain parser outputs.
+    if target:
+        p["game_id"] = target.get("game_id") or target.get("id") or p.get("game_id")
+        p["title"] = target.get("name") or target.get("title") or p.get("title")
+        p["version"] = target.get("version") or target.get("release_version") or p.get("version")
+        p["engine"] = target.get("engine") or p.get("engine")
+        p["source_url"] = first_source(target) or p.get("source_url")
+        p["corpus_role"] = target.get("corpus_role") or p.get("corpus_role")
+        p["source_kind"] = target.get("source_kind") or p.get("source_kind")
+        if target.get("provenance_note"):
+            p["provenance_note"] = target["provenance_note"]
+
     family = p.get("parser_family") or infer_parser_family(p.get("engine"))
     if not family:
         raise SystemExit(f"cannot resolve parser_family for engine {p.get('engine')!r}")
