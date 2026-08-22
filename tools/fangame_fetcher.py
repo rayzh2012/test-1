@@ -79,10 +79,10 @@ def fetch_http(session,url,outdir,min_mb,report):
 def fetch_ftp(url,outdir,min_mb,report):
     name=os.path.basename(urlparse(url).path) or 'download.rar'
     path=Path(outdir)/name
-    for cmd in (["curl","-L","--fail","--connect-timeout","20","--max-time","900","-o",str(path),url],
-                ["wget","-O",str(path),url]):
+    for cmd in (["curl","-L","--fail","--connect-timeout","15","--max-time","90","-o",str(path),url],
+                ["wget","--timeout=20","--tries=1","-O",str(path),url]):
         try:
-            p=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=950)
+            p=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=120)
             report['attempts'].append({'url':url,'transport':cmd[0],'returncode':p.returncode,'log_tail':p.stdout[-1200:]})
             if p.returncode==0 and path.exists() and path.stat().st_size>=min_mb*1024*1024 and archive_head_ok(path): return path
         except Exception as e:
