@@ -13,26 +13,19 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import html, re, requests
-          url='https://aldrine.itch.io/pokemon-unchosen'
+          import requests
+          from urllib.parse import urlparse, unquote
+          page='https://aldrine.itch.io/pokemon-unchosen'
+          ids=['18657503','18872857','18873269']
           s=requests.Session(); s.headers['User-Agent']='Mozilla/5.0'
-          r=s.get(url,timeout=30); r.raise_for_status(); text=r.text; page=url
-          ids=re.findall(r'data-upload_id=["\'](\d+)["\']',text,re.I)
-          if not ids:
-              d=s.post(url+'/download_url',headers={'Referer':url,'X-Requested-With':'XMLHttpRequest'},timeout=30)
-              d.raise_for_status(); temp=d.json().get('url'); print('TEMP_PAGE',temp)
-              rr=s.get(temp,timeout=30); rr.raise_for_status(); text=rr.text; page=rr.url
-          print('PAGE',page)
-          seen=set()
-          for m in re.finditer(r'data-upload_id=["\'](\d+)["\']',text,re.I):
-              uid=m.group(1)
-              if uid in seen: continue
-              seen.add(uid)
-              context=text[max(0,m.start()-1400):min(len(text),m.end()+1800)]
-              context=re.sub(r'<script.*?</script>',' ',context,flags=re.I|re.S)
-              context=re.sub(r'<style.*?</style>',' ',context,flags=re.I|re.S)
-              context=re.sub(r'<[^>]+>',' ',context)
-              context=html.unescape(context)
-              context=re.sub(r'\s+',' ',context).strip()
-              print('UPLOAD',uid,'CONTEXT',context[:2400])
+          for uid in ids:
+              ep=f'{page}/file/{uid}?source=view_game&as_props=1&after_download_lightbox=true'
+              p=s.post(ep,headers={'Referer':page,'X-Requested-With':'XMLHttpRequest'},timeout=30)
+              print('RESOLVE',uid,p.status_code)
+              dl=p.json().get('url') if p.ok else None
+              if not dl:
+                  continue
+              print('SIGNED_BASENAME',uid,unquote(urlparse(dl).path.split('/')[-1]))
+              h=s.head(dl,allow_redirects=True,timeout=30)
+              print('HEAD',uid,h.status_code,'LEN',h.headers.get('content-length'),'CD',h.headers.get('content-disposition'),'FINAL',unquote(urlparse(h.url).path.split('/')[-1]))
           PY
