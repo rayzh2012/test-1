@@ -4,7 +4,7 @@
   "roadmap_step": "6B1",
   "title": "Source-grounded temporary support modifier states",
   "created_at": "2026-08-22T03:52:00-04:00",
-  "status": "PENDING_CI",
+  "status": "PENDING_CI_AFTER_FIX",
   "terminal": false,
   "base_control_ref": "master@f4f0cce9f4617969e336e6baae7b653e18f4bfbb",
   "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
@@ -30,10 +30,26 @@
     "projects/pal3-unity/patches/0025-support-modifier-state-events.patch",
     "projects/pal3-unity/patches/0026-support-modifier-skill-resolution.patch",
     "projects/pal3-unity/patches/0027-support-modifier-skill-tests.patch",
+    "projects/pal3-unity/patches/0028-support-modifier-test-named-argument.patch",
+    "projects/pal3-unity/patches/0029-combat-event-state-impact-qualification.patch",
     "projects/pal3-unity/fast-tests.json",
     "projects/pal3-unity/realtime-control.json"
   ],
-  "attempts": [],
+  "attempts": [
+    {
+      "attempt": 1,
+      "head_sha": "8bfa9cced251a9b6e5a0cd3b9c9c7d261f5076e9",
+      "source_audit_run_id": 32561216589,
+      "source_audit": "PASS",
+      "fast_lane_run_id": 32561216579,
+      "fast_lane": "FAIL_COMPILE",
+      "artifact_id": 9472824162,
+      "artifact_sha256": "b9644476ab680570596d0b61cbe75c7e647026098bd3209e59dfea1056803208",
+      "error": "CombatEvent.cs(81,31): CS0120 object reference required for CombatEvent.CombatStateImpactType",
+      "root_cause": "The new CombatEvent property named CombatStateImpactType shadowed the enum type name inside the static ForCombatStateChange factory.",
+      "fix": "Add ordered patch 0029 and fully qualify Pal3.Core.Contract.Enums.CombatStateImpactType.None. No combat semantics changed."
+    }
+  ],
   "claim_boundary": "This experiment models only source-declared temporary +/-10% support-state presence, first-party targeting, MP transaction and typed state-change facts. It does not establish original PAL3 duration, stacking, refresh/cancellation, effective integer stat rounding, real GDB population frequency, Unity compile/runtime, iOS or playtest behavior.",
   "next_if_pass": "Inspect original data/runtime evidence for modifier duration/rounding before consuming support percentages in normal-attack or scheduler math; otherwise proceed to another source-grounded support sub-slice.",
   "publication": {
