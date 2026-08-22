@@ -1,0 +1,12 @@
+{
+  "name": "Pokemon Unchosen",
+  "version": "1.5.10 ENG JoiPlay",
+  "engine": "RPG Maker MV + LeTBS",
+  "min_mb": 900,
+  "itch_upload_id": "18873269",
+  "sources": [
+    "https://aldrine.itch.io/pokemon-unchosen"
+  ],
+  "expected_bytes": 1008732457,
+  "expected_sha256": "e4bc61584b70929b456c3022b0a13d1c6c75c5bdf3424091c157d494e185d613"
+}
