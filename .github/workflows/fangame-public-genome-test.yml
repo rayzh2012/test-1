@@ -7,8 +7,11 @@ on:
       - 'tools/fangame_normalized_profile.py'
       - 'tools/fangame_public_report.py'
       - 'tools/fangame_genome_runner.py'
+      - 'tools/fangame_baseline_compare.py'
+      - 'public_reports/baselines/schema_v0.1.json'
       - 'tests/test_mv_public_genome.py'
       - 'tests/test_rgss_normalized_profile.py'
+      - 'tests/test_baseline_compare_v02.py'
       - '.github/workflows/fangame-public-genome-test.yml'
   pull_request:
     paths:
@@ -16,8 +19,11 @@ on:
       - 'tools/fangame_normalized_profile.py'
       - 'tools/fangame_public_report.py'
       - 'tools/fangame_genome_runner.py'
+      - 'tools/fangame_baseline_compare.py'
+      - 'public_reports/baselines/schema_v0.1.json'
       - 'tests/test_mv_public_genome.py'
       - 'tests/test_rgss_normalized_profile.py'
+      - 'tests/test_baseline_compare_v02.py'
       - '.github/workflows/fangame-public-genome-test.yml'
   workflow_dispatch:
 
@@ -35,6 +41,11 @@ jobs:
             tools/rpgmaker_mv_genome.py \
             tools/fangame_normalized_profile.py \
             tools/fangame_public_report.py \
-            tools/fangame_genome_runner.py
-      - name: Run synthetic MV and RGSS normalization tests
-        run: python3 -m pytest -q tests/test_mv_public_genome.py tests/test_rgss_normalized_profile.py
+            tools/fangame_genome_runner.py \
+            tools/fangame_baseline_compare.py
+      - name: Run public genome contract tests
+        run: |
+          python3 -m pytest -q \
+            tests/test_mv_public_genome.py \
+            tests/test_rgss_normalized_profile.py \
+            tests/test_baseline_compare_v02.py
