@@ -3,7 +3,7 @@ import argparse
 import json
 import shutil
 import time
-from collections import Counter
+from collections import Counter, deque
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -12,6 +12,7 @@ STATE_JS = r'''() => {
   const out = {};
   try { out.scene = (window.SceneManager && SceneManager._scene && SceneManager._scene.constructor) ? SceneManager._scene.constructor.name : null; } catch(e) { out.scene_error=String(e); }
   try { out.map_id = window.$gameMap ? $gameMap.mapId() : null; } catch(e) { out.map_error=String(e); }
+  try { out.map_size = window.$gameMap ? {width:$gameMap.width(), height:$gameMap.height()} : null; } catch(e) { out.map_size_error=String(e); }
   try {
     out.player = window.$gamePlayer ? {
       x:$gamePlayer.x, y:$gamePlayer.y, direction:$gamePlayer.direction(),
@@ -24,6 +25,28 @@ STATE_JS = r'''() => {
       }
     } : null;
   } catch(e) { out.player_error=String(e); }
+  try {
+    out.events = window.$gameMap ? $gameMap.events().map(e => {
+      const ev = e.event ? e.event() : null;
+      const page = e.page ? e.page() : null;
+      const list = page && Array.isArray(page.list) ? page.list : [];
+      const codes = list.map(c => c && c.code).filter(c => Number.isInteger(c));
+      return {
+        id:e.eventId ? e.eventId() : e._eventId,
+        x:e.x, y:e.y,
+        name:ev && ev.name ? ev.name : "",
+        trigger:e._trigger,
+        priority:e._priorityType,
+        through:e.isThrough ? e.isThrough() : false,
+        erased:!!e._erased,
+        page_index:e._pageIndex,
+        has_transfer:codes.includes(201),
+        has_battle:codes.includes(301),
+        has_text:codes.includes(101) || codes.includes(401),
+        command_count:codes.length
+      };
+    }).filter(e => !e.erased && e.page_index >= 0) : [];
+  } catch(e) { out.events_error=String(e); out.events=[]; }
   try { out.message_busy = window.$gameMessage ? $gameMessage.isBusy() : null; } catch(e) { out.message_error=String(e); }
   try { out.choices = window.$gameMessage && Array.isArray($gameMessage._choices) ? $gameMessage._choices.slice(0,12) : []; } catch(e) { out.choice_error=String(e); }
   try { out.event_running = window.$gameMap && $gameMap._interpreter ? $gameMap._interpreter.isRunning() : null; } catch(e) { out.event_error=String(e); }
@@ -36,8 +59,32 @@ STATE_JS = r'''() => {
   return out;
 }'''
 
+NAV_JS = r'''() => {
+  if (!window.$gameMap) return null;
+  const w=$gameMap.width(), h=$gameMap.height();
+  const dirs=[2,4,6,8], opp={2:8,4:6,6:4,8:2};
+  const delta={2:[0,1],4:[-1,0],6:[1,0],8:[0,-1]};
+  const rows=[];
+  for (let y=0;y<h;y++) {
+    for (let x=0;x<w;x++) {
+      let mask=0;
+      for (let i=0;i<dirs.length;i++) {
+        const d=dirs[i], dd=delta[d], nx=x+dd[0], ny=y+dd[1];
+        if (!$gameMap.isValid(nx,ny)) continue;
+        try {
+          if ($gameMap.isPassable(x,y,d) && $gameMap.isPassable(nx,ny,opp[d])) mask |= (1<<i);
+        } catch(e) {}
+      }
+      if (mask) rows.push([x,y,mask]);
+    }
+  }
+  return {map_id:$gameMap.mapId(), width:w, height:h, rows:rows};
+}'''
+
 KEY_FOR_DIR = {2: "ArrowDown", 4: "ArrowLeft", 6: "ArrowRight", 8: "ArrowUp"}
 DELTA_FOR_DIR = {2: (0, 1), 4: (-1, 0), 6: (1, 0), 8: (0, -1)}
+DIRS = (2, 4, 6, 8)
+OPPOSITE = {2: 8, 4: 6, 6: 4, 8: 2}
 
 
 def snap_state(page):
@@ -84,21 +131,142 @@ def move_one(page, direction):
     return key
 
 
-def choose_direction(state, visits, attempt_no):
+def position_of(state):
     p = state.get("player") or {}
-    passable = p.get("passable") or {}
-    map_id, x, y = state.get("map_id"), p.get("x"), p.get("y")
+    if not isinstance(state.get("map_id"), int):
+        return None
+    if not isinstance(p.get("x"), int) or not isinstance(p.get("y"), int):
+        return None
+    return (state["map_id"], p["x"], p["y"])
+
+
+def build_nav(nav_raw):
+    if not nav_raw:
+        return None
+    graph = {}
+    for x, y, mask in nav_raw.get("rows") or []:
+        edges = []
+        for i, d in enumerate(DIRS):
+            if mask & (1 << i):
+                dx, dy = DELTA_FOR_DIR[d]
+                edges.append((x + dx, y + dy, d))
+        graph[(x, y)] = edges
+    return {
+        "map_id": nav_raw.get("map_id"),
+        "width": nav_raw.get("width"),
+        "height": nav_raw.get("height"),
+        "graph": graph,
+    }
+
+
+def bfs_first_step(nav, start_xy, goals):
+    if not nav or not goals:
+        return None, None
+    if start_xy in goals:
+        return None, 0
+    graph = nav["graph"]
+    q = deque([start_xy])
+    prev = {start_xy: None}
+    prev_dir = {}
+    found = None
+    while q:
+        cur = q.popleft()
+        for nx, ny, d in graph.get(cur, ()):
+            nxt = (nx, ny)
+            if nxt in prev:
+                continue
+            prev[nxt] = cur
+            prev_dir[nxt] = d
+            if nxt in goals:
+                found = nxt
+                q.clear()
+                break
+            q.append(nxt)
+    if found is None:
+        return None, None
+    node = found
+    distance = 1
+    while prev[node] != start_xy:
+        node = prev[node]
+        distance += 1
+        if node is None:
+            return None, None
+    return prev_dir[node], distance
+
+
+def event_key(map_id, ev):
+    return (map_id, ev.get("id"), ev.get("page_index"))
+
+
+def adjacent_xy(x, y):
+    return {d: (x + dx, y + dy) for d, (dx, dy) in DELTA_FOR_DIR.items()}
+
+
+def select_event_target(state, nav, event_attempts):
+    pos = position_of(state)
+    if not pos or not nav:
+        return None
+    map_id, px, py = pos
     candidates = []
-    for d in (6, 2, 4, 8):
-        if passable.get(str(d)) is not True:
+    for ev in state.get("events") or []:
+        key = event_key(map_id, ev)
+        attempts = event_attempts[key]
+        if attempts >= (4 if ev.get("has_transfer") else 2):
             continue
-        dx, dy = DELTA_FOR_DIR[d]
-        target = (map_id, x + dx, y + dy)
-        candidates.append((visits[target], d))
+        trigger = ev.get("trigger")
+        if ev.get("has_transfer"):
+            rank = 0
+        elif ev.get("has_battle"):
+            rank = 1
+        elif trigger in (1, 2):
+            rank = 2
+        elif trigger == 0 and (ev.get("has_text") or ev.get("command_count", 0) > 1):
+            rank = 3
+        else:
+            continue
+        ex, ey = ev.get("x"), ev.get("y")
+        if not isinstance(ex, int) or not isinstance(ey, int):
+            continue
+
+        around = adjacent_xy(ex, ey)
+        goal_into_event = {}
+        for d_from_event, goal in around.items():
+            if goal in nav["graph"]:
+                goal_into_event[goal] = OPPOSITE[d_from_event]
+
+        cur_xy = (px, py)
+        if cur_xy in goal_into_event:
+            distance = 0
+            first_dir = None
+        else:
+            first_dir, distance = bfs_first_step(nav, cur_xy, set(goal_into_event))
+            if first_dir is None:
+                continue
+        candidates.append((rank, distance, attempts, ev, first_dir, goal_into_event))
+
     if not candidates:
         return None
-    candidates.sort(key=lambda t: (t[0], (t[1] + attempt_no) % 11))
-    return candidates[0][1]
+    candidates.sort(key=lambda row: (row[0], row[1], row[2], row[3].get("id", 0)))
+    rank, distance, attempts, ev, first_dir, goal_into_event = candidates[0]
+    cur_xy = (px, py)
+    key = event_key(map_id, ev)
+    if distance == 0:
+        into_dir = goal_into_event[cur_xy]
+        if ev.get("trigger") == 0:
+            return {"kind": "interact_event", "event": ev, "event_key": key, "direction": into_dir}
+        return {"kind": "bump_event", "event": ev, "event_key": key, "direction": into_dir}
+    return {"kind": "route_to_event", "event": ev, "event_key": key, "direction": first_dir, "distance": distance}
+
+
+def select_frontier_direction(state, nav, visited):
+    pos = position_of(state)
+    if not pos or not nav:
+        return None, None
+    map_id, px, py = pos
+    unseen = {(x, y) for (x, y) in nav["graph"] if (map_id, x, y) not in visited}
+    if not unseen:
+        return None, None
+    return bfs_first_step(nav, (px, py), unseen)
 
 
 def bootstrap_to_map(page, result, out, max_confirms):
@@ -160,10 +328,10 @@ def main():
     index = next((p for p in (root / "www" / "index.html", root / "index.html") if p.exists()), None)
 
     result = {
-        "schema": "fangame.mv_longrun_probe.v0.1",
+        "schema": "fangame.mv_longrun_probe.v0.2",
         "mode": "PROOF_OF_POSSIBILITY",
         "game_id": cfg.get("game_id"),
-        "decision_engine": cfg.get("decision_engine", "runtime_symbolic_agent_v0.1"),
+        "decision_engine": "runtime_symbolic_agent_v0.2_event_targeted_frontier_bfs",
         "external_ai_api": False,
         "requested_duration_minutes": duration_minutes,
         "max_duration_minutes": max_minutes,
@@ -186,16 +354,22 @@ def main():
     unique_maps = set()
     unique_positions = set()
     scene_counts = Counter()
+    event_attempts = Counter()
     map_transitions = 0
     coordinate_changes = 0
     actions = 0
     battle_starts = 0
     battle_completions = 0
     stalls_recovered = 0
+    nav_refreshes = 0
+    event_route_steps = 0
+    event_interactions = 0
+    frontier_steps = 0
     screenshot_no = 2
     previous = None
     battle_active = False
     fatal = None
+    nav_cache = {}
 
     with trace_path.open("w", encoding="utf-8") as trace:
         try:
@@ -217,8 +391,19 @@ def main():
                 page = browser.new_page(viewport={"width": 1280, "height": 720})
                 result["console_tail"] = []
                 result["page_errors"] = []
-                page.on("console", lambda m: result["console_tail"].append({"type": m.type, "text": m.text[:800]}))
-                page.on("pageerror", lambda e: result["page_errors"].append(str(e)[:2000]))
+
+                def on_console(m):
+                    result["console_tail"].append({"type": m.type, "text": m.text[:800]})
+                    if len(result["console_tail"]) > 200:
+                        del result["console_tail"][:-200]
+
+                def on_page_error(e):
+                    result["page_errors"].append(str(e)[:2000])
+                    if len(result["page_errors"]) > 100:
+                        del result["page_errors"][:-100]
+
+                page.on("console", on_console)
+                page.on("pageerror", on_page_error)
 
                 first_map = bootstrap_to_map(page, result, out, int(cfg.get("max_intro_confirms", 360)))
                 result["first_idle_map"] = first_map
@@ -230,8 +415,8 @@ def main():
 
                 started = time.monotonic()
                 deadline = started + duration_minutes * 60
-                last_progress = started
                 last_periodic_shot = started
+                last_semantic_progress = started
                 loop_no = 0
 
                 while time.monotonic() < deadline:
@@ -243,21 +428,19 @@ def main():
                     now = time.monotonic()
                     scene = state.get("scene")
                     scene_counts[str(scene)] += 1
-                    pstate = state.get("player") or {}
-                    if isinstance(state.get("map_id"), int) and state.get("map_id", 0) > 0:
-                        unique_maps.add(state["map_id"])
-                        if isinstance(pstate.get("x"), int) and isinstance(pstate.get("y"), int):
-                            pos = (state["map_id"], pstate["x"], pstate["y"])
-                            visits[pos] += 1
-                            unique_positions.add(pos)
+                    pos = position_of(state)
+                    if pos:
+                        map_id, x, y = pos
+                        unique_maps.add(map_id)
+                        visits[pos] += 1
+                        if pos not in unique_positions:
+                            last_semantic_progress = now
+                        unique_positions.add(pos)
 
-                    sig = signature(state)
                     if previous:
-                        psig = signature(previous)
-                        if sig != psig:
-                            last_progress = now
                         if state.get("map_id") != previous.get("map_id") and state.get("map_id") is not None:
                             map_transitions += 1
+                            last_semantic_progress = now
                             page.screenshot(path=str(out / f"{screenshot_no:02d}_map_{state.get('map_id')}.png"))
                             screenshot_no += 1
                         pp, cp = previous.get("player") or {}, state.get("player") or {}
@@ -268,11 +451,13 @@ def main():
                     if in_battle and not battle_active:
                         battle_active = True
                         battle_starts += 1
+                        last_semantic_progress = now
                         page.screenshot(path=str(out / f"{screenshot_no:02d}_battle_start.png"))
                         screenshot_no += 1
                     elif battle_active and not in_battle and scene == "Scene_Map":
                         battle_active = False
                         battle_completions += 1
+                        last_semantic_progress = now
                         page.screenshot(path=str(out / f"{screenshot_no:02d}_battle_return_map.png"))
                         screenshot_no += 1
 
@@ -282,18 +467,48 @@ def main():
                     elif in_battle:
                         action = "battle_default_confirm"
                         key_tap(page, "Enter", hold=0.10)
-                    elif scene == "Scene_Map":
-                        if loop_no % 9 == 0:
-                            action = "interact_facing_event"
-                            key_tap(page, "Enter")
-                        else:
-                            direction = choose_direction(state, visits, loop_no)
-                            if direction is not None:
-                                action = f"move_{KEY_FOR_DIR[direction]}"
-                                move_one(page, direction)
+                    elif scene == "Scene_Map" and pos:
+                        map_id = pos[0]
+                        if map_id not in nav_cache:
+                            nav_cache[map_id] = build_nav(page.evaluate(NAV_JS))
+                            nav_refreshes += 1
+                            append_jsonl(trace, {
+                                "t": round(now - started, 3),
+                                "action": "build_nav_graph",
+                                "map_id": map_id,
+                                "nav_nodes": len((nav_cache[map_id] or {}).get("graph", {})),
+                            })
+                        nav = nav_cache.get(map_id)
+                        target = select_event_target(state, nav, event_attempts)
+                        if target:
+                            d = target["direction"]
+                            if target["kind"] == "route_to_event":
+                                action = f"route_event_{target['event'].get('id')}_{KEY_FOR_DIR[d]}"
+                                move_one(page, d)
+                                event_route_steps += 1
+                            elif target["kind"] == "bump_event":
+                                action = f"bump_event_{target['event'].get('id')}_{KEY_FOR_DIR[d]}"
+                                event_attempts[target["event_key"]] += 1
+                                move_one(page, d)
+                                event_interactions += 1
                             else:
-                                action = "probe_interaction_no_passable_neighbor"
+                                action = f"interact_event_{target['event'].get('id')}_{KEY_FOR_DIR[d]}"
+                                event_attempts[target["event_key"]] += 1
+                                key_tap(page, KEY_FOR_DIR[d], hold=0.06)
+                                time.sleep(0.08)
                                 key_tap(page, "Enter")
+                                event_interactions += 1
+                        else:
+                            direction, distance = select_frontier_direction(state, nav, unique_positions)
+                            if direction is not None:
+                                action = f"frontier_{KEY_FOR_DIR[direction]}_d{distance}"
+                                move_one(page, direction)
+                                frontier_steps += 1
+                            else:
+                                action = "frontier_exhausted_probe"
+                                key_tap(page, "Enter")
+                                d = DIRS[loop_no % len(DIRS)]
+                                move_one(page, d)
                     elif scene in ("Scene_Menu", "Scene_Item", "Scene_Skill", "Scene_Equip", "Scene_Status", "Scene_Options"):
                         action = "escape_nonprogress_menu"
                         key_tap(page, "Escape")
@@ -308,14 +523,14 @@ def main():
                     actions += 1
                     append_jsonl(trace, {"t": round(now - started, 3), "state": state, "action": action})
 
-                    if now - last_progress >= float(cfg.get("stall_seconds", 25)):
+                    if now - last_semantic_progress >= float(cfg.get("stall_seconds", 25)):
                         stalls_recovered += 1
                         key_tap(page, "Enter")
                         key_tap(page, "Escape")
                         for d in (6, 2, 4, 8):
                             move_one(page, d)
-                        last_progress = time.monotonic()
-                        append_jsonl(trace, {"t": round(last_progress - started, 3), "action": "stall_recovery_sequence"})
+                        last_semantic_progress = time.monotonic()
+                        append_jsonl(trace, {"t": round(last_semantic_progress - started, 3), "action": "semantic_stall_recovery_sequence"})
 
                     if now - last_periodic_shot >= float(cfg.get("checkpoint_seconds", 120)):
                         page.screenshot(path=str(out / f"{screenshot_no:02d}_checkpoint.png"))
@@ -331,6 +546,7 @@ def main():
                 page.screenshot(path=str(out / f"{screenshot_no:02d}_final.png"))
                 browser.close()
 
+                route_progress = map_transitions > 0 or battle_completions > 0 or len(unique_positions) >= 25
                 result.update({
                     "elapsed_play_seconds": round(elapsed, 3),
                     "actions": actions,
@@ -342,10 +558,16 @@ def main():
                     "battle_starts": battle_starts,
                     "battle_completions": battle_completions,
                     "stalls_recovered": stalls_recovered,
+                    "nav_refreshes": nav_refreshes,
+                    "event_route_steps": event_route_steps,
+                    "event_interactions": event_interactions,
+                    "frontier_steps": frontier_steps,
                     "scene_counts": dict(scene_counts),
                     "fatal_stop": fatal,
                     "duration_reached": elapsed >= duration_minutes * 60 * 0.98 and fatal is None,
                     "progress_observed": coordinate_changes > 0 or map_transitions > 0 or battle_completions > 0,
+                    "route_progress_verified": route_progress and fatal is None,
+                    "local_motion_only": coordinate_changes > 0 and len(unique_positions) < 10 and map_transitions == 0 and battle_completions == 0,
                     "battle_verified": battle_completions > 0,
                 })
                 enough_progress = len(unique_maps) >= 2 and coordinate_changes >= 40 and fatal is None
@@ -355,20 +577,28 @@ def main():
                     result["status"] = "LONG_RUN_4H_VERIFIED"
                 elif result["long_run_3h_verified"]:
                     result["status"] = "LONG_RUN_3H_VERIFIED"
+                elif result["duration_reached"] and result["route_progress_verified"]:
+                    result["status"] = "LONGRUN_PROOF_PROGRESS_OBSERVED"
+                    result["progress_quality"] = "ROUTE_PROGRESS"
                 elif result["duration_reached"] and result["progress_observed"]:
                     result["status"] = "LONGRUN_PROOF_PROGRESS_OBSERVED"
-                elif result["duration_reached"]:
-                    result["status"] = "LONGRUN_PROOF_DURATION_ONLY"
+                    result["progress_quality"] = "LOCAL_MOTION_ONLY"
+                elif fatal:
+                    result["status"] = f"LONGRUN_STOPPED_{fatal}"
                 else:
-                    result["status"] = "LONGRUN_STOPPED_EARLY"
+                    result["status"] = "LONGRUN_NO_MEANINGFUL_PROGRESS"
+
         except Exception as exc:
             result["status"] = "LONGRUN_PROBE_ERROR"
-            result["error"] = repr(exc)
+            result["fatal_stop"] = repr(exc)
 
-    result.pop("index_uri", None)
     write_json(out / "mv_longrun_summary.json", result)
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result["status"] not in ("NO_INDEX_HTML", "INTRO_NOT_CLEARED", "LONGRUN_PROBE_ERROR") else 4
+    return 0 if result.get("status") in {
+        "LONGRUN_PROOF_PROGRESS_OBSERVED",
+        "LONG_RUN_3H_VERIFIED",
+        "LONG_RUN_4H_VERIFIED",
+    } else 4
 
 
 if __name__ == "__main__":
