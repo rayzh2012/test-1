@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - 'fangame_probe/current_probe.json'
-      - 'fangame_targets/**.json'
       - 'tools/fangame_fetcher.py'
       - 'tools/fangame_inspect.py'
       - 'tools/fangame_genome_runner.py'
