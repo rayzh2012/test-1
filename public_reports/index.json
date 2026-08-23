@@ -11,6 +11,18 @@
       "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING"
     },
     {
+      "game_id": "final-redemption-current",
+      "title": "Final Redemption",
+      "version": "2026-08-16 current itch build",
+      "engine": "RPG Maker MV",
+      "sha256": "692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b",
+      "corpus_role": "fangame_deep_observation",
+      "source_status": "Prototype",
+      "json": "public_reports/final_redemption_current.json",
+      "markdown": "public_reports/final_redemption_current.md",
+      "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING"
+    },
+    {
       "game_id": "pokemon-central-core-current-itch",
       "title": "Pokémon Central Core",
       "version": "Released / current itch lineage",
