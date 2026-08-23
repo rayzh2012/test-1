@@ -1,7 +1,9 @@
 {
   "sample_id": "final-redemption-20260816",
   "target": "fangame_targets/final_redemption_mv.json",
-  "purpose": "P0_COMPLETE_FANGAME_ARCHIVE",
+  "purpose": "P0_COMPLETE_FANGAME_ARCHIVE_AND_PLAYABILITY",
   "archive_policy": "PUBLIC_FREE_PACKAGE_SHA256_DRIVE_READBACK_REQUIRED",
-  "drive_folder_id": "1KOnbk7y4n5upHcDbaL0CAVFoDEao2sP4"
+  "playability_policy": "BOOT_CONFIRM_INPUT_EVIDENCE_REQUIRED_FOR_FANGAME_DONE",
+  "drive_folder_id": "1KOnbk7y4n5upHcDbaL0CAVFoDEao2sP4",
+  "run_generation": 2
 }
