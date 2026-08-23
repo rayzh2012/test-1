@@ -1,30 +1,32 @@
 {
-  "schema": "fangame.longrun_config.v0.1",
-  "mode": "PROOF_OF_POSSIBILITY",
+  "schema": "fangame.longrun_config.v0.2",
+  "mode": "ROUTE_GATE",
   "game_id": "final-redemption-current",
   "target": "fangame_targets/final_redemption_mv.json",
-  "decision_engine": "runtime_symbolic_agent_v0.1",
+  "decision_engine": "runtime_symbolic_agent_v0.2_event_targeted_frontier_bfs",
   "external_ai_api": false,
   "local_llm": false,
   "runner": "ubuntu-latest",
   "paid_larger_runner": false,
-  "duration_minutes": 10,
+  "duration_minutes": 3,
   "max_duration_minutes": 240,
   "max_intro_confirms": 360,
   "stall_seconds": 25,
-  "checkpoint_seconds": 120,
-  "run_generation": 1,
+  "checkpoint_seconds": 60,
+  "run_generation": 2,
   "evidence_policy": "REAL_KEY_INPUT_PLUS_RPG_MAKER_RUNTIME_STATE",
   "promotion_gates": [
+    "ROUTE_PROGRESS_VERIFIED",
     "BATTLE_VERIFIED",
     "SAVE_LOAD_VERIFIED",
     "LONG_RUN_3H_VERIFIED",
     "LONG_RUN_4H_VERIFIED"
   ],
   "notes": [
-    "Initial run is intentionally 10 minutes; change only duration_minutes after the proof passes.",
+    "v0.1 established 10-minute cloud autonomy but only 5 unique tiles and zero map transitions, so it is retained as the local-motion baseline rather than promoted.",
+    "v0.2 route gate is intentionally 3 minutes to test event-targeted BFS and frontier expansion before spending a 3-hour run.",
     "The workflow must use the standard public-repository ubuntu-latest runner, never a paid larger runner.",
-    "No external LLM/API is required for v0.1; movement and battle probing are driven from RPG Maker MV runtime state plus real Playwright keyboard input.",
-    "Duration alone is not gameplay verification. Progress, battle return-to-map, fatal stops and stalls are recorded separately."
+    "No external LLM/API is required; all game actions are real Playwright keyboard input while planning reads RPG Maker MV runtime state.",
+    "Duration alone is not gameplay verification. Promotion requires route progress, ideally a map transition or battle completion."
   ]
 }
