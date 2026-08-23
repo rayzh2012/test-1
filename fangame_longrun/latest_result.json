@@ -4,11 +4,11 @@
   "game_id": "final-redemption-current",
   "decision_engine": "runtime_symbolic_agent_v0.2_event_targeted_frontier_bfs",
   "external_ai_api": false,
-  "requested_duration_minutes": 3,
+  "requested_duration_minutes": 180,
   "max_duration_minutes": 240,
   "engine": "RPG Maker MV",
   "index_html": "/home/runner/work/test-1/test-1/longrun_work/extract/Final Redemption/www/index.html",
-  "status": "LONGRUN_PROOF_PROGRESS_OBSERVED",
+  "status": "LONGRUN_STOPPED_GAME_OVER",
   "battle_verified": true,
   "save_load_verified": false,
   "long_run_3h_verified": false,
@@ -1231,20 +1231,20 @@
     }
   },
   "final_state": {
-    "scene": "Scene_Battle",
+    "scene": "Scene_Gameover",
     "map_id": 6,
     "map_size": {
       "width": 21,
       "height": 17
     },
     "player": {
-      "x": 14,
-      "y": 9,
+      "x": 10,
+      "y": 3,
       "direction": 4,
       "moving": false,
       "transparent": false,
       "passable": {
-        "2": true,
+        "2": false,
         "4": true,
         "6": true,
         "8": true
@@ -1285,15 +1285,15 @@
     "message_busy": false,
     "choices": [],
     "event_running": false,
-    "in_battle": true,
+    "in_battle": false,
     "party": [
       {
         "id": 1,
-        "hp": 95,
+        "hp": 0,
         "mhp": 900,
         "mp": 180,
         "mmp": 180,
-        "dead": false
+        "dead": true
       },
       {
         "id": 2,
@@ -1306,35 +1306,35 @@
     ]
   },
   "page_still_open": true,
-  "elapsed_play_seconds": 180.035,
-  "actions": 376,
+  "elapsed_play_seconds": 217.374,
+  "actions": 459,
   "unique_maps": [
     2,
     6
   ],
   "unique_map_count": 2,
-  "unique_position_count": 30,
+  "unique_position_count": 63,
   "map_transitions": 9,
-  "coordinate_changes": 69,
-  "battle_starts": 2,
-  "battle_completions": 1,
-  "stalls_recovered": 2,
+  "coordinate_changes": 75,
+  "battle_starts": 4,
+  "battle_completions": 3,
+  "stalls_recovered": 3,
   "nav_refreshes": 2,
-  "event_route_steps": 101,
+  "event_route_steps": 112,
   "event_interactions": 5,
   "frontier_steps": 0,
   "scene_counts": {
-    "Scene_Map": 207,
-    "Scene_Battle": 169
+    "Scene_Map": 216,
+    "Scene_Battle": 243,
+    "Scene_Gameover": 1
   },
-  "fatal_stop": null,
-  "duration_reached": true,
+  "fatal_stop": "GAME_OVER",
+  "duration_reached": false,
   "progress_observed": true,
-  "route_progress_verified": true,
+  "route_progress_verified": false,
   "local_motion_only": false,
-  "progress_quality": "ROUTE_PROGRESS",
-  "github_run_id": "32626977048",
+  "github_run_id": "32627206944",
   "github_run_attempt": "1",
-  "source_commit": "ca048db2fc32161d06ce00a0a5275d081601baf1",
+  "source_commit": "1cff377e128f26b15ab32635a46ca20fa5c5afc6",
   "archived_by": "current-mv-longrun-free.yml"
 }
