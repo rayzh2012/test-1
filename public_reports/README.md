@@ -4,6 +4,19 @@ This directory is the public, reproducible layer of the fangame analysis pipelin
 
 The goal is not to publish game binaries. The goal is to publish **machine-readable structural analysis** of RPG Maker fangames so different games can be compared on the same axes: content scale, event scripting density, dialogue capacity, interaction density, combat pressure, system breadth, optionality, runtime quality, and eventually ordinary-RPG-relative percentiles.
 
+## Featured fangame: Pokémon Unchosen v1.5.10
+
+Public report: [`pokemon_unchosen_v1.5.10_eng_joiplay.md`](pokemon_unchosen_v1.5.10_eng_joiplay.md)  
+Machine-readable JSON: [`pokemon_unchosen_v1.5.10_eng_joiplay.json`](pokemon_unchosen_v1.5.10_eng_joiplay.json)
+
+Observed structural snapshot: **547 maps, 16,538 events, 32,037 event pages, 205,650 event commands, 357,172 dialogue characters, 7,823 choice options, 3,880 battle calls, and 252 enabled plugins**. The package is RPG Maker MV + LeTBS and includes explicit evidence for autosave, difficulty control, quest journal, New Game+, speed-up, and a substantial LeTBS plugin surface.
+
+These are structural measurements, not a claim that the entire game was manually played. Ordinary-RPG-relative percentile claims remain disabled until a sufficiently large compatible baseline corpus exists.
+
+## Current ordinary-RPG reference
+
+The first real ordinary-RPG reference is **A King's Son v1.6** under the `MV_JSON` parser family. The current compatible baseline is still draft-only (`N=1`), so it is useful for calibration but not for production `top X%` claims.
+
 ## Pipeline
 
 ```text
