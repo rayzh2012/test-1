@@ -11,6 +11,17 @@
       "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING"
     },
     {
+      "game_id": "pokemon-central-core-current-itch",
+      "title": "Pokémon Central Core",
+      "version": "Released / current itch lineage",
+      "engine": "RPG Maker XP",
+      "sha256": "5f81f7b2e386c6ef4520567e7057756b490d998556a4b153173aea9a4d89b80f",
+      "corpus_role": "fangame_opaque_observation",
+      "json": "public_reports/pokemon_central_core_opaque.json",
+      "markdown": "public_reports/pokemon_central_core_opaque.md",
+      "content_visibility": "OPAQUE_ENCRYPTED"
+    },
+    {
       "game_id": "ordinary-a-kings-son-v1.6",
       "title": "A King's Son",
       "version": "1.6",
