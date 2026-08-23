@@ -10,12 +10,31 @@ def dump(path, obj):
     path.write_text(json.dumps(obj), encoding="utf-8")
 
 
-def test_rgss_static_to_normalized_profile(tmp_path):
+def run_normalizer(tmp_path, static_obj, *, target_engine="RPG Maker VX Ace"):
     package = tmp_path / "fixture_rgss.zip"
     package.write_bytes(b"rgss-fixture-payload")
-
     static = tmp_path / "static.json"
-    dump(static, {
+    dump(static, static_obj)
+    dialogue = tmp_path / "dialogue.json"
+    dump(dialogue, {"summary": {"dialogue_blocks": 17, "dialogue_lines": 20, "dialogue_chars": 500}})
+    graph = tmp_path / "graph.json"
+    dump(graph, {"summary": {"map_nodes": 3, "transfer_edges": 6}})
+    inference = tmp_path / "inference.json"
+    dump(inference, {"summary": {"sidequest_candidate_maps": 2, "explicit_sidequest_maps": 1, "optional_content_maps": 2, "ending_candidate_maps": 1, "release_completion_status": "COMPLETE_OR_UNKNOWN"}})
+    target = tmp_path / "target.json"
+    dump(target, {"game_id": "fixture-rgss", "name": "Fixture RGSS", "version": "1.2", "engine": target_engine, "sources": ["https://example.invalid/rgss"]})
+    out = tmp_path / "normalized.json"
+    proc = subprocess.run([
+        sys.executable, str(ROOT / "tools" / "fangame_normalized_profile.py"),
+        "--static", str(static), "--package", str(package), "--out", str(out),
+        "--target-json", str(target), "--dialogue-corpus", str(dialogue),
+        "--map-graph", str(graph), "--content-inference", str(inference),
+    ], text=True, capture_output=True)
+    return proc, out
+
+
+def valid_static():
+    return {
         "engine": "RPG Maker VX Ace",
         "map_count": 3,
         "image_count": 12,
@@ -57,24 +76,12 @@ def test_rgss_static_to_normalized_profile(tmp_path):
                 "equipment_price_stats": {"median": 900},
             },
         },
-    })
+    }
 
-    dialogue = tmp_path / "dialogue.json"
-    dump(dialogue, {"summary": {"dialogue_blocks": 17, "dialogue_lines": 20, "dialogue_chars": 500}})
-    graph = tmp_path / "graph.json"
-    dump(graph, {"summary": {"map_nodes": 3, "transfer_edges": 6}})
-    inference = tmp_path / "inference.json"
-    dump(inference, {"summary": {"sidequest_candidate_maps": 2, "explicit_sidequest_maps": 1, "optional_content_maps": 2, "ending_candidate_maps": 1, "release_completion_status": "COMPLETE_OR_UNKNOWN"}})
-    target = tmp_path / "target.json"
-    dump(target, {"game_id": "fixture-rgss", "name": "Fixture RGSS", "version": "1.2", "engine": "RPG Maker VX Ace", "sources": ["https://example.invalid/rgss"]})
 
-    out = tmp_path / "normalized.json"
-    subprocess.run([
-        sys.executable, str(ROOT / "tools" / "fangame_normalized_profile.py"),
-        "--static", str(static), "--package", str(package), "--out", str(out),
-        "--target-json", str(target), "--dialogue-corpus", str(dialogue),
-        "--map-graph", str(graph), "--content-inference", str(inference),
-    ], check=True)
+def test_rgss_static_to_normalized_profile(tmp_path):
+    proc, out = run_normalizer(tmp_path, valid_static())
+    assert proc.returncode == 0, proc.stderr or proc.stdout
 
     p = json.loads(out.read_text(encoding="utf-8"))
     assert p["schema"] == "fangame.normalized_profile.v0.1"
@@ -93,3 +100,23 @@ def test_rgss_static_to_normalized_profile(tmp_path):
     assert p["analysis_evidence"]["explicit_sidequest_maps"] == 1
     assert p["baseline_status"] == "REAL_ORDINARY_RPG_BASELINE_PENDING"
     assert "enabled_plugins" not in p["metrics"]  # UNKNOWN must not become zero.
+
+
+def test_unknown_layout_cannot_be_upgraded_by_target_metadata(tmp_path):
+    st = valid_static()
+    st["engine"] = "UNKNOWN"
+    st["marshal_content"] = {}
+    proc, out = run_normalizer(tmp_path, st, target_engine="RPG Maker XP")
+    assert proc.returncode != 0
+    assert not out.exists()
+    assert "static engine/layout is 'UNKNOWN'" in (proc.stderr + proc.stdout)
+
+
+def test_rgss_without_loaded_marshal_maps_is_rejected(tmp_path):
+    st = valid_static()
+    st["engine"] = "RPG Maker XP"
+    st["marshal_content"] = {"marshal_probe": True, "maps_loaded": 0}
+    proc, out = run_normalizer(tmp_path, st, target_engine="RPG Maker XP")
+    assert proc.returncode != 0
+    assert not out.exists()
+    assert "did not successfully load at least one map" in (proc.stderr + proc.stdout)
