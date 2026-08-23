@@ -4,13 +4,16 @@
   "version": "2026-08-16 current itch build",
   "engine": "RPG Maker MV",
   "min_mb": 800,
+  "expected_bytes": 1005259975,
+  "expected_sha256": "692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b",
   "sources": [
     "https://infiniv.itch.io/final-redemption"
   ],
   "identity_notes": [
-    "Public free itch.io release; page lists Final Redemption.zip around 958 MB.",
+    "Public free itch.io release; acquired package is Final Redemption.zip.",
+    "Measured package identity: 1,005,259,975 bytes; SHA256 692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b.",
     "Author describes 40-60 hours, up to 130 recruitable characters, many side quests, free exploration after progression, and a few alternate endings.",
     "Status on itch is Prototype; structural analysis must not silently relabel it Complete.",
-    "Accept only the actual large game archive; reject HTML, shell pages, launchers, stubs, or unrelated mirrors."
+    "Accept only the actual large game archive; reject HTML, shell pages, launchers, stubs, unrelated mirrors, or changed package identity."
   ]
 }
