@@ -10,7 +10,7 @@ on:
 jobs:
   rescue:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
 
@@ -28,15 +28,15 @@ jobs:
       - name: Fetch exact public package
         shell: bash
         run: |
-          rm -rf rescue_out rescue_parts
-          mkdir -p rescue_out rescue_parts
+          rm -rf rescue_out rescue_parts playability_work
+          mkdir -p rescue_out rescue_parts playability_work
           python3 tools/fangame_fetcher.py '${{ steps.cfg.outputs.target }}' -o rescue_out
 
       - name: Enforce package identity
         shell: bash
         run: |
           python3 - <<'PY'
-          import hashlib, json, pathlib, sys
+          import json
           cfg=json.load(open('fangame_rescue/current_rescue.json',encoding='utf-8'))
           target=json.load(open(cfg['target'],encoding='utf-8'))
           report=json.load(open('rescue_out/fetch_report.json',encoding='utf-8'))
@@ -51,6 +51,82 @@ jobs:
           print(json.dumps({'identity':'VERIFIED','bytes':got_bytes,'sha256':got_sha},indent=2))
           PY
 
+      - name: Install playability dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            p7zip-full unar libarchive-tools ruby \
+            xvfb xdotool scrot imagemagick fonts-noto-cjk locales \
+            pulseaudio pulseaudio-utils wine wine64
+          sudo locale-gen zh_CN.UTF-8 || true
+
+      - name: Static engine/content probe
+        id: inspect
+        continue-on-error: true
+        shell: bash
+        env:
+          LANG: zh_CN.UTF-8
+          LC_ALL: zh_CN.UTF-8
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('rescue_out/fetch_report.json',encoding='utf-8'))['file'])
+          PY
+          )
+          python3 tools/fangame_inspect.py \
+            "rescue_out/$game" \
+            --workdir playability_work \
+            --out rescue_out/playability_static.json \
+            --graph-out rescue_out/rpgmaker_graph.json \
+            --progression-out rescue_out/rpgmaker_progression.json
+
+      - name: Boot/title/input smoke test
+        id: smoke
+        if: hashFiles('rescue_out/playability_static.json') != ''
+        continue-on-error: true
+        shell: bash
+        env:
+          LANG: zh_CN.UTF-8
+          LC_ALL: zh_CN.UTF-8
+        run: |
+          python3 tools/fangame_smoke.py \
+            --static rescue_out/playability_static.json \
+            --extract-root playability_work/extract \
+            --outdir rescue_out/playability_smoke
+
+      - name: Classify rescue + playability state
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          root=pathlib.Path('rescue_out')
+          fetch=json.load(open(root/'fetch_report.json',encoding='utf-8'))
+          smoke_path=root/'playability_smoke'/'playability_smoke.json'
+          smoke=json.load(open(smoke_path,encoding='utf-8')) if smoke_path.exists() else {}
+          cls=smoke.get('playability_class') or 'PLAYABILITY_UNKNOWN'
+          if cls in {'PLAYABILITY_VERIFIED_INPUT_FLOW','PLAYABILITY_VERIFIED_BOOT'}:
+              completion='ARCHIVE_READY_PLAYABILITY_VERIFIED'
+          elif cls=='PLAYABILITY_RECOVERABLE_RUNTIME_ALIVE':
+              completion='ARCHIVE_READY_PLAYABILITY_RECOVERABLE'
+          else:
+              completion='ARCHIVE_READY_PLAYABILITY_UNKNOWN'
+          result={
+            'schema':'fangame.rescue_playability_gate.v0.1',
+            'package_identity':'VERIFIED',
+            'bytes':fetch.get('bytes'),
+            'sha256':fetch.get('sha256'),
+            'playability_class':cls,
+            'smoke_status':smoke.get('status'),
+            'stage_evidence':smoke.get('stage_evidence',[]),
+            'completion_state':completion,
+            'fangame_done': cls in {'PLAYABILITY_VERIFIED_INPUT_FLOW','PLAYABILITY_VERIFIED_BOOT'}
+          }
+          (root/'rescue_playability_gate.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(result,ensure_ascii=False,indent=2))
+          PY
+
       - name: Split losslessly for Drive archival
         shell: bash
         run: |
@@ -61,16 +137,25 @@ jobs:
           )
           split -b 75M -d -a 3 "rescue_out/$game" "rescue_parts/$game.part"
           cp rescue_out/SHA256.txt rescue_out/fetch_report.json rescue_parts/
+          cp rescue_out/rescue_playability_gate.json rescue_parts/ || true
+          cp rescue_out/playability_static.json rescue_parts/ 2>/dev/null || true
+          cp rescue_out/rpgmaker_graph.json rescue_parts/ 2>/dev/null || true
+          cp rescue_out/rpgmaker_progression.json rescue_parts/ 2>/dev/null || true
+          cp rescue_out/playability_smoke/playability_smoke.json rescue_parts/ 2>/dev/null || true
+          cp rescue_out/playability_smoke/fangame_review_card.json rescue_parts/ 2>/dev/null || true
+          cp rescue_out/playability_smoke/fangame_review_card.md rescue_parts/ 2>/dev/null || true
           python3 - <<'PY'
           import hashlib, json, pathlib
           cfg=json.load(open('fangame_rescue/current_rescue.json',encoding='utf-8'))
           r=json.load(open('rescue_out/fetch_report.json',encoding='utf-8'))
+          gate_path=pathlib.Path('rescue_out/rescue_playability_gate.json')
+          gate=json.load(open(gate_path,encoding='utf-8')) if gate_path.exists() else None
           parts=[]
           for p in sorted(pathlib.Path('rescue_parts').glob('*.part[0-9][0-9][0-9]')):
               h=hashlib.sha256(p.read_bytes()).hexdigest()
               parts.append({'name':p.name,'bytes':p.stat().st_size,'sha256':h})
           m={
-            'schema':'fangame.rescue_manifest.v0.1',
+            'schema':'fangame.rescue_manifest.v0.2',
             'sample_id':cfg['sample_id'],
             'target':cfg['target'],
             'original_file':r['file'],
@@ -78,6 +163,7 @@ jobs:
             'original_sha256':r['sha256'],
             'split_bytes':75*1024*1024,
             'parts':parts,
+            'playability_gate':gate,
             'reconstruct':'concatenate parts in lexical order without transformation'
           }
           pathlib.Path('rescue_parts/rescue_manifest.json').write_text(json.dumps(m,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
@@ -157,4 +243,12 @@ jobs:
             rescue_parts/SHA256.txt
             rescue_parts/fetch_report.json
             rescue_parts/rescue_manifest.json
+            rescue_parts/rescue_playability_gate.json
+            rescue_parts/playability_static.json
+            rescue_parts/rpgmaker_graph.json
+            rescue_parts/rpgmaker_progression.json
+            rescue_parts/playability_smoke.json
+            rescue_parts/fangame_review_card.json
+            rescue_parts/fangame_review_card.md
+          if-no-files-found: warn
           retention-days: 7
