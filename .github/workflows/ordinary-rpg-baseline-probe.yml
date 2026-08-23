@@ -1,28 +1,6 @@
 name: Ordinary RPG Baseline Probe
 
 on:
-  push:
-    paths:
-      - 'baseline_targets/**'
-      - 'tools/fangame_fetcher.py'
-      - 'tools/fangame_inspect.py'
-      - 'tools/fangame_genome_runner.py'
-      - 'tools/fangame_normalized_profile.py'
-      - 'tools/rpgmaker_mv_genome.py'
-      - 'tools/fangame_profile_contract.py'
-      - 'tools/fangame_public_report.py'
-      - '.github/workflows/ordinary-rpg-baseline-probe.yml'
-  pull_request:
-    paths:
-      - 'baseline_targets/**'
-      - 'tools/fangame_fetcher.py'
-      - 'tools/fangame_inspect.py'
-      - 'tools/fangame_genome_runner.py'
-      - 'tools/fangame_normalized_profile.py'
-      - 'tools/rpgmaker_mv_genome.py'
-      - 'tools/fangame_profile_contract.py'
-      - 'tools/fangame_public_report.py'
-      - '.github/workflows/ordinary-rpg-baseline-probe.yml'
   workflow_dispatch:
 
 jobs:
