@@ -1,0 +1,87 @@
+name: Magic Baby Dragon Sandglass Genome
+
+on:
+  pull_request:
+    paths:
+      - 'fangame_targets/magic_baby_dragon_sandglass.json'
+      - 'tools/fangame_fetcher.py'
+      - 'tools/fangame_inspect.py'
+      - 'tools/fangame_genome_runner.py'
+      - 'tools/fangame_normalized_profile.py'
+      - 'tools/rpgmaker_marshal_probe.rb'
+      - 'tools/rpgmaker_graph_probe.rb'
+      - 'tools/rpgmaker_progression_probe.rb'
+      - 'tools/rpgmaker_dialogue_extract.rb'
+      - 'tools/rpgmaker_map_graph.rb'
+      - 'tools/rpgmaker_graph_normalize.py'
+      - 'tools/fangame_content_infer.py'
+      - 'tools/fangame_public_report.py'
+      - '.github/workflows/magic-baby-dragon-sandglass-genome.yml'
+  workflow_dispatch:
+
+jobs:
+  genome:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install parser dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools ruby
+
+      - name: Run universal Genome pipeline
+        id: genome
+        shell: bash
+        run: |
+          set +e
+          python3 tools/fangame_genome_runner.py \
+            --target-json fangame_targets/magic_baby_dragon_sandglass.json \
+            --outdir out/magic-baby-dragon-sandglass \
+            --workdir work/magic-baby-dragon-sandglass \
+            --skip-perceptual
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Preserve public identity/failure evidence only
+        if: always()
+        run: |
+          mkdir -p out/magic-baby-dragon-sandglass
+          cp work/magic-baby-dragon-sandglass/fetch/fetch_report.json out/magic-baby-dragon-sandglass/fetch_report.json 2>/dev/null || true
+          cp work/magic-baby-dragon-sandglass/fetch/SHA256.txt out/magic-baby-dragon-sandglass/SHA256.txt 2>/dev/null || true
+          printf '%s\n' '${{ steps.genome.outputs.rc }}' > out/magic-baby-dragon-sandglass/runner_exit_code.txt
+
+      - name: Summarize result
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          root=pathlib.Path('out/magic-baby-dragon-sandglass')
+          print('runner_rc=', (root/'runner_exit_code.txt').read_text().strip() if (root/'runner_exit_code.txt').exists() else 'UNKNOWN')
+          for name in ('fetch_report.json','genome_summary.json','normalized_profile.json','public_report.json','playability_static.json'):
+              p=root/name
+              if not p.exists():
+                  continue
+              d=json.load(open(p,encoding='utf-8'))
+              if name=='fetch_report.json':
+                  print(name, {'success':d.get('success'),'file':d.get('file'),'bytes':d.get('bytes'),'sha256':d.get('sha256'),'attempts':len(d.get('attempts') or [])})
+              elif name=='genome_summary.json':
+                  keys=('engine','content_visibility','maps','dialogue_chars','battle_calls','choices','public_report_status')
+                  print(name, {k:d.get(k) for k in keys})
+              elif name=='normalized_profile.json':
+                  print(name, {'title':d.get('title'),'engine':d.get('engine'),'metrics':d.get('metrics'),'progression':d.get('progression')})
+              else:
+                  print(name, 'present')
+          PY
+
+      - name: Upload metrics/reports only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: magic-baby-dragon-sandglass-genome-metrics
+          path: out/magic-baby-dragon-sandglass/**
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 6
