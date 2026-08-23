@@ -1,0 +1,29 @@
+{
+  "schema": "fangame.longrun_config.v0.1",
+  "mode": "PROOF_OF_POSSIBILITY",
+  "game_id": "final-redemption-current",
+  "target": "fangame_targets/final_redemption_mv.json",
+  "decision_engine": "runtime_symbolic_agent_v0.1",
+  "external_ai_api": false,
+  "local_llm": false,
+  "runner": "ubuntu-latest",
+  "paid_larger_runner": false,
+  "duration_minutes": 10,
+  "max_duration_minutes": 240,
+  "max_intro_confirms": 360,
+  "stall_seconds": 25,
+  "checkpoint_seconds": 120,
+  "evidence_policy": "REAL_KEY_INPUT_PLUS_RPG_MAKER_RUNTIME_STATE",
+  "promotion_gates": [
+    "BATTLE_VERIFIED",
+    "SAVE_LOAD_VERIFIED",
+    "LONG_RUN_3H_VERIFIED",
+    "LONG_RUN_4H_VERIFIED"
+  ],
+  "notes": [
+    "Initial run is intentionally 10 minutes; change only duration_minutes after the proof passes.",
+    "The workflow must use the standard public-repository ubuntu-latest runner, never a paid larger runner.",
+    "No external LLM/API is required for v0.1; movement and battle probing are driven from RPG Maker MV runtime state plus real Playwright keyboard input.",
+    "Duration alone is not gameplay verification. Progress, battle return-to-map, fatal stops and stalls are recorded separately."
+  ]
+}
