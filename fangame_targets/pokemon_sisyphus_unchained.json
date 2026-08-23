@@ -1,0 +1,16 @@
+{
+  "game_id": "pokemon-sisyphus-unchained-current",
+  "name": "Pokemon Sisyphus Unchained",
+  "version": "current itch release",
+  "engine": "RPG Maker XP",
+  "min_mb": 700,
+  "sources": [
+    "https://socialistcubone.itch.io/sisyphus-unchained"
+  ],
+  "identity_notes": [
+    "Public free itch.io release; page lists an approximately 814 MB ZIP download.",
+    "Author describes a story-focused Pokemon Essentials / RPG Maker XP game with multiple dialogue options and consequential actions.",
+    "Page describes six gyms plus Elite Four and side quests including a murder mystery.",
+    "Accept only the actual large game archive; reject HTML, stubs, unrelated uploads, or access-controlled mirrors."
+  ]
+}
