@@ -1,6 +1,6 @@
 {
-  "schema": "fangame.longrun_config.v0.2",
-  "mode": "ROUTE_GATE",
+  "schema": "fangame.longrun_config.v0.3",
+  "mode": "LONG_RUN_3H",
   "game_id": "final-redemption-current",
   "target": "fangame_targets/final_redemption_mv.json",
   "decision_engine": "runtime_symbolic_agent_v0.2_event_targeted_frontier_bfs",
@@ -8,12 +8,12 @@
   "local_llm": false,
   "runner": "ubuntu-latest",
   "paid_larger_runner": false,
-  "duration_minutes": 3,
+  "duration_minutes": 180,
   "max_duration_minutes": 240,
   "max_intro_confirms": 360,
   "stall_seconds": 25,
-  "checkpoint_seconds": 60,
-  "run_generation": 2,
+  "checkpoint_seconds": 300,
+  "run_generation": 3,
   "evidence_policy": "REAL_KEY_INPUT_PLUS_RPG_MAKER_RUNTIME_STATE",
   "promotion_gates": [
     "ROUTE_PROGRESS_VERIFIED",
@@ -22,11 +22,30 @@
     "LONG_RUN_3H_VERIFIED",
     "LONG_RUN_4H_VERIFIED"
   ],
+  "locked_baselines": {
+    "v0.1_10m": {
+      "elapsed_play_seconds": 600.44,
+      "unique_position_count": 5,
+      "map_transitions": 0,
+      "battle_completions": 0,
+      "classification": "LOCAL_MOTION_ONLY"
+    },
+    "v0.2_route_gate_3m": {
+      "elapsed_play_seconds": 180.374,
+      "unique_position_count": 51,
+      "unique_map_count": 2,
+      "map_transitions": 9,
+      "battle_starts": 2,
+      "battle_completions": 1,
+      "battle_verified": true,
+      "classification": "ROUTE_PROGRESS"
+    }
+  },
   "notes": [
-    "v0.1 established 10-minute cloud autonomy but only 5 unique tiles and zero map transitions, so it is retained as the local-motion baseline rather than promoted.",
-    "v0.2 route gate is intentionally 3 minutes to test event-targeted BFS and frontier expansion before spending a 3-hour run.",
-    "The workflow must use the standard public-repository ubuntu-latest runner, never a paid larger runner.",
-    "No external LLM/API is required; all game actions are real Playwright keyboard input while planning reads RPG Maker MV runtime state.",
-    "Duration alone is not gameplay verification. Promotion requires route progress, ideally a map transition or battle completion."
+    "v0.1 proved zero-cost cloud autonomy but exposed a five-tile oscillation failure mode.",
+    "v0.2 event-targeted frontier BFS passed the route gate: 51 unique positions, 9 map transitions, 2 battle starts and 1 completed battle in 180.374 seconds with no fatal stop.",
+    "This generation promotes the same zero-cost standard ubuntu-latest lane to a 180-minute run.",
+    "No external LLM/API or paid larger runner is allowed.",
+    "Checkpoint screenshots are reduced to every 300 seconds to keep evidence size bounded during the three-hour run."
   ]
 }
