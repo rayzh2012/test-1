@@ -1,0 +1,146 @@
+name: Current MV Long Run PR Proof
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/current-mv-longrun-pr.yml'
+      - 'fangame_longrun/current_longrun.json'
+      - 'tools/fangame_mv_longrun_probe.py'
+      - 'tools/fangame_fetcher.py'
+      - 'tools/fangame_inspect.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: current-mv-longrun-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  longrun-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve zero-cost proof config
+        id: cfg
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          c=json.load(open('fangame_longrun/current_longrun.json',encoding='utf-8'))
+          assert c.get('runner') == 'ubuntu-latest', 'PAID_OR_NONSTANDARD_RUNNER_CONFIG_REJECTED'
+          assert c.get('paid_larger_runner') is False, 'PAID_LARGER_RUNNER_REJECTED'
+          assert c.get('external_ai_api') is False, 'EXTERNAL_AI_API_REJECTED'
+          minutes=int(c.get('duration_minutes',10))
+          max_minutes=int(c.get('max_duration_minutes',240))
+          assert 1 <= minutes <= max_minutes <= 240, 'DURATION_GUARD_REJECTED'
+          print('game_id='+c['game_id'])
+          print('target='+c['target'])
+          print('minutes='+str(minutes))
+          PY
+
+      - name: Fetch exact public package
+        shell: bash
+        run: |
+          rm -rf longrun_fetch longrun_work longrun_out
+          mkdir -p longrun_fetch longrun_work longrun_out
+          python3 tools/fangame_fetcher.py '${{ steps.cfg.outputs.target }}' -o longrun_fetch
+
+      - name: Enforce package identity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          cfg=json.load(open('fangame_longrun/current_longrun.json',encoding='utf-8'))
+          target=json.load(open(cfg['target'],encoding='utf-8'))
+          got=json.load(open('longrun_fetch/fetch_report.json',encoding='utf-8'))
+          if target.get('expected_bytes') is not None and got.get('bytes') != target['expected_bytes']:
+              raise SystemExit('BYTE_IDENTITY_MISMATCH')
+          if target.get('expected_sha256') and (got.get('sha256') or '').lower() != target['expected_sha256'].lower():
+              raise SystemExit('SHA256_IDENTITY_MISMATCH')
+          print('PACKAGE_IDENTITY_VERIFIED')
+          PY
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools ruby
+          python3 -m pip install --disable-pip-version-check requests playwright
+          (google-chrome --version || google-chrome-stable --version || chromium --version)
+
+      - name: Extract and inspect
+        shell: bash
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('longrun_fetch/fetch_report.json',encoding='utf-8'))['file'])
+          PY
+          )
+          python3 tools/fangame_inspect.py "longrun_fetch/$game" --workdir longrun_work --out longrun_out/playability_static.json
+
+      - name: Run autonomous long-run proof
+        id: probe
+        shell: bash
+        run: |
+          set +e
+          python3 tools/fangame_mv_longrun_probe.py \
+            --static longrun_out/playability_static.json \
+            --extract-root longrun_work/extract \
+            --config fangame_longrun/current_longrun.json \
+            --outdir longrun_out/longrun
+          rc=$?
+          echo "return_code=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Publish compact run summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f longrun_out/longrun/mv_longrun_summary.json ]; then
+            echo '## Final Redemption zero-cost long-run proof' >> "$GITHUB_STEP_SUMMARY"
+            echo '' >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat longrun_out/longrun/mv_longrun_summary.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Long-run summary was not produced.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mv-longrun-pr-${{ steps.cfg.outputs.game_id }}-${{ steps.cfg.outputs.minutes }}m
+          path: |
+            longrun_fetch/fetch_report.json
+            longrun_fetch/SHA256.txt
+            longrun_out/playability_static.json
+            longrun_out/longrun/mv_longrun_summary.json
+            longrun_out/longrun/mv_longrun_trace.jsonl
+            longrun_out/longrun/*.png
+          if-no-files-found: warn
+          retention-days: 1
+          compression-level: 6
+
+      - name: Enforce proof result
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          p=pathlib.Path('longrun_out/longrun/mv_longrun_summary.json')
+          if not p.exists(): raise SystemExit('NO_LONGRUN_SUMMARY')
+          r=json.load(p.open(encoding='utf-8'))
+          print(json.dumps({k:r.get(k) for k in (
+              'status','elapsed_play_seconds','actions','unique_map_count','unique_position_count',
+              'map_transitions','coordinate_changes','battle_starts','battle_completions',
+              'stalls_recovered','fatal_stop','battle_verified','long_run_3h_verified','long_run_4h_verified'
+          )},indent=2))
+          good={'LONGRUN_PROOF_PROGRESS_OBSERVED','LONG_RUN_3H_VERIFIED','LONG_RUN_4H_VERIFIED'}
+          if r.get('status') not in good:
+              raise SystemExit('LONGRUN_PROOF_NOT_YET_PROGRESS_VERIFIED')
+          PY
