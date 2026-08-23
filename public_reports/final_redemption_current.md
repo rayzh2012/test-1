@@ -51,6 +51,17 @@
 | Random encounter map ratio | 0.4915 |
 | Encounter-step median | 30 |
 
+## Runtime evidence — 2026-08-23
+
+The exact package above was re-fetched and passed its expected byte-count and SHA256 identity gates before runtime testing.
+
+- **Windows package under Wine/Xvfb:** `Game.exe` opened a visible window titled `Final Redemption` and the process stayed alive, but the image remained on `Now Loading...` through an extended 60-second test and after confirm/directional input. Chromium/NW.js emitted GPU/context failures under the CI Wine graphics stack. This path is therefore classified as **runtime alive / compatibility unresolved**, not as a broken game and not as verified gameplay.
+- **Native Chromium execution of the packaged MV web layer:** the package's own `www/index.html` loaded successfully with PixiJS/WebGL, with no page-level JavaScript exceptions recorded. A semantic screenshot review confirmed the actual **Final Redemption title screen** with `New Game / Continue / Options`.
+- **New Game:** pressing Enter on `New Game` transitioned into the game's opening prologue and rendered the first story dialogue scene. This establishes **TITLE_VERIFIED + NEW_GAME_VERIFIED + CONFIRM_INPUT_VERIFIED** on the browser-compatible MV runtime path.
+- **Still unverified:** free map movement, battle completion, save/load, long-session stability, and absence of later softlocks. Directional keys were sent while the opening dialogue scene was still active, so that test is not counted as `MAP_GAMEPLAY_VERIFIED`.
+
+Current conservative runtime classification: **`PLAYABILITY_VERIFIED_NEW_GAME_WEB_RUNTIME`**. The acquired game data is not a dead/empty package; it demonstrably loads its title and begins a new game on a current Chromium-compatible RPG Maker MV execution path. Native Windows behavior remains distinct from the Wine CI result and has not been directly certified here.
+
 ## Machine-generated descriptors
 
 - **large_map_surface** — absolute/versioned heuristic; evidence: `maps=999`
@@ -66,4 +77,4 @@ No production percentile or `top X%` claim is made until a sufficiently large co
 
 ## Publication boundary
 
-This report publishes structural analysis only. It contains no game binary, private Drive identifier, private note, or personal-fit score.
+This report publishes structural analysis and bounded runtime evidence only. It contains no game binary, private Drive identifier, private note, personal-fit score, or extracted game-content corpus.
