@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Normalize inspectable RPG Maker evidence into fangame.normalized_profile.v0.1.
+"""Normalize inspectable RPG Maker RGSS evidence into fangame.normalized_profile.v0.1.
 
 This adapter is intentionally conservative. It harmonizes fields that mean the
-same thing across engine families, preserves UNKNOWN as null, and records the
-parser family so later baselines cannot silently mix incompatible evidence.
+same thing across RGSS engine families, preserves UNKNOWN as null, and refuses
+to emit a deep normalized profile unless the RGSS Marshal parser actually
+loaded game maps. Unsupported/wrapper layouts must never become zero-content
+public reports.
 """
 
 import argparse
@@ -13,6 +15,7 @@ from pathlib import Path
 
 SCHEMA = "fangame.normalized_profile.v0.1"
 BASELINE_PENDING = "REAL_ORDINARY_RPG_BASELINE_PENDING"
+SUPPORTED_RGSS = {"RPG Maker XP", "RPG Maker VX", "RPG Maker VX Ace"}
 
 
 def load(path):
@@ -97,8 +100,24 @@ def main():
 
     pkg = Path(args.package)
     tid = target_identity(target)
-    engine = first(st.get("engine"), tid.get("engine"), "UNKNOWN")
-    parser_family = "RGSS_MARSHAL" if engine in {"RPG Maker XP", "RPG Maker VX", "RPG Maker VX Ace"} else "STATIC_INSPECT"
+    detected_engine = st.get("engine")
+
+    # Evidence gate: target metadata is not allowed to upgrade an unrecognized
+    # package into a supported RGSS parser family. UNKNOWN/installer/wrapper
+    # layouts remain UNKNOWN rather than becoming a zero-content game.
+    if detected_engine not in SUPPORTED_RGSS:
+        raise SystemExit(
+            f"RGSS normalized profile refused: static engine/layout is {detected_engine!r}; "
+            "requires directly detected RPG Maker XP/VX/VX Ace evidence"
+        )
+    if not bool(mc.get("marshal_probe")) or n(mc.get("maps_loaded")) in (None, 0):
+        raise SystemExit(
+            "RGSS normalized profile refused: Marshal probe did not successfully load at least one map; "
+            "UNKNOWN must not be published as zero content"
+        )
+
+    engine = detected_engine
+    parser_family = "RGSS_MARSHAL"
 
     maps = first(mc.get("maps_loaded"), graph.get("map_nodes"), st.get("map_count_verified_by_marshal"), st.get("map_count"))
     events = mc.get("events")
@@ -175,7 +194,7 @@ def main():
         "derived": derived,
         "progression": progression,
         "system_evidence": {
-            "rgss_marshal_probe": bool(mc.get("marshal_probe")),
+            "rgss_marshal_probe": True,
             "graph_probe": bool(graph_wrap.get("graph_probe")),
             "progression_probe": bool(prog_wrap.get("progression_probe")),
             "content_inference": bool(infer),
@@ -189,7 +208,8 @@ def main():
             "release_completion_status": infer.get("release_completion_status"),
         },
         "limitations": [
-            "Legacy RGSS values come from inspectable Marshal data and graph/progression probes; custom scripts may add runtime behavior not visible to static event counts.",
+            "Legacy RGSS values come from successfully loaded Marshal data and graph/progression probes; custom scripts may add runtime behavior not visible to static event counts.",
+            "Unsupported/wrapper layouts are rejected rather than represented as zero-content games.",
             "Cross-engine percentile claims remain disabled until metric semantics are calibrated across parser families with a real ordinary-RPG corpus.",
         ],
     }
