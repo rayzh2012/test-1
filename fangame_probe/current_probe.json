@@ -1,6 +1,6 @@
 {
-  "sample_id": "magic-baby-2026-final",
-  "target": "fangame_targets/magic_baby_2026_final.json",
+  "sample_id": "magic-baby-115c-final",
+  "target": "fangame_targets/magic_baby_115c.json",
   "purpose": "NEXT_FANGAME_GENOME",
   "artifact_policy": "METRICS_AND_REPORTS_ONLY_NO_GAME_BINARY"
 }
