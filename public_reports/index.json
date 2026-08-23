@@ -23,6 +23,17 @@
       "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING"
     },
     {
+      "game_id": "pokemon-sisyphus-unchained-current",
+      "title": "Pokemon Sisyphus Unchained",
+      "version": "current itch release",
+      "engine": "RPG Maker XP",
+      "sha256": "ebd2bc828f260eec89492105c8b8c2f369934386b7d63bdaab933cd45f61b8b7",
+      "corpus_role": "fangame_deep_observation",
+      "json": "public_reports/pokemon_sisyphus_unchained_current.json",
+      "markdown": "public_reports/pokemon_sisyphus_unchained_current.md",
+      "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING"
+    },
+    {
       "game_id": "pokemon-central-core-current-itch",
       "title": "Pokémon Central Core",
       "version": "Released / current itch lineage",
