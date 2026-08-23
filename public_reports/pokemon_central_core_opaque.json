@@ -1,0 +1,48 @@
+{
+  "schema": "fangame.public_opaque_analysis.v0.1",
+  "identity": {
+    "game_id": "pokemon-central-core-current-itch",
+    "title": "Pokémon Central Core",
+    "version": "Released / current itch lineage",
+    "engine": "RPG Maker XP",
+    "rgss_library": "RGSS102E.dll",
+    "archive_filename": "Pokemon Central Core 2.rar",
+    "bytes": 534570821,
+    "sha256": "5f81f7b2e386c6ef4520567e7057756b490d998556a4b153173aea9a4d89b80f",
+    "source_url": "https://sumeetxsakura.itch.io/pokemon-central-core"
+  },
+  "observed": {
+    "extract_ok": true,
+    "clean_launcher_present": true,
+    "encrypted_game_archive": true,
+    "structural_status": "STRUCTURAL_OK",
+    "content_visibility": "OPAQUE_ENCRYPTED",
+    "external_asset_files": 2824,
+    "external_asset_bytes": 296028283,
+    "external_audio_files": 2822,
+    "external_image_files": 2,
+    "unique_external_content_hashes": 2432,
+    "exact_duplicate_groups": 229,
+    "exact_duplicate_extra_copies": 392,
+    "exact_reuse_ratio": 0.1388
+  },
+  "unknown_internal_metrics": [
+    "maps",
+    "events",
+    "dialogue",
+    "map_graph",
+    "switch_variable_graph",
+    "sidequest_candidates",
+    "ending_candidates",
+    "battle_calls",
+    "shops",
+    "choices"
+  ],
+  "evidence_rule": "UNKNOWN != 0",
+  "publication_policy": {
+    "contains_game_binary": false,
+    "contains_private_drive_ids": false,
+    "contains_personal_fit": false,
+    "does_not_attempt_decryption": true
+  }
+}
