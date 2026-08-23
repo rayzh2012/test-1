@@ -1,22 +1,6 @@
 name: Pokémon Central Core Genome
 
 on:
-  pull_request:
-    paths:
-      - 'fangame_targets/pokemon_central_core.json'
-      - 'tools/fangame_fetcher.py'
-      - 'tools/fangame_inspect.py'
-      - 'tools/fangame_genome_runner.py'
-      - 'tools/fangame_normalized_profile.py'
-      - 'tools/rpgmaker_marshal_probe.rb'
-      - 'tools/rpgmaker_graph_probe.rb'
-      - 'tools/rpgmaker_progression_probe.rb'
-      - 'tools/rpgmaker_dialogue_extract.rb'
-      - 'tools/rpgmaker_map_graph.rb'
-      - 'tools/rpgmaker_graph_normalize.py'
-      - 'tools/fangame_content_infer.py'
-      - 'tools/fangame_public_report.py'
-      - '.github/workflows/pokemon-central-core-genome.yml'
   workflow_dispatch:
 
 jobs:
