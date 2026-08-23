@@ -1,6 +1,6 @@
 {
-  "sample_id": "magic-baby-115c-final",
-  "target": "fangame_targets/magic_baby_115c.json",
+  "sample_id": "final-redemption-current",
+  "target": "fangame_targets/final_redemption_mv.json",
   "purpose": "NEXT_FANGAME_GENOME",
   "artifact_policy": "METRICS_AND_REPORTS_ONLY_NO_GAME_BINARY"
 }
