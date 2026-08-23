@@ -1,0 +1,105 @@
+name: Current MV Compatibility Playability
+
+on:
+  pull_request:
+    paths:
+      - 'fangame_rescue/current_rescue.json'
+      - '.github/workflows/current-mv-compat-playability.yml'
+      - 'tools/fangame_mv_wine_compat_probe.py'
+      - 'tools/fangame_fetcher.py'
+      - 'tools/fangame_inspect.py'
+      - 'tools/fangame_smoke.py'
+  workflow_dispatch:
+
+jobs:
+  mv-compat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve target
+        id: cfg
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          c=json.load(open('fangame_rescue/current_rescue.json',encoding='utf-8'))
+          print('sample_id='+c['sample_id'])
+          print('target='+c['target'])
+          PY
+
+      - name: Fetch exact package
+        shell: bash
+        run: |
+          rm -rf compat_fetch compat_work compat_out
+          mkdir -p compat_fetch compat_work compat_out
+          python3 tools/fangame_fetcher.py '${{ steps.cfg.outputs.target }}' -o compat_fetch
+
+      - name: Enforce identity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          cfg=json.load(open('fangame_rescue/current_rescue.json',encoding='utf-8'))
+          t=json.load(open(cfg['target'],encoding='utf-8'))
+          g=json.load(open('compat_fetch/fetch_report.json',encoding='utf-8'))
+          if t.get('expected_bytes') is not None and g.get('bytes') != t['expected_bytes']:
+              raise SystemExit('BYTE_IDENTITY_MISMATCH')
+          if t.get('expected_sha256') and (g.get('sha256') or '').lower() != t['expected_sha256'].lower():
+              raise SystemExit('SHA256_IDENTITY_MISMATCH')
+          print('PACKAGE_IDENTITY_VERIFIED')
+          PY
+
+      - name: Install compatibility runtime
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            p7zip-full unar libarchive-tools ruby \
+            xvfb xdotool scrot imagemagick fonts-noto-cjk locales \
+            pulseaudio pulseaudio-utils wine wine64 mesa-utils
+          sudo locale-gen zh_CN.UTF-8 || true
+
+      - name: Static inspect and extract
+        shell: bash
+        env:
+          LANG: zh_CN.UTF-8
+          LC_ALL: zh_CN.UTF-8
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('compat_fetch/fetch_report.json',encoding='utf-8'))['file'])
+          PY
+          )
+          python3 tools/fangame_inspect.py \
+            "compat_fetch/$game" \
+            --workdir compat_work \
+            --out compat_out/playability_static.json
+
+      - name: Run extended MV software-render compatibility probe
+        shell: bash
+        env:
+          LANG: zh_CN.UTF-8
+          LC_ALL: zh_CN.UTF-8
+        run: |
+          python3 tools/fangame_mv_wine_compat_probe.py \
+            --static compat_out/playability_static.json \
+            --extract-root compat_work/extract \
+            --outdir compat_out/mv_compat
+
+      - name: Upload compatibility evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-mv-compat-${{ steps.cfg.outputs.sample_id }}
+          path: |
+            compat_fetch/fetch_report.json
+            compat_fetch/SHA256.txt
+            compat_out/playability_static.json
+            compat_out/mv_compat/mv_compat_probe.json
+            compat_out/mv_compat/runtime_compat.log
+            compat_out/mv_compat/*.png
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 6
