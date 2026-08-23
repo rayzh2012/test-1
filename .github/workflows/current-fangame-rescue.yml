@@ -1,0 +1,160 @@
+name: Current Fangame Rescue
+
+on:
+  push:
+    branches: [ fangame-public-genome-v01-20260822 ]
+    paths:
+      - 'fangame_rescue/current_rescue.json'
+  workflow_dispatch:
+
+jobs:
+  rescue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve rescue target
+        id: cfg
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          c=json.load(open('fangame_rescue/current_rescue.json',encoding='utf-8'))
+          print('sample_id='+c['sample_id'])
+          print('target='+c['target'])
+          PY
+
+      - name: Fetch exact public package
+        shell: bash
+        run: |
+          rm -rf rescue_out rescue_parts
+          mkdir -p rescue_out rescue_parts
+          python3 tools/fangame_fetcher.py '${{ steps.cfg.outputs.target }}' -o rescue_out
+
+      - name: Enforce package identity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib, sys
+          cfg=json.load(open('fangame_rescue/current_rescue.json',encoding='utf-8'))
+          target=json.load(open(cfg['target'],encoding='utf-8'))
+          report=json.load(open('rescue_out/fetch_report.json',encoding='utf-8'))
+          expected_bytes=target.get('expected_bytes')
+          expected_sha=(target.get('expected_sha256') or '').lower() or None
+          got_bytes=report.get('bytes')
+          got_sha=(report.get('sha256') or '').lower()
+          if expected_bytes is not None and got_bytes != expected_bytes:
+              raise SystemExit(f'BYTE_IDENTITY_MISMATCH expected={expected_bytes} got={got_bytes}')
+          if expected_sha is not None and got_sha != expected_sha:
+              raise SystemExit(f'SHA256_IDENTITY_MISMATCH expected={expected_sha} got={got_sha}')
+          print(json.dumps({'identity':'VERIFIED','bytes':got_bytes,'sha256':got_sha},indent=2))
+          PY
+
+      - name: Split losslessly for Drive archival
+        shell: bash
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('rescue_out/fetch_report.json',encoding='utf-8'))['file'])
+          PY
+          )
+          split -b 75M -d -a 3 "rescue_out/$game" "rescue_parts/$game.part"
+          cp rescue_out/SHA256.txt rescue_out/fetch_report.json rescue_parts/
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          cfg=json.load(open('fangame_rescue/current_rescue.json',encoding='utf-8'))
+          r=json.load(open('rescue_out/fetch_report.json',encoding='utf-8'))
+          parts=[]
+          for p in sorted(pathlib.Path('rescue_parts').glob('*.part[0-9][0-9][0-9]')):
+              h=hashlib.sha256(p.read_bytes()).hexdigest()
+              parts.append({'name':p.name,'bytes':p.stat().st_size,'sha256':h})
+          m={
+            'schema':'fangame.rescue_manifest.v0.1',
+            'sample_id':cfg['sample_id'],
+            'target':cfg['target'],
+            'original_file':r['file'],
+            'original_bytes':r['bytes'],
+            'original_sha256':r['sha256'],
+            'split_bytes':75*1024*1024,
+            'parts':parts,
+            'reconstruct':'concatenate parts in lexical order without transformation'
+          }
+          pathlib.Path('rescue_parts/rescue_manifest.json').write_text(json.dumps(m,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(m,ensure_ascii=False,indent=2))
+          PY
+
+      - name: Upload part 000
+        if: hashFiles('rescue_parts/*.part000') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part000', path: 'rescue_parts/*.part000', retention-days: 7, compression-level: 0}
+      - name: Upload part 001
+        if: hashFiles('rescue_parts/*.part001') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part001', path: 'rescue_parts/*.part001', retention-days: 7, compression-level: 0}
+      - name: Upload part 002
+        if: hashFiles('rescue_parts/*.part002') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part002', path: 'rescue_parts/*.part002', retention-days: 7, compression-level: 0}
+      - name: Upload part 003
+        if: hashFiles('rescue_parts/*.part003') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part003', path: 'rescue_parts/*.part003', retention-days: 7, compression-level: 0}
+      - name: Upload part 004
+        if: hashFiles('rescue_parts/*.part004') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part004', path: 'rescue_parts/*.part004', retention-days: 7, compression-level: 0}
+      - name: Upload part 005
+        if: hashFiles('rescue_parts/*.part005') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part005', path: 'rescue_parts/*.part005', retention-days: 7, compression-level: 0}
+      - name: Upload part 006
+        if: hashFiles('rescue_parts/*.part006') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part006', path: 'rescue_parts/*.part006', retention-days: 7, compression-level: 0}
+      - name: Upload part 007
+        if: hashFiles('rescue_parts/*.part007') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part007', path: 'rescue_parts/*.part007', retention-days: 7, compression-level: 0}
+      - name: Upload part 008
+        if: hashFiles('rescue_parts/*.part008') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part008', path: 'rescue_parts/*.part008', retention-days: 7, compression-level: 0}
+      - name: Upload part 009
+        if: hashFiles('rescue_parts/*.part009') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part009', path: 'rescue_parts/*.part009', retention-days: 7, compression-level: 0}
+      - name: Upload part 010
+        if: hashFiles('rescue_parts/*.part010') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part010', path: 'rescue_parts/*.part010', retention-days: 7, compression-level: 0}
+      - name: Upload part 011
+        if: hashFiles('rescue_parts/*.part011') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part011', path: 'rescue_parts/*.part011', retention-days: 7, compression-level: 0}
+      - name: Upload part 012
+        if: hashFiles('rescue_parts/*.part012') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part012', path: 'rescue_parts/*.part012', retention-days: 7, compression-level: 0}
+      - name: Upload part 013
+        if: hashFiles('rescue_parts/*.part013') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part013', path: 'rescue_parts/*.part013', retention-days: 7, compression-level: 0}
+      - name: Upload part 014
+        if: hashFiles('rescue_parts/*.part014') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part014', path: 'rescue_parts/*.part014', retention-days: 7, compression-level: 0}
+      - name: Upload part 015
+        if: hashFiles('rescue_parts/*.part015') != ''
+        uses: actions/upload-artifact@v4
+        with: {name: '${{ steps.cfg.outputs.sample_id }}-part015', path: 'rescue_parts/*.part015', retention-days: 7, compression-level: 0}
+
+      - name: Upload rescue metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.cfg.outputs.sample_id }}-metadata
+          path: |
+            rescue_parts/SHA256.txt
+            rescue_parts/fetch_report.json
+            rescue_parts/rescue_manifest.json
+          retention-days: 7
