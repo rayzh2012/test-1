@@ -1,23 +1,11 @@
 name: Current Fangame Genome Probe
 
 on:
-  pull_request:
+  push:
+    branches:
+      - fangame-public-genome-v01-20260822
     paths:
       - 'fangame_probe/current_probe.json'
-      - 'tools/fangame_fetcher.py'
-      - 'tools/fangame_inspect.py'
-      - 'tools/fangame_genome_runner.py'
-      - 'tools/fangame_normalized_profile.py'
-      - 'tools/rpgmaker_mv_genome.py'
-      - 'tools/rpgmaker_marshal_probe.rb'
-      - 'tools/rpgmaker_graph_probe.rb'
-      - 'tools/rpgmaker_progression_probe.rb'
-      - 'tools/rpgmaker_dialogue_extract.rb'
-      - 'tools/rpgmaker_map_graph.rb'
-      - 'tools/rpgmaker_graph_normalize.py'
-      - 'tools/fangame_content_infer.py'
-      - 'tools/fangame_public_report.py'
-      - '.github/workflows/current-fangame-genome-probe.yml'
   workflow_dispatch:
 
 jobs:
