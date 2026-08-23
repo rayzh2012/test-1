@@ -1,0 +1,109 @@
+name: Current Fangame Genome Probe
+
+on:
+  pull_request:
+    paths:
+      - 'fangame_probe/current_probe.json'
+      - 'fangame_targets/**.json'
+      - 'tools/fangame_fetcher.py'
+      - 'tools/fangame_inspect.py'
+      - 'tools/fangame_genome_runner.py'
+      - 'tools/fangame_normalized_profile.py'
+      - 'tools/rpgmaker_mv_genome.py'
+      - 'tools/rpgmaker_marshal_probe.rb'
+      - 'tools/rpgmaker_graph_probe.rb'
+      - 'tools/rpgmaker_progression_probe.rb'
+      - 'tools/rpgmaker_dialogue_extract.rb'
+      - 'tools/rpgmaker_map_graph.rb'
+      - 'tools/rpgmaker_graph_normalize.py'
+      - 'tools/fangame_content_infer.py'
+      - 'tools/fangame_public_report.py'
+      - '.github/workflows/current-fangame-genome-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  genome:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve current target
+        id: cfg
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          c=json.load(open('fangame_probe/current_probe.json',encoding='utf-8'))
+          print('sample_id='+c['sample_id'])
+          print('target='+c['target'])
+          PY
+
+      - name: Install parser dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools ruby
+
+      - name: Run universal Genome pipeline
+        id: genome
+        shell: bash
+        run: |
+          set +e
+          sample='${{ steps.cfg.outputs.sample_id }}'
+          target='${{ steps.cfg.outputs.target }}'
+          python3 tools/fangame_genome_runner.py \
+            --target-json "$target" \
+            --outdir "out/$sample" \
+            --workdir "work/$sample" \
+            --skip-perceptual
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Preserve identity/failure evidence
+        if: always()
+        shell: bash
+        run: |
+          sample='${{ steps.cfg.outputs.sample_id }}'
+          mkdir -p "out/$sample"
+          cp "work/$sample/fetch/fetch_report.json" "out/$sample/fetch_report.json" 2>/dev/null || true
+          cp "work/$sample/fetch/SHA256.txt" "out/$sample/SHA256.txt" 2>/dev/null || true
+          printf '%s\n' '${{ steps.genome.outputs.rc }}' > "out/$sample/runner_exit_code.txt"
+
+      - name: Classify result
+        if: always()
+        shell: bash
+        run: |
+          sample='${{ steps.cfg.outputs.sample_id }}'
+          python3 - "$sample" <<'PY'
+          import json, pathlib, sys
+          sample=sys.argv[1]; root=pathlib.Path('out')/sample
+          result={'sample_id':sample,'runner_rc':int((root/'runner_exit_code.txt').read_text().strip()) if (root/'runner_exit_code.txt').exists() else None}
+          f=root/'fetch_report.json'
+          if f.exists():
+              d=json.load(open(f,encoding='utf-8'))
+              result['fetch']={k:d.get(k) for k in ('success','file','bytes','sha256')}
+              result['fetch_attempt_count']=len(d.get('attempts') or [])
+          s=root/'playability_static.json'
+          if s.exists():
+              d=json.load(open(s,encoding='utf-8'))
+              result['static']={k:d.get(k) for k in ('engine','playability_structural','encrypted_game_archive','clean_launcher_present','map_count','data_file_count','image_count','audio_count')}
+          g=root/'genome_summary.json'
+          if g.exists():
+              d=json.load(open(g,encoding='utf-8'))
+              result['genome']={k:d.get(k) for k in ('engine','content_visibility','maps','dialogue_chars','battle_calls','choices','public_report_status','parser_family')}
+          result['normalized_profile_present']=(root/'normalized_profile.json').exists()
+          result['public_report_present']=(root/'public_report.json').exists()
+          (root/'probe_result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(result,ensure_ascii=False,indent=2))
+          PY
+
+      - name: Upload metrics and reports only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-fangame-genome-${{ steps.cfg.outputs.sample_id }}
+          path: out/${{ steps.cfg.outputs.sample_id }}/**
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 6
