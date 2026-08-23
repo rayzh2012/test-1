@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: current-mv-longrun-free-${{ github.ref }}
@@ -110,6 +110,30 @@ jobs:
           else
             echo 'Long-run summary was not produced.' >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Archive compact latest result back to branch
+        if: always() && github.event_name == 'push'
+        shell: bash
+        run: |
+          if [ ! -f longrun_out/longrun/mv_longrun_summary.json ]; then
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json, os, pathlib
+          src=pathlib.Path('longrun_out/longrun/mv_longrun_summary.json')
+          r=json.load(src.open(encoding='utf-8'))
+          r['github_run_id']=os.environ.get('GITHUB_RUN_ID')
+          r['github_run_attempt']=os.environ.get('GITHUB_RUN_ATTEMPT')
+          r['source_commit']=os.environ.get('GITHUB_SHA')
+          r['archived_by']='current-mv-longrun-free.yml'
+          pathlib.Path('fangame_longrun/latest_result.json').write_text(json.dumps(r,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add fangame_longrun/latest_result.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Record Final Redemption long-run proof result [skip ci]'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Upload evidence only (never game binary)
         if: always()
