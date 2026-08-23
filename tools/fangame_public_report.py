@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 PUBLIC_SCHEMA = "fangame.public_analysis.v0.1"
-DESCRIPTOR_VERSION = "fangame.public_descriptors.v0.1"
+DESCRIPTOR_VERSION = "fangame.public_descriptors.v0.2"
 INDEX_SCHEMA = "fangame.public_report_index_entry.v0.1"
 
 OBSERVED_KEYS = [
@@ -33,10 +33,29 @@ PROGRESSION_KEYS = [
     "random_encounter_map_ratio", "encounter_step_median", "enemy_exp_median",
     "enemy_gold_median", "equipment_price_median",
 ]
+QOL_BOOLEAN_KEYS = (
+    "difficulty_slider_plugin", "autosave_plugin", "quest_journal_plugin",
+    "new_game_plus_plugin", "speed_up_plugin",
+)
 
 
 def pick(d, keys):
     return {k: d.get(k) for k in keys if k in d}
+
+
+def parser_semantics(profile):
+    family = profile.get("parser_family")
+    if family == "RGSS_MARSHAL":
+        return [
+            "RGSS battle/shop/random-encounter counts describe native RPG Maker event/database structures. Script frameworks such as Pokemon Essentials can implement major systems outside those native slots, so native zero counts do not mean the game lacks those systems.",
+            "RGSS database object counts can be placeholders when a custom script framework keeps gameplay data in separate files or scripts; interpret very small native database counts conservatively.",
+        ]
+    if family == "MV_JSON":
+        return [
+            "MV/MZ metrics describe JSON maps, database rows, event commands, and declared plugins. Plugin/script-created runtime content can add behavior beyond static counts.",
+            "Battle Processing commands can undercount encounters invoked through scripts, common events, or custom battle systems.",
+        ]
+    return []
 
 
 def build_descriptors(profile):
@@ -65,7 +84,9 @@ def build_descriptors(profile):
     if (d.get("choice_options_per_map") or 0) >= 10:
         out.append({"id": "choice_dense_absolute", "kind": "ABSOLUTE_HEURISTIC", "evidence": f"choice_options_per_map={d.get('choice_options_per_map'):.2f}"})
 
-    known_systems = [k for k, v in s.items() if isinstance(v, bool) and v]
+    # Only actual user-facing system evidence is eligible here. Parser/probe
+    # success booleans are evidence plumbing, not QoL/meta systems.
+    known_systems = [k for k in QOL_BOOLEAN_KEYS if s.get(k) is True]
     if len(known_systems) >= 4:
         out.append({"id": "multiple_explicit_qol_or_meta_systems", "kind": "OBSERVED_SYSTEM_EVIDENCE", "evidence": sorted(known_systems)})
     return out
@@ -82,6 +103,7 @@ def sanitize(profile, source_url=None, parser_version=None, analysis_version=Non
         },
         "reproducibility": {
             "input_schema": profile.get("schema"),
+            "parser_family": profile.get("parser_family"),
             "parser_version": parser_version,
             "analysis_version": analysis_version or DESCRIPTOR_VERSION,
         },
@@ -89,6 +111,7 @@ def sanitize(profile, source_url=None, parser_version=None, analysis_version=Non
         "derived": pick(profile.get("derived", {}) or {}, DERIVED_KEYS),
         "progression": pick(profile.get("progression", {}) or {}, PROGRESSION_KEYS),
         "system_evidence": profile.get("system_evidence", {}) or {},
+        "metric_semantics": parser_semantics(profile),
         "descriptors": build_descriptors(profile),
         "baseline": {"status": profile.get("baseline_status", "UNKNOWN"), "comparison": baseline},
         "publication_policy": {
@@ -139,6 +162,11 @@ def render_markdown(r):
         if key in d: lines.append(f"| {label} | {fmt(d.get(key))} |")
     if "random_encounter_map_ratio" in p:
         lines.append(f"| Random encounter map ratio | {fmt(p.get('random_encounter_map_ratio'))} |")
+
+    if r.get("metric_semantics"):
+        lines += ["", "## Metric semantics / engine caveats", ""]
+        for note in r["metric_semantics"]:
+            lines.append(f"- {note}")
 
     lines += ["", "## Explicit system evidence", ""]
     for k, v in sorted(s.items()): lines.append(f"- `{k}`: `{v}`")
