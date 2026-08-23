@@ -58,6 +58,104 @@ def extract_links(base, text):
     return [u for _, u in sorted(scored, reverse=True)]
 
 
+def _content_length(headers):
+    try:
+        return int(headers.get('content-length') or 0)
+    except Exception:
+        return 0
+
+
+def _content_range_total(headers):
+    value = headers.get('content-range') or ''
+    m = re.search(r'/([0-9]+)\s*$', value)
+    return int(m.group(1)) if m else 0
+
+
+def stream_binary_resumable(session, response, path, report, max_attempts=6):
+    """Stream a large public binary with bounded HTTP Range resume.
+
+    A transient CDN disconnect must not force a 500MB-1GB rescue back to byte 0.
+    If a server ignores Range and returns 200, the partial file is safely reset.
+    """
+    active = response
+    expected_total = _content_range_total(active.headers) or _content_length(active.headers)
+    request_url = active.url
+
+    for attempt in range(1, max_attempts + 1):
+        existing = path.stat().st_size if path.exists() else 0
+        status = active.status_code
+        range_total = _content_range_total(active.headers)
+        if range_total:
+            expected_total = range_total
+        elif status == 200 and _content_length(active.headers):
+            expected_total = _content_length(active.headers)
+
+        append = status == 206 and existing > 0
+        if status == 200 and existing > 0:
+            report['attempts'].append({
+                'url': request_url, 'transport': 'http-range-reset',
+                'resume_from': existing, 'reason': 'server_returned_200_for_resume'
+            })
+            path.unlink(missing_ok=True)
+            existing = 0
+            append = False
+
+        before = existing if append else 0
+        try:
+            with open(path, 'ab' if append else 'wb') as f:
+                for chunk in active.iter_content(1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+            size = path.stat().st_size if path.exists() else 0
+            report['attempts'].append({
+                'url': request_url, 'transport': 'http-stream',
+                'stream_attempt': attempt, 'status': status,
+                'resume_from': before, 'bytes_after': size,
+                'expected_total': expected_total or None,
+                'complete': bool(expected_total and size >= expected_total) if expected_total else True
+            })
+            if not expected_total or size >= expected_total:
+                return size
+        except Exception as e:
+            size = path.stat().st_size if path.exists() else 0
+            report['attempts'].append({
+                'url': request_url, 'transport': 'http-stream',
+                'stream_attempt': attempt, 'status': status,
+                'resume_from': before, 'bytes_after': size,
+                'expected_total': expected_total or None,
+                'error': repr(e)
+            })
+
+        if attempt >= max_attempts:
+            break
+        current = path.stat().st_size if path.exists() else 0
+        headers = {'Range': f'bytes={current}-'} if current > 0 else {}
+        try:
+            active = session.get(
+                request_url, headers=headers, timeout=(15, 120),
+                allow_redirects=True, stream=True
+            )
+            report['attempts'].append({
+                'url': request_url, 'transport': 'http-range-resume',
+                'resume_attempt': attempt + 1, 'resume_from': current,
+                'status': active.status_code, 'final_url': active.url,
+                'content_length': _content_length(active.headers),
+                'content_range': active.headers.get('content-range')
+            })
+            if active.status_code not in (200, 206):
+                break
+            request_url = active.url
+        except Exception as e:
+            report['attempts'].append({
+                'url': request_url, 'transport': 'http-range-resume',
+                'resume_attempt': attempt + 1, 'resume_from': current,
+                'error': repr(e)
+            })
+            continue
+
+    return path.stat().st_size if path.exists() else 0
+
+
 def fetch_http(session, url, outdir, min_mb, report):
     q = [url]
     seen = set()
@@ -72,9 +170,9 @@ def fetch_http(session, url, outdir, min_mb, report):
                 return result
             continue
         try:
-            r = session.get(u, timeout=45, allow_redirects=True, stream=True)
+            r = session.get(u, timeout=(15, 120), allow_redirects=True, stream=True)
             ct = (r.headers.get('content-type') or '').lower()
-            cl = int(r.headers.get('content-length') or 0)
+            cl = _content_length(r.headers)
             report['attempts'].append({
                 'url': u, 'status': r.status_code, 'final_url': r.url,
                 'content_type': ct, 'content_length': cl
@@ -93,13 +191,15 @@ def fetch_http(session, url, outdir, min_mb, report):
             if not name:
                 name = os.path.basename(urlparse(r.url).path) or 'download.bin'
             path = Path(outdir) / name
-            n = 0
-            with open(path, 'wb') as f:
-                for chunk in r.iter_content(1024 * 1024):
-                    if chunk:
-                        f.write(chunk)
-                        n += len(chunk)
-            if n < min_mb * 1024 * 1024 or not archive_head_ok(path):
+            n = stream_binary_resumable(session, r, path, report)
+            if n < min_mb * 1024 * 1024 or (cl and n < cl) or not archive_head_ok(path):
+                report['attempts'].append({
+                    'url': u, 'transport': 'http-validation',
+                    'bytes': n, 'initial_content_length': cl,
+                    'min_bytes': min_mb * 1024 * 1024,
+                    'archive_head_ok': archive_head_ok(path) if path.exists() and n else False,
+                    'accepted': False
+                })
                 path.unlink(missing_ok=True)
                 continue
             return path
