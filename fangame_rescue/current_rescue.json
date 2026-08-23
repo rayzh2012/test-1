@@ -4,6 +4,7 @@
   "purpose": "P0_COMPLETE_FANGAME_ARCHIVE_AND_PLAYABILITY",
   "archive_policy": "PUBLIC_FREE_PACKAGE_SHA256_DRIVE_READBACK_REQUIRED",
   "playability_policy": "BOOT_CONFIRM_INPUT_EVIDENCE_REQUIRED_FOR_FANGAME_DONE",
+  "runtime_gate": "REQUIRED",
   "drive_folder_id": "1KOnbk7y4n5upHcDbaL0CAVFoDEao2sP4",
-  "run_generation": 2
+  "run_generation": 3
 }
