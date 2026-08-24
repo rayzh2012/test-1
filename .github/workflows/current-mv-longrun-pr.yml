@@ -21,7 +21,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The active 240-minute learning experiment is owned by current-mv-learning-4h-free.yml.
+  # Disable this legacy PR proof to prevent duplicate four-hour jobs.
   longrun-proof:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
     steps:
