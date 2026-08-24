@@ -84,7 +84,10 @@ jobs:
           retention-days: 144
           compression-level: 6
 
+  # Long-duration learning is owned by current-mv-longrun-pr.yml.
+  # Keep this map-control workflow focused on the short route gate.
   longrun-proof:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
     steps:
