@@ -11,6 +11,7 @@ on:
       - 'tools/fangame_mv_survival_learning_probe.py'
       - 'tools/fangame_mv_survival_learning_probe_v2.py'
       - 'tools/fangame_mv_survival_learning_probe_v3_playlog.py'
+      - 'tools/fangame_mv_survival_learning_probe_v4.py'
   workflow_dispatch:
 
 permissions:
@@ -43,7 +44,7 @@ jobs:
           print('target='+c['target'])
           print('game_id='+c['game_id'])
           PY
-          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py tools/fangame_mv_survival_learning_probe.py tools/fangame_mv_survival_learning_probe_v2.py tools/fangame_mv_survival_learning_probe_v3_playlog.py
+          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py tools/fangame_mv_survival_learning_probe.py tools/fangame_mv_survival_learning_probe_v2.py tools/fangame_mv_survival_learning_probe_v3_playlog.py tools/fangame_mv_survival_learning_probe_v4.py
 
       - name: Fetch exact current public package
         shell: bash
@@ -88,7 +89,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          python3 tools/fangame_mv_survival_learning_probe_v3_playlog.py \
+          python3 tools/fangame_mv_survival_learning_probe_v4.py \
             --static learning_out/playability_static.json \
             --extract-root learning_work/extract \
             --config fangame_longrun/learning_4h.json \
@@ -158,8 +159,10 @@ jobs:
           p=pathlib.Path('learning_out/learning/mv_learning_summary.json')
           if not p.exists(): raise SystemExit('NO_LEARNING_SUMMARY')
           r=json.load(p.open(encoding='utf-8'))
-          keys=('status','elapsed_play_seconds','deaths','checkpoint_recoveries','checkpoint_failures','full_restarts','unique_map_count','unique_position_count','map_transitions','battle_starts','battle_completions','save_load_verified','death_learning_exercised','long_run_4h_verified','fatal_stop')
+          keys=('status','elapsed_play_seconds','deaths','party_member_deaths','checkpoint_recoveries','casualty_checkpoint_recoveries','checkpoint_failures','full_restarts','unique_map_count','unique_position_count','map_transitions','battle_starts','battle_completions','save_load_verified','death_learning_exercised','long_run_4h_verified','fatal_stop')
           print(json.dumps({k:r.get(k) for k in keys},indent=2))
-          if r.get('status') not in {'LONG_RUN_4H_VERIFIED_WITH_DEATH_LEARNING','LONG_RUN_4H_VERIFIED','LONGRUN_DURATION_REACHED_PROGRESS_OBSERVED'}:
+          if float(r.get('elapsed_play_seconds',0) or 0) < 14400 or r.get('long_run_4h_verified') is not True or r.get('fatal_stop') is not None:
               raise SystemExit('FOUR_HOUR_LEARNING_EXPERIMENT_NOT_VERIFIED')
+          if r.get('status') not in {'LONG_RUN_4H_VERIFIED_WITH_DEATH_LEARNING','LONG_RUN_4H_VERIFIED'}:
+              raise SystemExit('FOUR_HOUR_LEARNING_STATUS_NOT_VERIFIED')
           PY
