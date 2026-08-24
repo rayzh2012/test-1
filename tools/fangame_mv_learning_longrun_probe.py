@@ -75,7 +75,7 @@ def guide(out,result,facts,erisk,drisk):
     lines=['# Observed-facts guide','',f"- elapsed: {result.get('elapsed_play_seconds')} s",f"- maps: {result.get('unique_maps')}",f"- transitions: {result.get('map_transitions')}",f"- battles completed: {result.get('battle_completions')}",f"- deaths: {result.get('deaths')}",f"- checkpoint recoveries: {result.get('checkpoint_recoveries')}",'','## Observed transitions']
     lines += [f"- t={x['t']}s map {x['from_map']} {x['from_xy']} -> map {x['to_map']} {x['to_xy']}" for x in facts['map_transitions']] or ['- none']
     lines += ['','## Observed deaths/recoveries']
-    lines += [f"- death #{x['death_no']} t={x['t']}s recovery={x['recovery']} battle_strategy->{x['battle_strategy_after']}" for x in facts['deaths']] or ['- none']
+    lines += [f"- {('death #'+str(x.get('death_no'))) if x.get('death_no') is not None else x.get('kind','death')} t={x['t']}s{(' fallen='+','.join(str(n) for n in x.get('fallen',[]))) if x.get('fallen') else ''} recovery={x['recovery']} battle_strategy->{x['battle_strategy_after']}" for x in facts['deaths']] or ['- none']
     lines += ['','## Learned avoidance heuristic']
     lines += [f"- event {kt(k)} risk={v}" for k,v in sorted(erisk.items(),key=lambda kv:-kv[1]) if v][:30] or ['- none']
     (out/'mv_learning_guide.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
