@@ -74,7 +74,6 @@ jobs:
         shell: bash
         run: |
           python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py tools/fangame_mv_survival_learning_probe.py
-          PY
 
       - name: Install runtime dependencies
         shell: bash
