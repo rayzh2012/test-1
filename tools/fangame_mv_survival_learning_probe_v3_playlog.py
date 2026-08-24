@@ -56,13 +56,30 @@ def compact_playlog(trace_path,outdir):
         for line in f:
             try: rows.append(json.loads(line))
             except Exception: pass
-    facts=[]; move_seg=None; last_msg=None; battle_no=0; in_battle=False
+    facts=[]; move_seg=None; last_msg=None; battle_no=0; in_battle=False; last_pos=None
     def flush_move():
         nonlocal move_seg
         if move_seg:
             facts.append(move_seg); move_seg=None
     for i,r in enumerate(rows):
         t=r.get('t'); st=r.get('state') or {}; act=str(r.get('action') or ''); pos=pos_of(r)
+        # Count only movement actually observed after input. Repeated key attempts with
+        # unchanged coordinates are not gameplay steps.
+        if pos and last_pos:
+            if pos[0] != last_pos[0]:
+                flush_move()
+                facts.append({'t':t,'type':'map_transition','from_map':last_pos[0],'from_xy':list(last_pos[1:]),'to_map':pos[0],'to_xy':list(pos[1:])})
+            else:
+                dx=pos[1]-last_pos[1]; dy=pos[2]-last_pos[2]
+                direction={(1,0):6,(-1,0):4,(0,1):2,(0,-1):8}.get((dx,dy))
+                if direction:
+                    key=(pos[0],direction)
+                    if move_seg and move_seg.get('_key')==key:
+                        move_seg['steps']+=1; move_seg['to_xy']=list(pos[1:]); move_seg['t_end']=t
+                    else:
+                        flush_move()
+                        move_seg={'t':t,'t_end':t,'type':'movement','map_id':pos[0],'direction':DIR_NAME.get(direction,str(direction)),'steps':1,'from_xy':list(last_pos[1:]),'to_xy':list(pos[1:]),'reason':'observed_coordinate_change','_key':key}
+        if pos: last_pos=pos
         obs=st.get('runtime_observation') or {}
         msg='\n'.join(x for x in (obs.get('message_text') or []) if x).strip()
         if msg and msg!=last_msg:
@@ -81,14 +98,6 @@ def compact_playlog(trace_path,outdir):
             continue
         if act=='death_learn_recover':
             flush_move(); facts.append({'t':t,'type':'death_recovery','recovery':r.get('recovery'),'learning':r.get('learning')}); continue
-        edge=r.get('edge')
-        if edge and len(edge)>=4 and (act.startswith('route_') or act.startswith('frontier_') or act=='probe'):
-            d=edge[3]; key=(st.get('map_id'),d)
-            if move_seg and move_seg.get('_key')==key:
-                move_seg['steps']+=1; move_seg['to_xy']=list(pos[1:]) if pos else move_seg.get('to_xy'); move_seg['t_end']=t
-            else:
-                flush_move(); move_seg={'t':t,'t_end':t,'type':'movement','map_id':st.get('map_id'),'direction':DIR_NAME.get(d,str(d)),'steps':1,'from_xy':list(pos[1:]) if pos else None,'to_xy':list(pos[1:]) if pos else None,'reason':act,'_key':key}
-            continue
         if act.startswith('interact_event_') or act.startswith('bump_event_'):
             flush_move(); facts.append({'t':t,'type':'event_interaction','map_id':st.get('map_id'),'xy':list(pos[1:]) if pos else None,'action':act})
     flush_move()
@@ -98,6 +107,7 @@ def compact_playlog(trace_path,outdir):
     for x in facts:
         typ=x.get('type'); t=x.get('t')
         if typ=='movement': lines.append(f"- t={t}s｜地图{x.get('map_id')}｜向{x.get('direction')}走 {x.get('steps')} 步｜{x.get('from_xy')} → {x.get('to_xy')}｜{x.get('reason')}")
+        elif typ=='map_transition': lines.append(f"- t={t}s｜地图切换｜地图{x.get('from_map')} {x.get('from_xy')} → 地图{x.get('to_map')} {x.get('to_xy')}")
         elif typ=='story_text': lines.append(f"- t={t}s｜剧情｜地图{x.get('map_id')} {x.get('xy')}｜{x.get('speaker') or ''}{': ' if x.get('speaker') else ''}{x.get('text')}" + (f"｜选项={x.get('choices')}" if x.get('choices') else ''))
         elif typ=='battle_start': lines.append(f"- t={t}s｜战斗#{x.get('battle_no')}开始｜敌人={x.get('enemies')}｜位置=地图{x.get('map_id')} {x.get('xy')}")
         elif typ=='battle_action': lines.append(f"- t={t}s｜战斗#{x.get('battle_no')}动作｜{x.get('action')}｜我方={[(a.get('name'),a.get('hp'),a.get('mhp')) for a in x.get('party') or []]}")
