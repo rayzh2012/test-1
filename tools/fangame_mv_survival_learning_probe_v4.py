@@ -118,7 +118,9 @@ def smart_battle_v4(page,state,strategy):
     revive_items=[x for x in heals if v2.revive_effect(x)]; heal_items=[x for x in heals if v2.hp_effect(x)>0]
     revive_skills=usable_survival_skills(ui,True); heal_skills=usable_survival_skills(ui,False)
     critical=dead>0 or minr<.32 or avgr<.42
-    danger=critical or minr<.58 or strategy>=1
+    # Failure memory should make the agent more decisive, not permanently defensive.
+    # A permanent strategy>=1 danger flag caused endless Guard loops after the first death.
+    danger=critical or minr < max(.42, .58 - .05*min(int(strategy or 0),3))
     actor=ui.get('current_actor') or {}; mp_ratio=(actor.get('mp',0)/max(1,actor.get('mmp',1))) if actor else 0.0
     sig=battle_sig(state)
     if active:
@@ -135,7 +137,12 @@ def smart_battle_v4(page,state,strategy):
             if skill_first: pref=['skill','item','guard','attack']
             elif (dead and revive_items) or (danger and heal_items): pref=['item','skill','guard','attack']
             elif danger and have_heal: pref=['skill','item','guard','attack']
-            else: pref=['guard','attack','skill','item'] if danger else ['attack','skill','guard','item']
+            elif danger:
+                # With no usable survival resource, guarding forever cannot end the encounter.
+                # Guard at most one turn in three; attack on the other turns so the route can resume.
+                turn=int(((state.get('battle_ui') or {}).get('turn_count')) or 0)
+                pref=['guard','attack','skill','item'] if turn % 3 == 0 else ['attack','guard','skill','item']
+            else: pref=['attack','skill','guard','item']
             c=v2.choose_command(page,active,pref)
             if c:return f'battle_v4_actor_{c}_danger{int(danger)}_healitems{len(heal_items)}_healskills{len(heal_skills)}_mp{mp_ratio:.2f}_minhp{minr:.2f}'
         if n=='_skillWindow':
