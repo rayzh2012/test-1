@@ -118,7 +118,7 @@ def smart_battle_v4(page,state,strategy):
     inv=ui.get('inventory') or []; heals=v2.usable_heals(inv)
     revive_items=[x for x in heals if v2.revive_effect(x)]; heal_items=[x for x in heals if v2.hp_effect(x)>0]
     revive_skills=usable_survival_skills(ui,True); heal_skills=usable_survival_skills(ui,False)
-    critical=dead>0 or minr<.32 or avgr<.42
+    critical=dead>0 or minr<.38 or avgr<.48
     # Failure memory should make the agent more decisive, not permanently defensive.
     # A permanent strategy>=1 danger flag caused endless Guard loops after the first death.
     danger=critical or minr < max(.42, .58 - .05*min(int(strategy or 0),3))
@@ -134,7 +134,7 @@ def smart_battle_v4(page,state,strategy):
     if active:
         n=active.get('name')
         if n=='_partyCommandWindow':
-            max_escape_attempts=1 + min(int(strategy or 0),1)
+            max_escape_attempts=3 if dead else 1 + min(int(strategy or 0),1)
             allow_escape=critical and ui.get('can_escape') is not False and _escape_attempts[sig] < max_escape_attempts
             pref=['escape','fight'] if allow_escape else ['fight','escape']
             c=v2.choose_command(page,active,pref)
@@ -198,6 +198,9 @@ agent.base.key_tap = key_tap_v4
 _route_calls=0
 _repeat_transfer_skip=Counter()
 _last_route_map=None
+_arrived_from_map=None
+_last_transfer_key=None
+_transfer_dest={}
 _local_after_transfer_budget=0
 _route_target_key=None
 _route_target_best=None
@@ -205,7 +208,7 @@ _route_target_nonimprove=0
 _route_stuck_targets=set()
 
 def event_target_v4(state,nav,attempts,risk):
-    global _route_calls,_last_route_map,_local_after_transfer_budget,_route_target_key,_route_target_best,_route_target_nonimprove
+    global _route_calls,_last_route_map,_arrived_from_map,_last_transfer_key,_transfer_dest,_local_after_transfer_budget,_route_target_key,_route_target_best,_route_target_nonimprove
     _route_calls+=1
     if _route_calls % 220 == 0:
         for k in list(attempts):
@@ -214,6 +217,11 @@ def event_target_v4(state,nav,attempts,risk):
     if not pos or not nav:return None
     mid,px,py=pos
     if _last_route_map is not None and mid != _last_route_map:
+        # Learn the actual destination only after gameplay proves the transfer.
+        if _last_transfer_key is not None:
+            _transfer_dest[_last_transfer_key]=mid
+        _arrived_from_map=_last_route_map
+        _last_transfer_key=None
         # After a real transfer, spend a bounded window on reachable local events.
         # This prevents immediate A<->B exit ping-pong while still allowing travel later.
         _local_after_transfer_budget=90
@@ -224,6 +232,7 @@ def event_target_v4(state,nav,attempts,risk):
     for ev in state.get('events') or []:
         key=agent.base.event_key(mid,ev); is_transfer=bool(ev.get('has_transfer'))
         if attempts[key]>=3 or key in _route_stuck_targets:continue
+        if is_transfer and _transfer_dest.get(key)==_arrived_from_map:continue
         trig=ev.get('trigger')
         rank=0 if is_transfer and attempts[key]==0 else 1 if ev.get('has_battle') else 2 if trig in (1,2) else 3 if trig==0 and (ev.get('has_text') or ev.get('command_count',0)>1) else 4 if is_transfer else None
         if rank is None:continue
@@ -248,7 +257,7 @@ def event_target_v4(state,nav,attempts,risk):
         _repeat_transfer_skip[mid]+=1
         if _repeat_transfer_skip[mid] < 24:return None
         _repeat_transfer_skip[mid]=0
-    c.sort(key=lambda x:x[:5]);rank,r,dist,_,_,_,ev,d,goals,key=c[0]
+    c.sort(key=lambda x:x[:5]);rank,r,dist,_,_,is_transfer,ev,d,goals,key=c[0]
     # If BFS keeps choosing the same target but never reduces its distance, a moving
     # blocker or bad reachability edge can make the player alternate forever. Retire
     # only that exact event page for this run; a changed page gets a new event_key.
@@ -262,6 +271,8 @@ def event_target_v4(state,nav,attempts,risk):
             _route_stuck_targets.add(key)
             _route_target_key=None; _route_target_best=None; _route_target_nonimprove=0
             return None
+    if is_transfer:
+        _last_transfer_key=key
     if dist==0:return {'kind':'interact' if ev.get('trigger')==0 else 'bump','event':ev,'event_key':key,'direction':goals[(px,py)],'risk':r}
     return {'kind':'route','event':ev,'event_key':key,'direction':d,'distance':dist,'risk':r}
 
