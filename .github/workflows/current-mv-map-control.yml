@@ -81,7 +81,7 @@ jobs:
             map_out/map_control/mv_map_control_probe.json
             map_out/map_control/*.png
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 144
           compression-level: 6
 
   longrun-proof:
@@ -140,6 +140,19 @@ jobs:
           PY
           )
           python3 tools/fangame_inspect.py "longrun_fetch/$game" --workdir longrun_work --out longrun_out/playability_static.json
+      - name: Validate adaptive agent and zero-cost guard
+        shell: bash
+        run: |
+          python3 -m py_compile tools/fangame_mv_longrun_probe.py
+          python3 - <<'PY'
+          import json
+          c=json.load(open('fangame_longrun/current_longrun.json',encoding='utf-8'))
+          assert c['duration_minutes'] == 240, 'FOUR_HOUR_CONFIG_REQUIRED'
+          assert c.get('death_retry_limit',0) > 0, 'DEATH_LEARNING_RETRY_REQUIRED'
+          assert c['runner'] == 'ubuntu-latest' and not c['paid_larger_runner']
+          assert not c['external_ai_api'] and not c['local_llm']
+          print('ADAPTIVE_ZERO_COST_GUARD_VERIFIED')
+          PY
       - name: Run autonomous long-run proof
         shell: bash
         run: |
@@ -174,6 +187,8 @@ jobs:
             longrun_out/playability_static.json
             longrun_out/longrun/mv_longrun_summary.json
             longrun_out/longrun/mv_longrun_trace.jsonl
+            longrun_out/longrun/mv_strategy_memory.json
+            longrun_out/longrun/mv_walkthrough.md
             longrun_out/longrun/*.png
           if-no-files-found: warn
           retention-days: 1
@@ -187,7 +202,7 @@ jobs:
           p=pathlib.Path('longrun_out/longrun/mv_longrun_summary.json')
           if not p.exists(): raise SystemExit('NO_LONGRUN_SUMMARY')
           r=json.load(p.open(encoding='utf-8'))
-          print(json.dumps({k:r.get(k) for k in ('status','elapsed_play_seconds','actions','unique_map_count','unique_position_count','map_transitions','coordinate_changes','battle_starts','battle_completions','stalls_recovered','fatal_stop','battle_verified')},indent=2))
+          print(json.dumps({k:r.get(k) for k in ('status','elapsed_play_seconds','actions','unique_map_count','unique_position_count','map_transitions','coordinate_changes','battle_starts','battle_completions','death_count','restart_count','max_survival_segment_seconds','stalls_recovered','fatal_stop','battle_verified','long_run_4h_verified')},indent=2))
           if r.get('status') not in {'LONGRUN_PROOF_PROGRESS_OBSERVED','LONG_RUN_3H_VERIFIED','LONG_RUN_4H_VERIFIED'}:
               raise SystemExit('LONGRUN_PROOF_NOT_YET_PROGRESS_VERIFIED')
           PY
