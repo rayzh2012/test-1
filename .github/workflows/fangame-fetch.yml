@@ -28,16 +28,18 @@ jobs:
           python3 - <<'PY'
           import json, pathlib, hashlib
           r=json.load(open('out/fetch_report.json',encoding='utf-8'))
+          expected_bytes=1005262766
+          expected_sha='1c51f198f51a1fb704f645d734f86b0a1807e00c2572e66c30a9781bf82875bc'
           assert r.get('success') is True
-          assert r.get('bytes') == 1005259975, r
-          assert r.get('sha256','').lower() == '692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b', r
+          assert r.get('bytes') == expected_bytes, r
+          assert r.get('sha256','').lower() == expected_sha, r
           p=pathlib.Path('out')/r['file']
           h=hashlib.sha256()
           with p.open('rb') as f:
               for b in iter(lambda:f.read(8*1024*1024),b''): h.update(b)
-          assert p.stat().st_size == 1005259975
-          assert h.hexdigest() == '692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b'
-          print('PACKAGE_IDENTITY_VERIFIED')
+          assert p.stat().st_size == expected_bytes
+          assert h.hexdigest() == expected_sha
+          print('PACKAGE_IDENTITY_VERIFIED', expected_bytes, expected_sha)
           PY
           split -b 75M -d -a 3 "out/Final Redemption.zip" "driveparts/Final Redemption.zip."
           python3 - <<'PY'
@@ -48,13 +50,13 @@ jobs:
               with p.open('rb') as f:
                   for b in iter(lambda:f.read(4*1024*1024),b''): h.update(b)
               ps.append({'name':p.name,'bytes':p.stat().st_size,'sha256':h.hexdigest()})
-          m={'schema':'fangame.driveparts.v1','game':'Final Redemption','version':'2026-08-16 current itch build','source':'https://infiniv.itch.io/final-redemption','original_filename':'Final Redemption.zip','original_bytes':1005259975,'original_sha256':'692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b','split_size':'75 MiB','part_count':len(ps),'parts':ps,'reconstruct':'cat "Final Redemption.zip."??? > "Final Redemption.zip"'}
+          m={'schema':'fangame.driveparts.v1','game':'Final Redemption','version':'2026-08-16 current itch build','itch_upload_id':'18933248','source':'https://infiniv.itch.io/final-redemption','original_filename':'Final Redemption.zip','original_bytes':1005262766,'original_sha256':'1c51f198f51a1fb704f645d734f86b0a1807e00c2572e66c30a9781bf82875bc','prior_identity':{'itch_upload_id':'18916666','bytes':1005259975,'sha256':'692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b'},'split_size':'75 MiB','part_count':len(ps),'parts':ps,'reconstruct':'cat "Final Redemption.zip."??? > "Final Redemption.zip"'}
           assert len(ps)==13, len(ps)
           pathlib.Path('driveparts/manifest.json').write_text(json.dumps(m,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(m,indent=2))
           PY
           cat driveparts/'Final Redemption.zip.'??? | sha256sum | tee driveparts/reconstructed_sha256.txt
-          grep -q '^692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b ' driveparts/reconstructed_sha256.txt
+          grep -q '^1c51f198f51a1fb704f645d734f86b0a1807e00c2572e66c30a9781bf82875bc ' driveparts/reconstructed_sha256.txt
 
       - name: Upload part 000
         uses: actions/upload-artifact@v4
