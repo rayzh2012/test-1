@@ -199,9 +199,13 @@ _route_calls=0
 _repeat_transfer_skip=Counter()
 _last_route_map=None
 _local_after_transfer_budget=0
+_route_target_key=None
+_route_target_best=None
+_route_target_nonimprove=0
+_route_stuck_targets=set()
 
 def event_target_v4(state,nav,attempts,risk):
-    global _route_calls,_last_route_map,_local_after_transfer_budget
+    global _route_calls,_last_route_map,_local_after_transfer_budget,_route_target_key,_route_target_best,_route_target_nonimprove
     _route_calls+=1
     if _route_calls % 220 == 0:
         for k in list(attempts):
@@ -219,7 +223,7 @@ def event_target_v4(state,nav,attempts,risk):
     c=[];nontransfer=0
     for ev in state.get('events') or []:
         key=agent.base.event_key(mid,ev); is_transfer=bool(ev.get('has_transfer'))
-        if attempts[key]>=3:continue
+        if attempts[key]>=3 or key in _route_stuck_targets:continue
         trig=ev.get('trigger')
         rank=0 if is_transfer and attempts[key]==0 else 1 if ev.get('has_battle') else 2 if trig in (1,2) else 3 if trig==0 and (ev.get('has_text') or ev.get('command_count',0)>1) else 4 if is_transfer else None
         if rank is None:continue
@@ -245,6 +249,19 @@ def event_target_v4(state,nav,attempts,risk):
         if _repeat_transfer_skip[mid] < 24:return None
         _repeat_transfer_skip[mid]=0
     c.sort(key=lambda x:x[:5]);rank,r,dist,_,_,_,ev,d,goals,key=c[0]
+    # If BFS keeps choosing the same target but never reduces its distance, a moving
+    # blocker or bad reachability edge can make the player alternate forever. Retire
+    # only that exact event page for this run; a changed page gets a new event_key.
+    if key != _route_target_key:
+        _route_target_key=key; _route_target_best=dist; _route_target_nonimprove=0
+    elif dist < _route_target_best:
+        _route_target_best=dist; _route_target_nonimprove=0
+    else:
+        _route_target_nonimprove+=1
+        if _route_target_nonimprove>=12:
+            _route_stuck_targets.add(key)
+            _route_target_key=None; _route_target_best=None; _route_target_nonimprove=0
+            return None
     if dist==0:return {'kind':'interact' if ev.get('trigger')==0 else 'bump','event':ev,'event_key':key,'direction':goals[(px,py)],'risk':r}
     return {'kind':'route','event':ev,'event_key':key,'direction':d,'distance':dist,'risk':r}
 
