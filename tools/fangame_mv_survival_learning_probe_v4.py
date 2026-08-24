@@ -281,25 +281,32 @@ def event_target_v4(state,nav,attempts,risk):
     return {'kind':'route','event':ev,'event_key':key,'direction':d,'distance':dist,'risk':r}
 
 
-_frontier_prev_pos=None
+_frontier_last_direction=None
+_frontier_last_map=None
 
 def frontier_v4(state,nav,seen,visits,edge_risk):
-    global _frontier_prev_pos
+    global _frontier_last_direction,_frontier_last_map
     pos=agent.base.position_of(state)
     if not pos or not nav:return None,None
-    mid,x,y=pos;opts=[]
+    mid,x,y=pos
+    if mid != _frontier_last_map:
+        _frontier_last_direction=None
+    opposite={2:8,8:2,4:6,6:4}
+    opts=[]
     for nx,ny,d in nav['graph'].get((x,y),()):
         nxt=(mid,nx,ny)
         score=edge_risk[(mid,x,y,d)]+(0 if nxt not in seen else 4+visits[nxt])
-        # Prefer any real alternative to immediately undoing the previous frontier
-        # move. The original lexicographic tie-break could oscillate A<->B forever.
-        backtrack=1 if _frontier_prev_pos==nxt else 0
+        # A real keypress can cross more than one tile, so comparing with the prior
+        # coordinate misses immediate reversal.  Suppress the opposite direction
+        # directly when another exit exists; at a true dead end reversal stays legal.
+        backtrack=1 if d==opposite.get(_frontier_last_direction) else 0
         opts.append((backtrack,score,d))
     if not opts:return None,None
     if any(not x[0] for x in opts):
         opts=[x for x in opts if not x[0]]
     opts.sort(key=lambda x:(x[1],x[2]))
-    _frontier_prev_pos=(mid,x,y)
+    _frontier_last_direction=opts[0][2]
+    _frontier_last_map=mid
     return opts[0][2],opts[0][1]
 
 
