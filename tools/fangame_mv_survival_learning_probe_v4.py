@@ -232,11 +232,11 @@ def event_target_v4(state,nav,attempts,risk):
     _last_route_map=mid
     if _local_after_transfer_budget>0:
         _local_after_transfer_budget-=1
-    c=[];nontransfer=0
+    c=[];reverse_transfers=[];nontransfer=0
     for ev in state.get('events') or []:
         key=agent.base.event_key(mid,ev); is_transfer=bool(ev.get('has_transfer'))
         if attempts[key]>=3 or key in _route_stuck_targets:continue
-        if is_transfer and _transfer_dest.get(key)==_arrived_from_map:continue
+        is_reverse_transfer=is_transfer and _transfer_dest.get(key)==_arrived_from_map
         trig=ev.get('trigger')
         rank=0 if is_transfer and attempts[key]==0 else 1 if ev.get('has_battle') else 2 if trig in (1,2) else 3 if trig==0 and (ev.get('has_text') or ev.get('command_count',0)>1) else 4 if is_transfer else None
         if rank is None:continue
@@ -250,8 +250,15 @@ def event_target_v4(state,nav,attempts,risk):
         else:
             d,dist=agent.base.bfs_first_step(nav,cur,set(goals))
             if d is None:continue
-        c.append((rank,risk[key],dist,attempts[key],ev.get('id',0),is_transfer,ev,d,goals,key))
+        row=(rank,risk[key],dist,attempts[key],ev.get('id',0),is_transfer,ev,d,goals,key)
+        if is_reverse_transfer: reverse_transfers.append(row)
+        else: c.append(row)
         if not is_transfer: nontransfer+=1
+    # A learned reverse transfer is delayed, not banned forever.  Some maps are
+    # closed side rooms: once the bounded local exploration window is exhausted,
+    # returning is the only way to continue the real playthrough.
+    if not c and _local_after_transfer_budget<=0 and reverse_transfers:
+        c=reverse_transfers
     if not c:return None
     if _local_after_transfer_budget>0 and nontransfer:
         local=[x for x in c if not x[5]]
