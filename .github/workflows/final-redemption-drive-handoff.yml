@@ -1,0 +1,115 @@
+name: Final Redemption Drive Handoff
+
+on:
+  push:
+    branches:
+      - final-redemption-drive-handoff-20260824
+
+jobs:
+  package-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fetch exact public package
+        run: |
+          set -euo pipefail
+          rm -rf handoff_fetch handoff
+          mkdir -p handoff_fetch handoff/parts
+          python3 tools/fangame_fetcher.py fangame_targets/final_redemption_mv.json -o handoff_fetch
+
+      - name: Enforce exact package identity and split losslessly
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, hashlib, pathlib
+          report=json.load(open('handoff_fetch/fetch_report.json',encoding='utf-8'))
+          expected_bytes=1005259975
+          expected_sha='692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b'
+          assert report.get('success') is True
+          assert report.get('bytes') == expected_bytes, report
+          assert report.get('sha256','').lower() == expected_sha, report
+          p=pathlib.Path('handoff_fetch')/report['file']
+          assert p.stat().st_size == expected_bytes
+          h=hashlib.sha256()
+          with p.open('rb') as f:
+              for b in iter(lambda:f.read(8*1024*1024),b''): h.update(b)
+          assert h.hexdigest()==expected_sha
+          print('PACKAGE_IDENTITY_VERIFIED', p, p.stat().st_size, h.hexdigest())
+          PY
+          split -b 95M -d -a 3 handoff_fetch/'Final Redemption.zip' handoff/parts/Final_Redemption.zip.part-
+          python3 - <<'PY'
+          import json, hashlib, pathlib
+          root=pathlib.Path('handoff/parts')
+          parts=[]
+          for p in sorted(root.glob('Final_Redemption.zip.part-*')):
+              h=hashlib.sha256(p.read_bytes()).hexdigest()
+              parts.append({'name':p.name,'bytes':p.stat().st_size,'sha256':h})
+          manifest={
+            'schema':'fangame.drive_handoff.v1',
+            'game':'Final Redemption',
+            'version':'2026-08-16 current itch build',
+            'engine':'RPG Maker MV',
+            'official_source':'https://infiniv.itch.io/final-redemption',
+            'itch_upload_id':'18916666',
+            'original_filename':'Final Redemption.zip',
+            'original_bytes':1005259975,
+            'original_sha256':'692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b',
+            'split_size':'95 MiB',
+            'part_count':len(parts),
+            'parts':parts,
+            'reconstruct_posix':'cat Final_Redemption.zip.part-* > "Final Redemption.zip"',
+            'verify_posix':'printf "%s  %s\\n" 692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b "Final Redemption.zip" | sha256sum -c -'
+          }
+          pathlib.Path('handoff/manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          assert len(parts)==11, len(parts)
+          print(json.dumps(manifest,indent=2))
+          PY
+          cat handoff/parts/Final_Redemption.zip.part-* | sha256sum | tee handoff/reconstructed_sha256.txt
+          grep -q '^692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b ' handoff/reconstructed_sha256.txt
+
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-redemption-drive-manifest
+          path: |
+            handoff/manifest.json
+            handoff/reconstructed_sha256.txt
+            handoff_fetch/fetch_report.json
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload part 000
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-000, path: handoff/parts/Final_Redemption.zip.part-000, compression-level: 0, retention-days: 1}
+      - name: Upload part 001
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-001, path: handoff/parts/Final_Redemption.zip.part-001, compression-level: 0, retention-days: 1}
+      - name: Upload part 002
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-002, path: handoff/parts/Final_Redemption.zip.part-002, compression-level: 0, retention-days: 1}
+      - name: Upload part 003
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-003, path: handoff/parts/Final_Redemption.zip.part-003, compression-level: 0, retention-days: 1}
+      - name: Upload part 004
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-004, path: handoff/parts/Final_Redemption.zip.part-004, compression-level: 0, retention-days: 1}
+      - name: Upload part 005
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-005, path: handoff/parts/Final_Redemption.zip.part-005, compression-level: 0, retention-days: 1}
+      - name: Upload part 006
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-006, path: handoff/parts/Final_Redemption.zip.part-006, compression-level: 0, retention-days: 1}
+      - name: Upload part 007
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-007, path: handoff/parts/Final_Redemption.zip.part-007, compression-level: 0, retention-days: 1}
+      - name: Upload part 008
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-008, path: handoff/parts/Final_Redemption.zip.part-008, compression-level: 0, retention-days: 1}
+      - name: Upload part 009
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-009, path: handoff/parts/Final_Redemption.zip.part-009, compression-level: 0, retention-days: 1}
+      - name: Upload part 010
+        uses: actions/upload-artifact@v4
+        with: {name: final-redemption-part-010, path: handoff/parts/Final_Redemption.zip.part-010, compression-level: 0, retention-days: 1}
