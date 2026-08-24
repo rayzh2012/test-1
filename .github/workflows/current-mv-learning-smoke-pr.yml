@@ -11,6 +11,7 @@ on:
       - 'tools/fangame_mv_learning_longrun_probe.py'
       - 'tools/fangame_mv_survival_learning_probe.py'
       - 'tools/fangame_mv_survival_learning_probe_v2.py'
+      - 'tools/fangame_mv_survival_learning_probe_v3_playlog.py'
       - 'tools/fangame_mv_longrun_probe.py'
 
 jobs:
@@ -33,7 +34,7 @@ jobs:
           assert int(c['duration_minutes'])==6
           print('target='+c['target'])
           PY
-          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py tools/fangame_mv_survival_learning_probe.py tools/fangame_mv_survival_learning_probe_v2.py
+          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py tools/fangame_mv_survival_learning_probe.py tools/fangame_mv_survival_learning_probe_v2.py tools/fangame_mv_survival_learning_probe_v3_playlog.py
       - name: Fetch exact current public package
         shell: bash
         run: |
@@ -71,7 +72,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          python3 tools/fangame_mv_survival_learning_probe_v2.py \
+          python3 tools/fangame_mv_survival_learning_probe_v3_playlog.py \
             --static learning_out/playability_static.json \
             --extract-root learning_work/extract \
             --config fangame_longrun/learning_smoke.json \
@@ -93,7 +94,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mv-learning-smoke-final-redemption-v2
+          name: mv-learning-smoke-final-redemption-v3-playlog
           path: |
             learning_fetch/fetch_report.json
             learning_fetch/SHA256.txt
@@ -102,6 +103,8 @@ jobs:
             learning_out/learning/mv_learning_trace.jsonl
             learning_out/learning/mv_learning_guide.json
             learning_out/learning/mv_learning_guide.md
+            learning_out/learning/mv_human_play_log.jsonl
+            learning_out/learning/mv_human_play_log.md
             learning_out/learning/*.png
           if-no-files-found: warn
           retention-days: 2
