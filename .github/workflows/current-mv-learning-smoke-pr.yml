@@ -9,6 +9,7 @@ on:
       - 'fangame_longrun/learning_smoke.json'
       - 'fangame_targets/final_redemption_mv.json'
       - 'tools/fangame_mv_learning_longrun_probe.py'
+      - 'tools/fangame_mv_survival_learning_probe.py'
       - 'tools/fangame_mv_longrun_probe.py'
 
 jobs:
@@ -31,7 +32,7 @@ jobs:
           assert int(c['duration_minutes'])==6
           print('target='+c['target'])
           PY
-          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py
+          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py tools/fangame_mv_survival_learning_probe.py
       - name: Fetch exact current public package
         shell: bash
         run: |
@@ -69,7 +70,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          python3 tools/fangame_mv_learning_longrun_probe.py \
+          python3 tools/fangame_mv_survival_learning_probe.py \
             --static learning_out/playability_static.json \
             --extract-root learning_work/extract \
             --config fangame_longrun/learning_smoke.json \
