@@ -89,7 +89,7 @@ def main():
     if not index:dump(out/'mv_learning_summary.json',result);return 2
     result['index_uri']=index.as_uri();trace=open(out/'mv_learning_trace.jsonl','w',encoding='utf-8')
     visits=Counter();seen=set();maps=set();scenes=Counter();attempts=Counter();erisk=Counter();drisk=Counter();recent=deque(maxlen=int(cfg.get('learning_window_actions',120)));nav={};facts={'map_transitions':[],'deaths':[],'checkpoints':[]};prev=None
-    trans=coords=actions=bst=bco=stalls=nref=route_steps=interacts=front_steps=deaths=recovs=loadfails=restarts=0;bactive=False;strategy=0;fatal=None;slot=int(cfg.get('save_slot',20));checkpoint=None
+    trans=coords=actions=bst=bco=stalls=nref=route_steps=interacts=front_steps=deaths=recovs=loadfails=restarts=party_member_deaths=casualty_recovs=0;bactive=False;strategy=0;fatal=None;slot=int(cfg.get('save_slot',20));checkpoint=None
     try:
       with sync_playwright() as p:
         kw={'headless':True,'args':['--allow-file-access-from-files','--autoplay-policy=no-user-gesture-required','--disable-web-security','--no-sandbox','--disable-gpu']};chrome=shutil.which('google-chrome') or shutil.which('google-chrome-stable') or shutil.which('chromium');
@@ -108,8 +108,9 @@ def main():
             p0,p1=prev.get('player') or {},state.get('player') or {}
             if state.get('map_id')==prev.get('map_id') and (p0.get('x'),p0.get('y'))!=(p1.get('x'),p1.get('y')):coords+=1
           inb=scene=='Scene_Battle' or state.get('in_battle') is True
+          battle_just_completed=bactive and not inb and scene=='Scene_Map'
           if inb and not bactive:bactive=True;bst+=1;lastprog=now
-          elif bactive and not inb and scene=='Scene_Map':bactive=False;bco+=1;lastprog=now
+          elif battle_just_completed:bactive=False;bco+=1;lastprog=now
           if scene=='Scene_Gameover':
             deaths+=1;lrn=learn(recent,erisk,drisk);strategy=min(3,strategy+1) if bactive or any(r.get('in_battle') for r in recent) else strategy;r=load(page,slot) if checkpoint else {'ok':False}
             if r.get('ok'):recovs+=1;recovery='checkpoint_load';result['save_load_verified']=base.snap_state(page).get('scene')!='Scene_Gameover';bactive=False;prev=None
@@ -121,6 +122,20 @@ def main():
             if fatal:break
             continue
           party=state.get('party') or []
+          fallen=[x for x in party if x.get('dead')]
+          # A partial-party loss is a real observed death even when RPG Maker does not
+          # enter Scene_Gameover.  Carrying that casualty into later encounters caused
+          # a verified cascade of otherwise avoidable full wipes.  Recover only through
+          # the game's own checkpoint load, log the casualty separately, and let failure
+          # memory steer the replay away from the losing encounter.
+          if battle_just_completed and fallen and checkpoint:
+            party_member_deaths+=len(fallen);lrn=learn(recent,erisk,drisk);strategy=min(3,strategy+1);r=load(page,slot)
+            recovery='checkpoint_load_after_party_casualty' if r.get('ok') else 'casualty_checkpoint_load_failed'
+            if r.get('ok'):
+              casualty_recovs+=1;result['save_load_verified']=base.snap_state(page).get('scene')!='Scene_Gameover';prev=None
+            else:loadfails+=1
+            facts['deaths'].append({'kind':'party_member_casualty','t':round(t,3),'fallen':[x.get('name') for x in fallen],'recovery':recovery,'learning':lrn,'battle_strategy_after':strategy});log(trace,{'t':round(t,3),'action':'party_casualty_learn_recover','fallen':[x.get('name') for x in fallen],'recovery':recovery,'learning':lrn});recent.clear();lastprog=time.monotonic()
+            if r.get('ok'):continue
           checkpoint_min_hp=float(cfg.get('checkpoint_min_hp_ratio',0.65))
           min_party_hp=min((x.get('hp',0)/max(1,x.get('mhp',1)) for x in party),default=0.0)
           safe=scene=='Scene_Map' and pos and state.get('message_busy') is False and state.get('event_running') is False and not inb and party and all(not x.get('dead') for x in party) and min_party_hp>=checkpoint_min_hp
@@ -154,7 +169,7 @@ def main():
     except Exception as e:
       if result.get('status')=='NOT_RUN':result['status']='LONGRUN_PROBE_ERROR';result['fatal_stop']=repr(e)
     trace.close();route_ok=trans>0 or bco>0 or len(seen)>=25;enough=len(maps)>=2 and coords>=40 and fatal is None
-    result.update({'elapsed_play_seconds':round(locals().get('elapsed',0),3),'actions':actions,'unique_maps':sorted(maps),'unique_map_count':len(maps),'unique_position_count':len(seen),'map_transitions':trans,'coordinate_changes':coords,'battle_starts':bst,'battle_completions':bco,'stalls_recovered':stalls,'nav_refreshes':nref,'event_route_steps':route_steps,'event_interactions':interacts,'frontier_steps':front_steps,'scene_counts':dict(scenes),'fatal_stop':fatal or result.get('fatal_stop'),'deaths':deaths,'checkpoint_recoveries':recovs,'checkpoint_failures':loadfails,'full_restarts':restarts,'battle_strategy_final':strategy,'death_learning_exercised':deaths>0 and (recovs>0 or restarts>0),'battle_verified':bco>0,'route_progress_verified':route_ok and fatal is None})
+    result.update({'elapsed_play_seconds':round(locals().get('elapsed',0),3),'actions':actions,'unique_maps':sorted(maps),'unique_map_count':len(maps),'unique_position_count':len(seen),'map_transitions':trans,'coordinate_changes':coords,'battle_starts':bst,'battle_completions':bco,'stalls_recovered':stalls,'nav_refreshes':nref,'event_route_steps':route_steps,'event_interactions':interacts,'frontier_steps':front_steps,'scene_counts':dict(scenes),'fatal_stop':fatal or result.get('fatal_stop'),'deaths':deaths,'party_member_deaths':party_member_deaths,'checkpoint_recoveries':recovs,'casualty_checkpoint_recoveries':casualty_recovs,'checkpoint_failures':loadfails,'full_restarts':restarts,'battle_strategy_final':strategy,'death_learning_exercised':deaths>0 and (recovs>0 or restarts>0),'battle_verified':bco>0,'route_progress_verified':route_ok and fatal is None})
     result['long_run_4h_verified']=result['elapsed_play_seconds']>=14400 and enough
     if result['long_run_4h_verified'] and deaths and recovs:result['status']='LONG_RUN_4H_VERIFIED_WITH_DEATH_LEARNING'
     elif result['long_run_4h_verified']:result['status']='LONG_RUN_4H_VERIFIED'
