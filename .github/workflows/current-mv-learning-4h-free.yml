@@ -9,6 +9,7 @@ on:
       - 'fangame_longrun/learning_4h.json'
       - 'tools/fangame_mv_learning_longrun_probe.py'
       - 'tools/fangame_mv_survival_learning_probe.py'
+      - 'tools/fangame_mv_survival_learning_probe_v2.py'
   workflow_dispatch:
 
 permissions:
@@ -41,7 +42,7 @@ jobs:
           print('target='+c['target'])
           print('game_id='+c['game_id'])
           PY
-          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py tools/fangame_mv_survival_learning_probe.py
+          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py tools/fangame_mv_survival_learning_probe.py tools/fangame_mv_survival_learning_probe_v2.py
 
       - name: Fetch exact current public package
         shell: bash
@@ -86,7 +87,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          python3 tools/fangame_mv_survival_learning_probe.py \
+          python3 tools/fangame_mv_survival_learning_probe_v2.py \
             --static learning_out/playability_static.json \
             --extract-root learning_work/extract \
             --config fangame_longrun/learning_4h.json \
