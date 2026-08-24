@@ -266,8 +266,31 @@ def event_target_v4(state,nav,attempts,risk):
     return {'kind':'route','event':ev,'event_key':key,'direction':d,'distance':dist,'risk':r}
 
 
+_frontier_prev_pos=None
+
+def frontier_v4(state,nav,seen,visits,edge_risk):
+    global _frontier_prev_pos
+    pos=agent.base.position_of(state)
+    if not pos or not nav:return None,None
+    mid,x,y=pos;opts=[]
+    for nx,ny,d in nav['graph'].get((x,y),()):
+        nxt=(mid,nx,ny)
+        score=edge_risk[(mid,x,y,d)]+(0 if nxt not in seen else 4+visits[nxt])
+        # Prefer any real alternative to immediately undoing the previous frontier
+        # move. The original lexicographic tie-break could oscillate A<->B forever.
+        backtrack=1 if _frontier_prev_pos==nxt else 0
+        opts.append((backtrack,score,d))
+    if not opts:return None,None
+    if any(not x[0] for x in opts):
+        opts=[x for x in opts if not x[0]]
+    opts.sort(key=lambda x:(x[1],x[2]))
+    _frontier_prev_pos=(mid,x,y)
+    return opts[0][2],opts[0][1]
+
+
 agent.battle=smart_battle_v4
 agent.event_target=event_target_v4
+agent.frontier=frontier_v4
 
 if __name__=='__main__':
     outdir=None
