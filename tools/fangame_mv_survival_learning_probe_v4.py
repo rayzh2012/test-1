@@ -115,7 +115,11 @@ def smart_battle_v4(page,state,strategy):
     ratios=[a.get('hp',0)/max(1,a.get('mhp',1)) for a in living]
     minr=min(ratios) if ratios else 0.; avgr=sum(ratios)/len(ratios) if ratios else 0.; dead=sum(1 for a in party if a.get('dead'))
     ui=read_ui_v4(page); ws=ui.get('windows') or []; active=next((w for w in ws if w.get('active') and w.get('visible')),None)
-    inv=ui.get('inventory') or []; heals=v2.usable_heals(inv)
+    inv=ui.get('inventory') or []
+    # RPG Maker occasion: 0=always, 1=battle, 2=menu, 3=never.  Menu-only
+    # recovery items are absent from the live battle item window; treating them as
+    # usable caused an actor-command <-> item-window loop with no turn committed.
+    heals=[x for x in v2.usable_heals(inv) if int(x.get('occasion') or 0) in (0,1)]
     revive_items=[x for x in heals if v2.revive_effect(x)]; heal_items=[x for x in heals if v2.hp_effect(x)>0]
     revive_skills=usable_survival_skills(ui,True); heal_skills=usable_survival_skills(ui,False)
     critical=dead>0 or minr<.38 or avgr<.48
