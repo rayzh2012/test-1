@@ -3,6 +3,7 @@
   "version": "V3.0",
   "engine": "RPG Maker VX",
   "min_mb": 230,
+  "ci_regression": "map_gameplay_probe_v1",
   "sources": [
     "https://99dj.197784.com/9dj2/nlzj3.rar",
     "https://www.962.net/list/3_rpg_19.html"
