@@ -53,9 +53,45 @@ STATE_JS = r'''() => {
   try { out.in_battle = window.$gameParty ? $gameParty.inBattle() : null; } catch(e) { out.battle_error=String(e); }
   try {
     out.party = window.$gameParty ? $gameParty.members().map(a => ({
-      id:a.actorId(), hp:a.hp, mhp:a.mhp, mp:a.mp, mmp:a.mmp, dead:a.isDead()
+      id:a.actorId(), name:a.name(), hp:a.hp, mhp:a.mhp, mp:a.mp, mmp:a.mmp, dead:a.isDead()
     })) : [];
   } catch(e) { out.party_error=String(e); }
+  try {
+    const s = window.SceneManager && SceneManager._scene;
+    const defs = [
+      ["party_command", s && s._partyCommandWindow],
+      ["actor_command", s && s._actorCommandWindow],
+      ["skill", s && s._skillWindow],
+      ["item", s && s._itemWindow],
+      ["enemy", s && s._enemyWindow],
+      ["actor", s && s._actorWindow]
+    ];
+    const hit = defs.find(row => row[1] && row[1].active && row[1].visible);
+    const kind = hit ? hit[0] : null, w = hit ? hit[1] : null;
+    let entries = [];
+    if (w && Array.isArray(w._list)) {
+      entries = w._list.map((c,i) => ({index:i,name:c && c.name,symbol:c && c.symbol,enabled:!(c && c.enabled === false),ext:c && c.ext}));
+    } else if (w && Array.isArray(w._data)) {
+      entries = w._data.map((d,i) => d ? ({
+        index:i,id:d.id,name:d.name,hp:d.hp,mhp:d.mhp,
+        mpCost:d.mpCost || 0,scope:d.scope,
+        damage_type:d.damage && d.damage.type,
+        effects:Array.isArray(d.effects) ? d.effects.map(e => e && e.code).filter(Number.isInteger) : []
+      }) : ({index:i}));
+    } else if (kind === "enemy" && w && Array.isArray(w._enemies)) {
+      entries = w._enemies.map((d,i) => ({index:i,name:d && d.name(),hp:d && d.hp,mhp:d && d.mhp}));
+    }
+    out.battle_ui = {
+      active_window:kind,
+      index:w && typeof w.index === "function" ? w.index() : null,
+      entries:entries,
+      actor_index:window.BattleManager ? BattleManager._actorIndex : null,
+      turn_count:window.$gameTroop ? $gameTroop.turnCount() : null
+    };
+    out.enemies = window.$gameTroop ? $gameTroop.aliveMembers().map((e,i) => ({
+      index:i,name:e.name(),hp:e.hp,mhp:e.mhp,states:e.states().map(s=>s.name)
+    })) : [];
+  } catch(e) { out.battle_ui_error=String(e); out.battle_ui={active_window:null,entries:[]}; }
   return out;
 }'''
 
@@ -129,6 +165,113 @@ def move_one(page, direction):
     page.keyboard.up(key)
     time.sleep(0.18)
     return key
+
+
+def choose_window_index(page, current, target):
+    current = current if isinstance(current, int) and current >= 0 else 0
+    target = max(0, int(target))
+    for _ in range(current + 1):
+        key_tap(page, "ArrowUp", hold=0.04)
+    for _ in range(target):
+        key_tap(page, "ArrowDown", hold=0.04)
+    key_tap(page, "Enter", hold=0.08)
+
+
+def battle_policy_action(page, state, retry_no, decisions):
+    ui = state.get("battle_ui") or {}
+    kind = ui.get("active_window")
+    entries = ui.get("entries") or []
+    party = [a for a in (state.get("party") or []) if not a.get("dead")]
+    hp_ratio = min((a.get("hp", 0) / max(1, a.get("mhp", 1)) for a in party), default=1.0)
+    heal_threshold = min(0.82, 0.42 + 0.08 * retry_no)
+
+    def pick(predicate, score=lambda e: 0):
+        choices = [e for e in entries if e.get("name") and predicate(e)]
+        return max(choices, key=score) if choices else None
+
+    if kind == "party_command":
+        choice = pick(lambda e: e.get("symbol") == "fight") or (entries[0] if entries else {"index": 0})
+        choose_window_index(page, ui.get("index"), choice.get("index", 0))
+        action = "battle_fight"
+    elif kind == "actor_command":
+        symbols = {e.get("symbol"): e for e in entries if e.get("enabled", True)}
+        if hp_ratio < heal_threshold and "skill" in symbols:
+            choice, action = symbols["skill"], "battle_open_skill_low_hp"
+        elif hp_ratio < heal_threshold and "item" in symbols:
+            choice, action = symbols["item"], "battle_open_item_low_hp"
+        elif hp_ratio < 0.28 and "guard" in symbols:
+            choice, action = symbols["guard"], "battle_guard_critical"
+        else:
+            choice = symbols.get("attack") or symbols.get("skill") or (entries[0] if entries else {"index": 0})
+            action = "battle_attack"
+        choose_window_index(page, ui.get("index"), choice.get("index", 0))
+    elif kind in ("skill", "item"):
+        healing = pick(
+            lambda e: e.get("damage_type") in (3, 4) or 11 in (e.get("effects") or []),
+            score=lambda e: (e.get("damage_type") == 3, -(e.get("mpCost") or 0))
+        )
+        damaging = pick(
+            lambda e: e.get("damage_type") in (1, 2, 5, 6),
+            score=lambda e: -(e.get("mpCost") or 0)
+        )
+        choice = healing if hp_ratio < heal_threshold and healing else damaging or healing or (entries[0] if entries else {"index": 0})
+        choose_window_index(page, ui.get("index"), choice.get("index", 0))
+        action = f"battle_{kind}_{'heal' if choice is healing and healing else 'offense'}_{choice.get('name','unknown')}"
+    elif kind == "enemy":
+        choice = min(entries, key=lambda e: e.get("hp", 10**18)) if entries else {"index": 0}
+        choose_window_index(page, ui.get("index"), choice.get("index", 0))
+        action = f"battle_target_enemy_{choice.get('name','unknown')}"
+    elif kind == "actor":
+        choice = min(entries, key=lambda e: e.get("hp", 10**18) / max(1, e.get("mhp", 1))) if entries else {"index": 0}
+        choose_window_index(page, ui.get("index"), choice.get("index", 0))
+        action = f"battle_target_ally_{choice.get('name','unknown')}"
+    else:
+        key_tap(page, "Enter", hold=0.08)
+        action = "battle_confirm_wait"
+    decisions[action] += 1
+    return action
+
+
+def write_walkthrough(out, result, deaths, route_facts, decisions):
+    memory = {
+        "schema": "fangame.strategy_memory.v0.1",
+        "game_id": result.get("game_id"),
+        "evidence": "RPG_MAKER_RUNTIME_STATE_PLUS_REAL_KEY_INPUT",
+        "deaths": deaths,
+        "learned_policy": {
+            "death_retry_count": len(deaths),
+            "heal_threshold_increases_per_retry": 0.08,
+            "battle_decisions": dict(decisions),
+        },
+        "route_facts": route_facts,
+    }
+    write_json(out / "mv_strategy_memory.json", memory)
+    lines = [
+        "# Final Redemption — observed route notes",
+        "",
+        "This is an evidence-derived run log, not a claim of complete coverage.",
+        "",
+        f"- Runtime: {result.get('elapsed_play_seconds', 0)} seconds",
+        f"- Maps observed: {result.get('unique_maps', [])}",
+        f"- Map transitions: {result.get('map_transitions', 0)}",
+        f"- Battles started/completed: {result.get('battle_starts', 0)}/{result.get('battle_completions', 0)}",
+        f"- Deaths/restarts: {result.get('death_count', 0)}/{result.get('restart_count', 0)}",
+        "",
+        "## Learned survival rules",
+        "",
+        "- Prefer healing skills/items when the weakest living party member falls below the adaptive threshold.",
+        "- Raise the healing threshold after each defeat instead of repeating the same policy.",
+        "- Target the lowest-HP visible enemy first; use guard only at critical HP when healing is unavailable.",
+        "- Preserve each defeat snapshot and resume from a clean new-game state with the revised policy.",
+        "",
+        "## Observed route events",
+        "",
+    ]
+    lines.extend(f"- t={r['t']}s: map {r['from_map']} → {r['to_map']}" for r in route_facts)
+    if deaths:
+        lines += ["", "## Defeat evidence", ""]
+        lines.extend(f"- t={d['t']}s: defeat #{d['death_no']} on map {d.get('map_id')}; next retry healing threshold={d['next_heal_threshold']:.2f}." for d in deaths)
+    (out / "mv_walkthrough.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def position_of(state):
@@ -216,8 +359,7 @@ def select_event_target(state, nav, event_attempts):
         trigger = ev.get("trigger")
         if ev.get("has_transfer"):
             rank = 0
-        elif ev.get("has_battle"):
-            rank = 1
+        elif ev.get("has_battle"):            rank = 1
         elif trigger in (1, 2):
             rank = 2
         elif trigger == 0 and (ev.get("has_text") or ev.get("command_count", 0) > 1):
@@ -328,10 +470,10 @@ def main():
     index = next((p for p in (root / "www" / "index.html", root / "index.html") if p.exists()), None)
 
     result = {
-        "schema": "fangame.mv_longrun_probe.v0.2",
-        "mode": "PROOF_OF_POSSIBILITY",
+        "schema": "fangame.mv_longrun_probe.v0.3",
+        "mode": "ZERO_COST_LEARNING_LONG_RUN",
         "game_id": cfg.get("game_id"),
-        "decision_engine": "runtime_symbolic_agent_v0.2_event_targeted_frontier_bfs",
+        "decision_engine": "runtime_symbolic_agent_v0.3_adaptive_battle_retry_walkthrough",
         "external_ai_api": False,
         "requested_duration_minutes": duration_minutes,
         "max_duration_minutes": max_minutes,
@@ -370,6 +512,14 @@ def main():
     battle_active = False
     fatal = None
     nav_cache = {}
+    death_limit = int(cfg.get("death_retry_limit", 6))
+    death_count = 0
+    restart_count = 0
+    deaths = []
+    route_facts = []
+    battle_decisions = Counter()
+    survival_segment_started = None
+    max_survival_seconds = 0.0
 
     with trace_path.open("w", encoding="utf-8") as trace:
         try:
@@ -414,6 +564,7 @@ def main():
                     return 3
 
                 started = time.monotonic()
+                survival_segment_started = started
                 deadline = started + duration_minutes * 60
                 last_periodic_shot = started
                 last_semantic_progress = started
@@ -436,10 +587,10 @@ def main():
                         if pos not in unique_positions:
                             last_semantic_progress = now
                         unique_positions.add(pos)
-
                     if previous:
                         if state.get("map_id") != previous.get("map_id") and state.get("map_id") is not None:
                             map_transitions += 1
+                            route_facts.append({"t": round(now - started, 3), "from_map": previous.get("map_id"), "to_map": state.get("map_id")})
                             last_semantic_progress = now
                             page.screenshot(path=str(out / f"{screenshot_no:02d}_map_{state.get('map_id')}.png"))
                             screenshot_no += 1
@@ -465,8 +616,7 @@ def main():
                         action = "confirm_dialogue_or_event"
                         key_tap(page, "Enter")
                     elif in_battle:
-                        action = "battle_default_confirm"
-                        key_tap(page, "Enter", hold=0.10)
+                        action = battle_policy_action(page, state, death_count, battle_decisions)
                     elif scene == "Scene_Map" and pos:
                         map_id = pos[0]
                         if map_id not in nav_cache:
@@ -513,9 +663,37 @@ def main():
                         action = "escape_nonprogress_menu"
                         key_tap(page, "Escape")
                     elif scene == "Scene_Gameover":
-                        fatal = "GAME_OVER"
-                        append_jsonl(trace, {"t": round(now - started, 3), "state": state, "action": "stop_game_over"})
-                        break
+                        death_count += 1
+                        segment = now - survival_segment_started
+                        max_survival_seconds = max(max_survival_seconds, segment)
+                        death = {
+                            "death_no": death_count,
+                            "t": round(now - started, 3),
+                            "segment_survival_seconds": round(segment, 3),
+                            "map_id": state.get("map_id"),
+                            "party": state.get("party") or [],
+                            "next_heal_threshold": min(0.82, 0.42 + 0.08 * death_count),
+                        }
+                        deaths.append(death)
+                        page.screenshot(path=str(out / f"{screenshot_no:02d}_gameover_{death_count}.png"))
+                        screenshot_no += 1
+                        append_jsonl(trace, {"t": round(now - started, 3), "state": state, "action": "learn_from_game_over", "memory": death})
+                        if death_count > death_limit:
+                            fatal = "GAME_OVER_RETRY_LIMIT"
+                            break
+                        restarted = bootstrap_to_map(page, result, out, int(cfg.get("max_intro_confirms", 360)))
+                        if not restarted:
+                            fatal = "RESTART_INTRO_NOT_CLEARED"
+                            break
+                        restart_count += 1
+                        survival_segment_started = time.monotonic()
+                        previous = None
+                        battle_active = False
+                        nav_cache = {}
+                        event_attempts.clear()
+                        last_semantic_progress = survival_segment_started
+                        append_jsonl(trace, {"t": round(survival_segment_started - started, 3), "action": "restart_with_learned_policy", "retry": restart_count})
+                        continue
                     else:
                         action = "generic_confirm"
                         key_tap(page, "Enter")
@@ -569,6 +747,13 @@ def main():
                     "route_progress_verified": route_progress and fatal is None,
                     "local_motion_only": coordinate_changes > 0 and len(unique_positions) < 10 and map_transitions == 0 and battle_completions == 0,
                     "battle_verified": battle_completions > 0,
+                    "death_count": death_count,
+                    "restart_count": restart_count,
+                    "death_retry_limit": death_limit,
+                    "max_survival_segment_seconds": round(max(max_survival_seconds, time.monotonic() - survival_segment_started), 3),
+                    "strategy_memory_file": "mv_strategy_memory.json",
+                    "walkthrough_file": "mv_walkthrough.md",
+                    "battle_decision_counts": dict(battle_decisions),
                 })
                 enough_progress = len(unique_maps) >= 2 and coordinate_changes >= 40 and fatal is None
                 result["long_run_3h_verified"] = elapsed >= 10800 and enough_progress
@@ -592,6 +777,7 @@ def main():
             result["status"] = "LONGRUN_PROBE_ERROR"
             result["fatal_stop"] = repr(exc)
 
+    write_walkthrough(out, result, deaths, route_facts, battle_decisions)
     write_json(out / "mv_longrun_summary.json", result)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("status") in {
