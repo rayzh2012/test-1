@@ -1,19 +1,19 @@
 {
-  "schema": "fangame.longrun_config.v0.3",
-  "mode": "LONG_RUN_3H",
+  "schema": "fangame.longrun_config.v0.4",
+  "mode": "LONG_RUN_4H_ADAPTIVE_LEARNING",
   "game_id": "final-redemption-current",
   "target": "fangame_targets/final_redemption_mv.json",
-  "decision_engine": "runtime_symbolic_agent_v0.2_event_targeted_frontier_bfs",
+  "decision_engine": "runtime_symbolic_agent_v0.3_adaptive_battle_retry_walkthrough",
   "external_ai_api": false,
   "local_llm": false,
   "runner": "ubuntu-latest",
   "paid_larger_runner": false,
-  "duration_minutes": 180,
+  "duration_minutes": 240,
   "max_duration_minutes": 240,
   "max_intro_confirms": 360,
   "stall_seconds": 25,
   "checkpoint_seconds": 300,
-  "run_generation": 3,
+  "run_generation": 4,
   "evidence_policy": "REAL_KEY_INPUT_PLUS_RPG_MAKER_RUNTIME_STATE",
   "promotion_gates": [
     "ROUTE_PROGRESS_VERIFIED",
@@ -42,10 +42,11 @@
     }
   },
   "notes": [
-    "v0.1 proved zero-cost cloud autonomy but exposed a five-tile oscillation failure mode.",
-    "v0.2 event-targeted frontier BFS passed the route gate: 51 unique positions, 9 map transitions, 2 battle starts and 1 completed battle in 180.374 seconds with no fatal stop.",
-    "This generation promotes the same zero-cost standard ubuntu-latest lane to a 180-minute run.",
-    "No external LLM/API or paid larger runner is allowed.",
-    "Checkpoint screenshots are reduced to every 300 seconds to keep evidence size bounded during the three-hour run."
-  ]
+    "Four-hour zero-extra-cost proof on standard ubuntu-latest only.",
+    "The runtime agent observes RPG Maker battle UI state and acts only through keyboard input; no game-state mutation, external LLM/API, paid runner, or GPU is allowed.",
+    "Game-over is a bounded learning event: preserve the defeat snapshot, raise the healing threshold, restart cleanly, and continue until the retry cap.",
+    "Emit compact strategy memory and an evidence-derived walkthrough alongside the trace; deaths remain explicit and are never reported as a no-death clear.",
+    "Promotion requires 14,400 seconds, continued route/game progression, no terminal fatal stop, and the LONG_RUN_4H_VERIFIED gate."
+  ],
+  "death_retry_limit": 6
 }
