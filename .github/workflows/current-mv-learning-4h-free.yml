@@ -1,0 +1,158 @@
+name: Current MV Learning 4H Free
+
+on:
+  push:
+    branches:
+      - fangame-public-genome-v01-20260822
+    paths:
+      - '.github/workflows/current-mv-learning-4h-free.yml'
+      - 'fangame_longrun/learning_4h.json'
+      - 'tools/fangame_mv_learning_longrun_probe.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: current-mv-learning-4h-free-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  learning-longrun:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enforce zero-cost experiment contract
+        id: cfg
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          c=json.load(open('fangame_longrun/learning_4h.json',encoding='utf-8'))
+          assert c['runner']=='ubuntu-latest'
+          assert c['paid_larger_runner'] is False
+          assert c['external_ai_api'] is False
+          assert c['local_llm'] is False
+          assert int(c['duration_minutes'])==240
+          assert int(c['max_duration_minutes'])==240
+          print('target='+c['target'])
+          print('game_id='+c['game_id'])
+          PY
+          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py
+
+      - name: Fetch exact current public package
+        shell: bash
+        run: |
+          rm -rf learning_fetch learning_work learning_out
+          mkdir -p learning_fetch learning_work learning_out
+          python3 tools/fangame_fetcher.py '${{ steps.cfg.outputs.target }}' -o learning_fetch
+
+      - name: Verify exact package identity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          cfg=json.load(open('fangame_longrun/learning_4h.json',encoding='utf-8'))
+          got=json.load(open('learning_fetch/fetch_report.json',encoding='utf-8'))
+          want=cfg['package_identity']
+          assert got.get('bytes')==want['bytes'], (got.get('bytes'),want['bytes'])
+          assert (got.get('sha256') or '').lower()==want['sha256'].lower()
+          print('PACKAGE_IDENTITY_VERIFIED', got['bytes'], got['sha256'])
+          PY
+
+      - name: Install free runtime dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools ruby
+          python3 -m pip install --disable-pip-version-check requests playwright
+          (google-chrome --version || google-chrome-stable --version || chromium --version)
+
+      - name: Extract and inspect RPG Maker package
+        shell: bash
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('learning_fetch/fetch_report.json',encoding='utf-8'))['file'])
+          PY
+          )
+          python3 tools/fangame_inspect.py "learning_fetch/$game" --workdir learning_work --out learning_out/playability_static.json
+
+      - name: Run four-hour adaptive learning experiment
+        id: probe
+        shell: bash
+        run: |
+          set +e
+          python3 tools/fangame_mv_learning_longrun_probe.py \
+            --static learning_out/playability_static.json \
+            --extract-root learning_work/extract \
+            --config fangame_longrun/learning_4h.json \
+            --outdir learning_out/learning
+          rc=$?
+          echo "return_code=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Publish run summary
+        if: always()
+        shell: bash
+        run: |
+          echo '## Four-hour zero-cost RPG learning experiment' >> "$GITHUB_STEP_SUMMARY"
+          for f in learning_out/learning/mv_learning_summary.json learning_out/learning/mv_learning_guide.md; do
+            if [ -f "$f" ]; then
+              echo '' >> "$GITHUB_STEP_SUMMARY"
+              echo "### $(basename "$f")" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              cat "$f" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Archive compact latest learning result to branch
+        if: always() && github.event_name == 'push'
+        shell: bash
+        run: |
+          test -f learning_out/learning/mv_learning_summary.json || exit 0
+          cp learning_out/learning/mv_learning_summary.json fangame_longrun/latest_learning_result.json
+          test ! -f learning_out/learning/mv_learning_guide.json || cp learning_out/learning/mv_learning_guide.json fangame_longrun/latest_learning_guide.json
+          test ! -f learning_out/learning/mv_learning_guide.md || cp learning_out/learning/mv_learning_guide.md fangame_longrun/latest_learning_guide.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add fangame_longrun/latest_learning_result.json fangame_longrun/latest_learning_guide.json fangame_longrun/latest_learning_guide.md 2>/dev/null || true
+          git diff --cached --quiet && exit 0
+          git commit -m 'Record four-hour RPG death-learning experiment [skip ci]'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Upload evidence only, never game binary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mv-learning-4h-${{ steps.cfg.outputs.game_id }}
+          path: |
+            learning_fetch/fetch_report.json
+            learning_fetch/SHA256.txt
+            learning_out/playability_static.json
+            learning_out/learning/mv_learning_summary.json
+            learning_out/learning/mv_learning_trace.jsonl
+            learning_out/learning/mv_learning_guide.json
+            learning_out/learning/mv_learning_guide.md
+            learning_out/learning/*.png
+          if-no-files-found: warn
+          retention-days: 2
+          compression-level: 6
+
+      - name: Enforce experiment result
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('learning_out/learning/mv_learning_summary.json')
+          if not p.exists(): raise SystemExit('NO_LEARNING_SUMMARY')
+          r=json.load(p.open(encoding='utf-8'))
+          keys=('status','elapsed_play_seconds','deaths','checkpoint_recoveries','checkpoint_failures','full_restarts','unique_map_count','unique_position_count','map_transitions','battle_starts','battle_completions','save_load_verified','death_learning_exercised','long_run_4h_verified','fatal_stop')
+          print(json.dumps({k:r.get(k) for k in keys},indent=2))
+          if r.get('status') not in {'LONG_RUN_4H_VERIFIED_WITH_DEATH_LEARNING','LONG_RUN_4H_VERIFIED','LONGRUN_DURATION_REACHED_PROGRESS_OBSERVED'}:
+              raise SystemExit('FOUR_HOUR_LEARNING_EXPERIMENT_NOT_VERIFIED')
+          PY
