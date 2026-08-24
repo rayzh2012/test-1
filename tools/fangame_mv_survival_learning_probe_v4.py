@@ -114,6 +114,10 @@ def smart_battle_v4(page,state,strategy):
     living=[a for a in party if not a.get('dead')]
     ratios=[a.get('hp',0)/max(1,a.get('mhp',1)) for a in living]
     minr=min(ratios) if ratios else 0.; avgr=sum(ratios)/len(ratios) if ratios else 0.; dead=sum(1 for a in party if a.get('dead'))
+    enemies=state.get('enemies') or []
+    enemy_hp=sum(max(0,int(e.get('mhp') or e.get('hp') or 0)) for e in enemies)
+    living_hp=sum(max(0,int(a.get('hp') or 0)) for a in living)
+    threat=enemy_hp/max(1,living_hp)
     ui=read_ui_v4(page); ws=ui.get('windows') or []; active=next((w for w in ws if w.get('active') and w.get('visible')),None)
     inv=ui.get('inventory') or []
     # RPG Maker occasion: 0=always, 1=battle, 2=menu, 3=never.  Menu-only
@@ -122,7 +126,11 @@ def smart_battle_v4(page,state,strategy):
     heals=[x for x in v2.usable_heals(inv) if int(x.get('occasion') or 0) in (0,1)]
     revive_items=[x for x in heals if v2.revive_effect(x)]; heal_items=[x for x in heals if v2.hp_effect(x)>0]
     revive_skills=usable_survival_skills(ui,True); heal_skills=usable_survival_skills(ui,False)
-    critical=dead>0 or minr<.38 or avgr<.48
+    # A full-health party can still be outmatched.  The prior policy fought a
+    # 1300-MHP troop with 1691 current party HP, won with one member dead, then
+    # carried that casualty into repeated encounters.  Runtime threat is based
+    # only on the actually encountered troop and current party state.
+    critical=dead>0 or minr<.38 or avgr<.48 or threat>.72
     # Failure memory should make the agent more decisive, not permanently defensive.
     # A permanent strategy>=1 danger flag caused endless Guard loops after the first death.
     danger=critical or minr < max(.42, .58 - .05*min(int(strategy or 0),3))
@@ -138,12 +146,12 @@ def smart_battle_v4(page,state,strategy):
     if active:
         n=active.get('name')
         if n=='_partyCommandWindow':
-            max_escape_attempts=3 if dead else 1 + min(int(strategy or 0),1)
+            max_escape_attempts=3 if dead else 2 if threat>.72 else 1 + min(int(strategy or 0),1)
             allow_escape=critical and ui.get('can_escape') is not False and _escape_attempts[sig] < max_escape_attempts
             pref=['escape','fight'] if allow_escape else ['fight','escape']
             c=v2.choose_command(page,active,pref)
             if c=='escape': _escape_attempts[sig]+=1
-            if c:return f'battle_v4_party_{c}_critical{int(critical)}_escapes{_escape_attempts[sig]}_minhp{minr:.2f}'
+            if c:return f'battle_v4_party_{c}_critical{int(critical)}_escapes{_escape_attempts[sig]}_threat{threat:.2f}_minhp{minr:.2f}'
         if n=='_actorCommandWindow':
             have_revive=bool(revive_items or revive_skills); have_heal=bool(heal_items or heal_skills)
             skill_first=(dead and bool(revive_skills)) or (danger and bool(heal_skills) and mp_ratio>=.18)
