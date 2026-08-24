@@ -8,6 +8,7 @@ on:
       - '.github/workflows/current-mv-learning-4h-free.yml'
       - 'fangame_longrun/learning_4h.json'
       - 'tools/fangame_mv_learning_longrun_probe.py'
+      - 'tools/fangame_mv_survival_learning_probe.py'
   workflow_dispatch:
 
 permissions:
@@ -40,7 +41,7 @@ jobs:
           print('target='+c['target'])
           print('game_id='+c['game_id'])
           PY
-          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py
+          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py tools/fangame_mv_survival_learning_probe.py
 
       - name: Fetch exact current public package
         shell: bash
@@ -80,12 +81,12 @@ jobs:
           )
           python3 tools/fangame_inspect.py "learning_fetch/$game" --workdir learning_work --out learning_out/playability_static.json
 
-      - name: Run four-hour adaptive learning experiment
+      - name: Run four-hour survival-learning experiment
         id: probe
         shell: bash
         run: |
           set +e
-          python3 tools/fangame_mv_learning_longrun_probe.py \
+          python3 tools/fangame_mv_survival_learning_probe.py \
             --static learning_out/playability_static.json \
             --extract-root learning_work/extract \
             --config fangame_longrun/learning_4h.json \
@@ -98,7 +99,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          echo '## Four-hour zero-cost RPG learning experiment' >> "$GITHUB_STEP_SUMMARY"
+          echo '## Four-hour zero-cost RPG survival-learning experiment' >> "$GITHUB_STEP_SUMMARY"
           for f in learning_out/learning/mv_learning_summary.json learning_out/learning/mv_learning_guide.md; do
             if [ -f "$f" ]; then
               echo '' >> "$GITHUB_STEP_SUMMARY"
@@ -121,7 +122,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add fangame_longrun/latest_learning_result.json fangame_longrun/latest_learning_guide.json fangame_longrun/latest_learning_guide.md 2>/dev/null || true
           git diff --cached --quiet && exit 0
-          git commit -m 'Record four-hour RPG death-learning experiment [skip ci]'
+          git commit -m 'Record four-hour RPG survival-learning experiment [skip ci]'
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Upload evidence only, never game binary
