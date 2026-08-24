@@ -120,7 +120,10 @@ def main():
             facts['deaths'].append({'death_no':deaths,'t':round(t,3),'recovery':recovery,'learning':lrn,'battle_strategy_after':strategy});log(trace,{'t':round(t,3),'action':'death_learn_recover','recovery':recovery,'learning':lrn});recent.clear();lastprog=time.monotonic()
             if fatal:break
             continue
-          safe=scene=='Scene_Map' and pos and state.get('message_busy') is False and state.get('event_running') is False and not inb and all(not x.get('dead') for x in state.get('party') or [])
+          party=state.get('party') or []
+          checkpoint_min_hp=float(cfg.get('checkpoint_min_hp_ratio',0.65))
+          min_party_hp=min((x.get('hp',0)/max(1,x.get('mhp',1)) for x in party),default=0.0)
+          safe=scene=='Scene_Map' and pos and state.get('message_busy') is False and state.get('event_running') is False and not inb and party and all(not x.get('dead') for x in party) and min_party_hp>=checkpoint_min_hp
           if safe and now-lastsave>=float(cfg.get('autosave_seconds',45)):
             r=save(page,slot)
             if r.get('ok'):checkpoint={'t':round(t,3),'slot':slot,'state':state};facts['checkpoints'].append(checkpoint);lastsave=now
