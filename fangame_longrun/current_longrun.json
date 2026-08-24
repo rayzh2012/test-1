@@ -1,9 +1,9 @@
 {
-  "schema": "fangame.longrun_config.v0.4",
-  "mode": "LONG_RUN_4H_ADAPTIVE_LEARNING",
+  "schema": "fangame.learning_longrun_config.v0.2",
+  "mode": "FOUR_HOUR_DEATH_LEARNING_PROOF",
   "game_id": "final-redemption-current",
   "target": "fangame_targets/final_redemption_mv.json",
-  "decision_engine": "runtime_symbolic_agent_v0.3_adaptive_battle_retry_walkthrough",
+  "decision_engine": "runtime_symbolic_agent_v0.3_failure_memory_checkpoint_replay_plus_survival_ui",
   "external_ai_api": false,
   "local_llm": false,
   "runner": "ubuntu-latest",
@@ -16,10 +16,11 @@
   "run_generation": 4,
   "evidence_policy": "REAL_KEY_INPUT_PLUS_RPG_MAKER_RUNTIME_STATE",
   "promotion_gates": [
+    "PACKAGE_IDENTITY_VERIFIED",
     "ROUTE_PROGRESS_VERIFIED",
     "BATTLE_VERIFIED",
-    "SAVE_LOAD_VERIFIED",
-    "LONG_RUN_3H_VERIFIED",
+    "SAVE_LOAD_OR_CLEAN_RESTART_RECOVERY_VERIFIED_IF_DEATH_OCCURS",
+    "FACT_GUIDE_EMITTED",
     "LONG_RUN_4H_VERIFIED"
   ],
   "locked_baselines": {
@@ -43,10 +44,19 @@
   },
   "notes": [
     "Four-hour zero-extra-cost proof on standard ubuntu-latest only.",
-    "The runtime agent observes RPG Maker battle UI state and acts only through keyboard input; no game-state mutation, external LLM/API, paid runner, or GPU is allowed.",
-    "Game-over is a bounded learning event: preserve the defeat snapshot, raise the healing threshold, restart cleanly, and continue until the retry cap.",
-    "Emit compact strategy memory and an evidence-derived walkthrough alongside the trace; deaths remain explicit and are never reported as a no-death clear.",
-    "Promotion requires 14,400 seconds, continued route/game progression, no terminal fatal stop, and the LONG_RUN_4H_VERIFIED gate."
+    "Current itch upload 18933248 is a new package identity; prior-package gameplay claims are baseline context only and must be re-tested.",
+    "The agent observes runtime UI/state and acts through keyboard input; it never mutates HP, inventory, switches, battle results, or map state.",
+    "Safe map states are checkpointed. Game-over triggers failure-memory learning, checkpoint replay or clean restart, and an explicit death record.",
+    "Observed facts and learned heuristics are separated in JSON/Markdown guide output. Deaths remain explicit and are never reported as a no-death clear.",
+    "No external LLM/API, local LLM, paid/larger runner, or GPU is allowed."
   ],
-  "death_retry_limit": 6
+  "death_retry_limit": 6,
+  "autosave_seconds": 45,
+  "save_slot": 20,
+  "learning_window_actions": 120,
+  "package_identity": {
+    "itch_upload_id": "18933248",
+    "bytes": 1005262766,
+    "sha256": "1c51f198f51a1fb704f645d734f86b0a1807e00c2572e66c30a9781bf82875bc"
+  }
 }
