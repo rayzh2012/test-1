@@ -1,0 +1,40 @@
+{
+  "schema": "fangame.learning_longrun_config.v0.1",
+  "mode": "LONG_RUN_4H_DEATH_LEARNING",
+  "game_id": "final-redemption-current",
+  "target": "fangame_targets/final_redemption_mv.json",
+  "decision_engine": "runtime_symbolic_agent_v0.3_failure_memory_checkpoint_replay",
+  "external_ai_api": false,
+  "local_llm": false,
+  "runner": "ubuntu-latest",
+  "paid_larger_runner": false,
+  "duration_minutes": 240,
+  "max_duration_minutes": 240,
+  "max_intro_confirms": 360,
+  "stall_seconds": 25,
+  "checkpoint_seconds": 300,
+  "autosave_seconds": 45,
+  "save_slot": 20,
+  "learning_window_actions": 120,
+  "package_identity": {
+    "itch_upload_id": "18933248",
+    "bytes": 1005262766,
+    "sha256": "1c51f198f51a1fb704f645d734f86b0a1807e00c2572e66c30a9781bf82875bc"
+  },
+  "baseline_failure": {
+    "status": "LONGRUN_STOPPED_GAME_OVER",
+    "elapsed_play_seconds": 217.374,
+    "actions": 459,
+    "unique_map_count": 2,
+    "unique_position_count": 63,
+    "map_transitions": 9,
+    "battle_starts": 4,
+    "battle_completions": 3
+  },
+  "experiment_questions": [
+    "Can a standard free public-repository runner sustain an ordinary RPG Maker MV game for four hours?",
+    "Can game over become a recoverable learning event instead of a terminal stop?",
+    "Can online failure memory reduce repetition of death-associated event/route choices?",
+    "Can the same run emit a factual observed-route guide and keep heuristics explicitly separate from facts?"
+  ]
+}
