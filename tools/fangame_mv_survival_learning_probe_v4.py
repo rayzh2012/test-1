@@ -164,23 +164,32 @@ def smart_battle_v4(page,state,strategy):
 
 _route_calls=0
 _repeat_transfer_skip=Counter()
+_last_route_map=None
+_local_after_transfer_budget=0
 
 def event_target_v4(state,nav,attempts,risk):
-    global _route_calls
+    global _route_calls,_last_route_map,_local_after_transfer_budget
     _route_calls+=1
     if _route_calls % 220 == 0:
         for k in list(attempts):
             if attempts[k]>0: attempts[k]-=1
     pos=agent.base.position_of(state)
     if not pos or not nav:return None
-    mid,px,py=pos;c=[];nontransfer=0
+    mid,px,py=pos
+    if _last_route_map is not None and mid != _last_route_map:
+        # After a real transfer, spend a bounded window on reachable local events.
+        # This prevents immediate A<->B exit ping-pong while still allowing travel later.
+        _local_after_transfer_budget=90
+    _last_route_map=mid
+    if _local_after_transfer_budget>0:
+        _local_after_transfer_budget-=1
+    c=[];nontransfer=0
     for ev in state.get('events') or []:
         key=agent.base.event_key(mid,ev); is_transfer=bool(ev.get('has_transfer'))
         if attempts[key]>=3:continue
         trig=ev.get('trigger')
         rank=0 if is_transfer and attempts[key]==0 else 1 if ev.get('has_battle') else 2 if trig in (1,2) else 3 if trig==0 and (ev.get('has_text') or ev.get('command_count',0)>1) else 4 if is_transfer else None
         if rank is None:continue
-        if not is_transfer: nontransfer+=1
         ex,ey=ev.get('x'),ev.get('y')
         if not isinstance(ex,int) or not isinstance(ey,int):continue
         goals={}
@@ -192,7 +201,11 @@ def event_target_v4(state,nav,attempts,risk):
             d,dist=agent.base.bfs_first_step(nav,cur,set(goals))
             if d is None:continue
         c.append((rank,risk[key],dist,attempts[key],ev.get('id',0),is_transfer,ev,d,goals,key))
+        if not is_transfer: nontransfer+=1
     if not c:return None
+    if _local_after_transfer_budget>0 and nontransfer:
+        local=[x for x in c if not x[5]]
+        if local:c=local
     repeated_only=nontransfer==0 and all(x[5] and x[3]>=1 for x in c)
     if repeated_only:
         _repeat_transfer_skip[mid]+=1
