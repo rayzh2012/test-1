@@ -171,6 +171,30 @@ def smart_battle_v4(page,state,strategy):
     return f'battle_v4_generic_minhp{minr:.2f}'
 
 
+# Scene_Shop is a modal UI, not a running story event. The shared agent's generic
+# event branch presses Enter forever there. Keep this repair v4-local so the current
+# four-hour v3 candidate is not restarted; exit only through the game's real Escape key.
+_original_snap_state = agent.base.snap_state
+_original_key_tap = agent.base.key_tap
+_latest_runtime_scene = None
+
+
+def snap_state_v4(page):
+    global _latest_runtime_scene
+    state = _original_snap_state(page)
+    _latest_runtime_scene = state.get('scene')
+    return state
+
+
+def key_tap_v4(page, key, *args, **kwargs):
+    if _latest_runtime_scene == 'Scene_Shop' and key == 'Enter':
+        key = 'Escape'
+    return _original_key_tap(page, key, *args, **kwargs)
+
+
+agent.base.snap_state = snap_state_v4
+agent.base.key_tap = key_tap_v4
+
 _route_calls=0
 _repeat_transfer_skip=Counter()
 _last_route_map=None
