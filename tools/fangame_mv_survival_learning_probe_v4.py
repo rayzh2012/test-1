@@ -102,6 +102,7 @@ def choose_skill(page,w,want_revive=False):
 
 
 _escape_attempts=Counter()
+_last_battle_turn={}
 
 def battle_sig(state):
     enemies=tuple((e.get('name'),e.get('mhp')) for e in (state.get('enemies') or []))
@@ -123,10 +124,18 @@ def smart_battle_v4(page,state,strategy):
     danger=critical or minr < max(.42, .58 - .05*min(int(strategy or 0),3))
     actor=ui.get('current_actor') or {}; mp_ratio=(actor.get('mp',0)/max(1,actor.get('mmp',1))) if actor else 0.0
     sig=battle_sig(state)
+    turn=int(((state.get('battle_ui') or {}).get('turn_count')) or 0)
+    prior_turn=_last_battle_turn.get(sig)
+    if prior_turn is not None and turn < prior_turn:
+        # A new encounter with the same troop signature must get a fresh escape chance.
+        # Keeping the old counter across checkpoint recovery made every replay unwinnable.
+        _escape_attempts[sig]=0
+    _last_battle_turn[sig]=turn
     if active:
         n=active.get('name')
         if n=='_partyCommandWindow':
-            allow_escape=critical and ui.get('can_escape') is not False and _escape_attempts[sig] < 1
+            max_escape_attempts=1 + min(int(strategy or 0),1)
+            allow_escape=critical and ui.get('can_escape') is not False and _escape_attempts[sig] < max_escape_attempts
             pref=['escape','fight'] if allow_escape else ['fight','escape']
             c=v2.choose_command(page,active,pref)
             if c=='escape': _escape_attempts[sig]+=1
