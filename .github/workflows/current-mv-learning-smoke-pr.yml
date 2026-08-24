@@ -1,0 +1,105 @@
+name: Current MV Learning Smoke PR
+
+on:
+  pull_request:
+    branches:
+      - fangame-rescue-pokemon-unchosen-v1510-20260822
+    paths:
+      - '.github/workflows/current-mv-learning-smoke-pr.yml'
+      - 'fangame_longrun/learning_smoke.json'
+      - 'fangame_targets/final_redemption_mv.json'
+      - 'tools/fangame_mv_learning_longrun_probe.py'
+      - 'tools/fangame_mv_longrun_probe.py'
+
+jobs:
+  learning-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Enforce zero-cost contract and compile
+        id: cfg
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          c=json.load(open('fangame_longrun/learning_smoke.json',encoding='utf-8'))
+          assert c['runner']=='ubuntu-latest'
+          assert c['paid_larger_runner'] is False
+          assert c['external_ai_api'] is False
+          assert c['local_llm'] is False
+          assert int(c['duration_minutes'])==6
+          print('target='+c['target'])
+          PY
+          python3 -m py_compile tools/fangame_mv_longrun_probe.py tools/fangame_mv_learning_longrun_probe.py
+      - name: Fetch exact current public package
+        shell: bash
+        run: |
+          rm -rf learning_fetch learning_work learning_out
+          mkdir -p learning_fetch learning_work learning_out
+          python3 tools/fangame_fetcher.py '${{ steps.cfg.outputs.target }}' -o learning_fetch
+      - name: Verify exact package identity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          c=json.load(open('fangame_longrun/learning_smoke.json',encoding='utf-8'))
+          r=json.load(open('learning_fetch/fetch_report.json',encoding='utf-8'))
+          w=c['package_identity']
+          assert r['bytes']==w['bytes']
+          assert r['sha256'].lower()==w['sha256'].lower()
+          print('PACKAGE_IDENTITY_VERIFIED')
+          PY
+      - name: Install free runtime dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools ruby
+          python3 -m pip install --disable-pip-version-check requests playwright
+      - name: Extract and inspect
+        shell: bash
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('learning_fetch/fetch_report.json',encoding='utf-8'))['file'])
+          PY
+          )
+          python3 tools/fangame_inspect.py "learning_fetch/$game" --workdir learning_work --out learning_out/playability_static.json
+      - name: Run six-minute adaptive regression
+        shell: bash
+        run: |
+          set +e
+          python3 tools/fangame_mv_learning_longrun_probe.py \
+            --static learning_out/playability_static.json \
+            --extract-root learning_work/extract \
+            --config fangame_longrun/learning_smoke.json \
+            --outdir learning_out/learning
+          rc=$?
+          echo "probe_rc=$rc"
+          python3 - <<'PY'
+          import json
+          r=json.load(open('learning_out/learning/mv_learning_summary.json',encoding='utf-8'))
+          print(json.dumps(r,indent=2))
+          assert r.get('elapsed_play_seconds',0) >= 217.374, 'DID_NOT_EXCEED_PRIOR_DEATH_POINT'
+          assert r.get('route_progress_verified') is True, 'NO_ROUTE_PROGRESS'
+          assert not r.get('fatal_stop'), r.get('fatal_stop')
+          if r.get('deaths',0)>0:
+              assert r.get('checkpoint_recoveries',0)+r.get('full_restarts',0)>0, 'DEATH_NOT_RECOVERED'
+              assert r.get('death_learning_exercised') is True, 'LEARNING_NOT_EXERCISED'
+          PY
+      - name: Upload regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mv-learning-smoke-final-redemption
+          path: |
+            learning_fetch/fetch_report.json
+            learning_fetch/SHA256.txt
+            learning_out/playability_static.json
+            learning_out/learning/mv_learning_summary.json
+            learning_out/learning/mv_learning_trace.jsonl
+            learning_out/learning/mv_learning_guide.json
+            learning_out/learning/mv_learning_guide.md
+            learning_out/learning/*.png
+          if-no-files-found: warn
+          retention-days: 2
