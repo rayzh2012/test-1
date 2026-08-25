@@ -80,7 +80,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProje
                  PlayEffectSfx(effectGroupId);
                  return;
              }
-@@ -216,6 +239,9 @@
+@@ -216,5 +239,8 @@
                  localScale: scale,
                  localOffset: Vector3.up);
  
