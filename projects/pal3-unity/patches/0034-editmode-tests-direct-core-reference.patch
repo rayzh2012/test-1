@@ -1,0 +1,13 @@
+diff --git a/Assets/Tests/EditMode/Pal3.Game.CombatCore.Tests.asmdef b/Assets/Tests/EditMode/Pal3.Game.CombatCore.Tests.asmdef
+--- a/Assets/Tests/EditMode/Pal3.Game.CombatCore.Tests.asmdef
++++ b/Assets/Tests/EditMode/Pal3.Game.CombatCore.Tests.asmdef
+@@ -2,7 +2,8 @@
+     "name": "Pal3.Game.CombatCore.Tests",
+     "rootNamespace": "",
+     "references": [
+-        "GUID:077e41948865f464a8105d046a0fdfe0"
++        "GUID:077e41948865f464a8105d046a0fdfe0",
++        "GUID:7533bfa30c50146279c8ba7caae699e6"
+     ],
+     "includePlatforms": [
+         "Editor"
