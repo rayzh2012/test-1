@@ -45,6 +45,10 @@ def write_markdown(report: dict[str, Any], path: Path) -> None:
             lines.append(f"  - defines: {', '.join(item['define_constants'])}")
         if item.get("result_file"):
             lines.append(f"  - result: `{item['result_file']}`")
+        if item.get("missing_contains"):
+            lines.append(f"  - required source fragments missing: {len(item['missing_contains'])}")
+        if item.get("unexpected_contains"):
+            lines.append(f"  - forbidden source fragments present: {len(item['unexpected_contains'])}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -157,6 +161,39 @@ def run_dotnet_nunit(
     }
 
 
+def run_source_assertions(item: dict[str, Any], workspace: Path) -> dict[str, Any]:
+    """Run deterministic source-contract checks without pretending to compile Unity code."""
+    slice_id = item["id"]
+    relative_path = item["file"]
+    source_path = workspace / relative_path
+    required = bool(item.get("required", False))
+
+    if not source_path.is_file():
+        return {
+            "id": slice_id,
+            "runner": "source_assertions",
+            "status": "FAIL_MISSING_FILES" if required else "SKIPPED_MISSING_FILES",
+            "missing_files": [relative_path],
+        }
+
+    source = source_path.read_text(encoding="utf-8-sig")
+    required_fragments = item.get("contains", [])
+    forbidden_fragments = item.get("not_contains", [])
+    missing_contains = [fragment for fragment in required_fragments if fragment not in source]
+    unexpected_contains = [fragment for fragment in forbidden_fragments if fragment in source]
+
+    return {
+        "id": slice_id,
+        "runner": "source_assertions",
+        "status": "PASS" if not missing_contains and not unexpected_contains else "FAIL_SOURCE_ASSERTIONS",
+        "file": relative_path,
+        "missing_contains": missing_contains,
+        "unexpected_contains": unexpected_contains,
+        "checked_required_fragments": len(required_fragments),
+        "checked_forbidden_fragments": len(forbidden_fragments),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
@@ -177,6 +214,8 @@ def main() -> int:
         runner = item.get("runner")
         if runner == "dotnet_nunit":
             results.append(run_dotnet_nunit(item, workspace, temp_root, out_dir))
+        elif runner == "source_assertions":
+            results.append(run_source_assertions(item, workspace))
         else:
             results.append(
                 {
@@ -188,7 +227,7 @@ def main() -> int:
 
     failed = [item for item in results if item["status"].startswith("FAIL_")]
     report = {
-        "schema_version": "pal3_fastlane_report.v0.2",
+        "schema_version": "pal3_fastlane_report.v0.3",
         "status": "PASS" if not failed else "FAIL",
         "slices": results,
     }
