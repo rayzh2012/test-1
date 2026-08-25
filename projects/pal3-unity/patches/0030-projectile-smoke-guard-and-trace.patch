@@ -1,14 +1,15 @@
 diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
 --- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
 +++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
-@@ -5,6 +5,7 @@
+@@ -4,6 +4,7 @@
+ 
  namespace Pal3.Game.GameSystems.Combat.Presentation
  {
 +    using System.Collections;
      using Actor.Controllers;
      using Core.Contract.Enums;
      using Domain;
-@@ -17,6 +18,8 @@ namespace Pal3.Game.GameSystems.Combat.Presentation
+@@ -17,6 +18,8 @@
      /// </summary>
      public static class ProjectilePresentationSmoke
      {
@@ -17,28 +18,27 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/Projectile
          public static void Start(
              UnityProjectileSkillPresentationAdapter adapter,
              CombatScene combatScene)
-@@ -27,6 +30,13 @@ namespace Pal3.Game.GameSystems.Combat.Presentation
-                 return;
-             }
- 
+@@ -24,6 +27,13 @@
+             if (adapter == null || combatScene == null)
+             {
+                 EngineLogger.LogWarning("Projectile presentation smoke is unavailable before combat is loaded.");
++                return;
++            }
++
 +            if (_isRunning)
 +            {
 +                EngineLogger.LogWarning(
 +                    "Projectile presentation smoke is already running; duplicate F7 trigger ignored.");
-+                return;
-+            }
-+
-             CombatActorController caster =
-                 combatScene.GetCombatActorController(ElementPosition.AllyWater);
-             CombatActorController target =
-@@ -65,8 +75,31 @@ namespace Pal3.Game.GameSystems.Combat.Presentation
+                 return;
+             }
+ 
+@@ -64,7 +74,31 @@
                          resolvedAmount: 1),
                  });
  
--            Pal3.Instance.StartCoroutine(
--                adapter.PlayAsync(plan, profile, caster, target, combatScene));
 +            _isRunning = true;
-+            Pal3.Instance.StartCoroutine(
+             Pal3.Instance.StartCoroutine(
+-                adapter.PlayAsync(plan, profile, caster, target, combatScene));
 +                RunAsync(adapter, plan, profile, caster, target, combatScene));
 +        }
 +
