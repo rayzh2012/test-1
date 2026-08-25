@@ -1,5 +1,5 @@
 {
-  "schema_version": "pal3_fast_tests.v0.2",
+  "schema_version": "pal3_fast_tests.v0.3",
   "slices": [
     {
       "id": "combat_core",
@@ -42,6 +42,37 @@
         "Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs",
         "Assets/Tests/EditMode/MultiTargetSkillPresentationPlannerTests.cs",
         "Assets/Tests/EditMode/RecoverySkillResolverTests.cs"
+      ]
+    },
+    {
+      "id": "unity_projectile_adapter_source_contract",
+      "runner": "source_assertions",
+      "required": true,
+      "file": "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs",
+      "contains": [
+        "using Engine.Animation;",
+        "if (TravelEffectGroupId > 0) yield return TravelEffectGroupId;",
+        "if (ImpactEffectGroupId > 0) yield return ImpactEffectGroupId;",
+        "ProceduralCombatVfx.CreateOrb(",
+        "projectile.Transform.MoveAsync("
+      ],
+      "not_contains": [
+        "EffectAttachToActorCommand"
+      ]
+    },
+    {
+      "id": "unity_projectile_smoke_source_contract",
+      "runner": "source_assertions",
+      "required": true,
+      "file": "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs",
+      "contains": [
+        "key: \"debug.procedural.projectile\"",
+        "castEffectGroupId: 0",
+        "travelEffectGroupId: 0",
+        "impactEffectGroupId: 0"
+      ],
+      "not_contains": [
+        "debug.projectile.251"
       ]
     }
   ]
