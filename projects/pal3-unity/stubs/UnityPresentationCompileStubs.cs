@@ -195,7 +195,7 @@ namespace Pal3.Game.GameSystems.Combat.Domain
 
 namespace Pal3.Game.GameSystems.Combat.Presentation
 {
-    using Pal3.Game.GameSystems.Combat.Domain;
+    using global::Pal3.Game.GameSystems.Combat.Domain;
 
     public enum SkillPresentationCueKind
     {
@@ -270,8 +270,8 @@ namespace Pal3.Game.GameSystems.Combat.Scene
 {
     using Engine.Core.Abstraction;
     using Engine.Core.Implementation;
-    using Pal3.Core.Contract.Enums;
-    using Pal3.Game.GameSystems.Combat.Actor.Controllers;
+    using global::Pal3.Core.Contract.Enums;
+    using global::Pal3.Game.GameSystems.Combat.Actor.Controllers;
 
     public sealed class CombatScene
     {
