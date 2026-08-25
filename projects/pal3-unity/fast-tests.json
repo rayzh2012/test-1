@@ -1,5 +1,5 @@
 {
-  "schema_version": "pal3_fast_tests.v0.4",
+  "schema_version": "pal3_fast_tests.v0.5",
   "slices": [
     {
       "id": "combat_core",
@@ -94,6 +94,38 @@
       "not_contains": [
         "debug.projectile.251"
       ]
+    },
+    {
+      "id": "unity_presentation_sandbox_source_contract",
+      "runner": "source_assertions",
+      "required": true,
+      "file": "Assets/Scripts/Pal3.PresentationSandbox.Editor/ProceduralProjectileSandboxCapture.cs",
+      "contains": [
+        "EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single)",
+        "ProceduralCombatVfx.CreateOrb(",
+        "ImageConversion.EncodeToPNG(texture)",
+        "PAL3_PRESENTATION_SANDBOX_OUT",
+        "Evidence boundary: Unity editor renderer + ProceduralCombatVfx only;"
+      ],
+      "not_contains": [
+        "GameSettings",
+        "ICpkFileSystem",
+        "GameResourceProvider",
+        "CombatScene"
+      ]
+    },
+    {
+      "id": "unity_presentation_sandbox_asmdef_contract",
+      "runner": "source_assertions",
+      "required": true,
+      "file": "Assets/Scripts/Pal3.PresentationSandbox.Editor/Pal3.PresentationSandbox.Editor.asmdef",
+      "contains": [
+        "\"name\": \"Pal3.PresentationSandbox.Editor\"",
+        "\"GUID:077e41948865f464a8105d046a0fdfe0\"",
+        "\"Editor\"",
+        "\"noEngineReferences\": false"
+      ],
+      "not_contains": []
     }
   ]
 }
