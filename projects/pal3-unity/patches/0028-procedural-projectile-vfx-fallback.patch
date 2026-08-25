@@ -1,0 +1,207 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
+@@ -45,8 +45,8 @@
+                 throw new ArgumentException("Profile key is required.", nameof(key));
+             }
+             if (castEffectGroupId < 0) throw new ArgumentOutOfRangeException(nameof(castEffectGroupId));
+-            if (travelEffectGroupId <= 0) throw new ArgumentOutOfRangeException(nameof(travelEffectGroupId));
+-            if (impactEffectGroupId <= 0) throw new ArgumentOutOfRangeException(nameof(impactEffectGroupId));
++            if (travelEffectGroupId < 0) throw new ArgumentOutOfRangeException(nameof(travelEffectGroupId));
++            if (impactEffectGroupId < 0) throw new ArgumentOutOfRangeException(nameof(impactEffectGroupId));
+             if (travelDurationSeconds <= 0f) throw new ArgumentOutOfRangeException(nameof(travelDurationSeconds));
+ 
+             Key = key;
+@@ -59,8 +59,8 @@
+         public IEnumerable<int> GetEffectGroupIds()
+         {
+             if (CastEffectGroupId > 0) yield return CastEffectGroupId;
+-            yield return TravelEffectGroupId;
+-            yield return ImpactEffectGroupId;
++            if (TravelEffectGroupId > 0) yield return TravelEffectGroupId;
++            if (ImpactEffectGroupId > 0) yield return ImpactEffectGroupId;
+         }
+     }
+ 
+@@ -117,13 +117,10 @@
+                 switch (cue.Kind)
+                 {
+                     case SkillPresentationCueKind.Cast:
+-                        if (profile.CastEffectGroupId > 0)
+-                        {
+-                            SpawnAttachedEffect(
+-                                profile.CastEffectGroupId,
+-                                caster.GameEntity,
+-                                "Cast");
+-                        }
++                        SpawnAttachedEffect(
++                            profile.CastEffectGroupId,
++                            caster.GameEntity,
++                            "Cast");
+                         yield return caster.StartMagicCastAsync();
+                         break;
+ 
+@@ -163,23 +160,23 @@
+             CombatActorController target,
+             CombatScene combatScene)
+         {
+-            object prefab = _resourceProvider.GetVfxEffectPrefab(profile.TravelEffectGroupId);
+-            if (prefab == null)
+-            {
+-                // Preserve sequencing even when the resource is missing. Runtime verification must
+-                // still report the missing prefab instead of claiming visible travel.
+-                yield return new WaitForSeconds(profile.TravelDurationSeconds);
+-                yield break;
+-            }
+-
+-            IGameEntity projectile = GameEntityFactory.Create(
+-                name: $"CombatVFX_Travel_{profile.TravelEffectGroupId}",
+-                prefab,
+-                combatScene.GameEntity,
+-                worldPositionStays: false);
+-
+-            Vector3 startPosition = caster.Transform.Position;
+-            Vector3 targetPosition = target.Transform.Position;
++            object prefab = profile.TravelEffectGroupId > 0
++                ? _resourceProvider.GetVfxEffectPrefab(profile.TravelEffectGroupId)
++                : null;
++
++            IGameEntity projectile = prefab != null
++                ? GameEntityFactory.Create(
++                    name: $"CombatVFX_Travel_{profile.TravelEffectGroupId}",
++                    prefab,
++                    combatScene.GameEntity,
++                    worldPositionStays: false)
++                : ProceduralCombatVfx.CreateOrb(
++                    name: "CombatVFX_Travel_Procedural",
++                    combatScene.GameEntity,
++                    localScale: 0.18f);
++
++            Vector3 startPosition = caster.Transform.Position + Vector3.up;
++            Vector3 targetPosition = target.Transform.Position + Vector3.up;
+             projectile.Transform.Position = startPosition;
+ 
+             PlayEffectSfx(profile.TravelEffectGroupId);
+@@ -195,16 +192,39 @@
+             IGameEntity parent,
+             string phase)
+         {
+-            object prefab = _resourceProvider.GetVfxEffectPrefab(effectGroupId);
+-            if (prefab == null) return;
+-
+-            GameEntityFactory.Create(
+-                name: $"CombatVFX_{phase}_{effectGroupId}",
+-                prefab,
++            object prefab = effectGroupId > 0
++                ? _resourceProvider.GetVfxEffectPrefab(effectGroupId)
++                : null;
++
++            if (prefab != null)
++            {
++                GameEntityFactory.Create(
++                    name: $"CombatVFX_{phase}_{effectGroupId}",
++                    prefab,
++                    parent,
++                    worldPositionStays: false);
++
++                PlayEffectSfx(effectGroupId);
++                return;
++            }
++
++            float scale = phase == "Impact" ? 0.55f : 0.35f;
++            IGameEntity procedural = ProceduralCombatVfx.CreateOrb(
++                name: $"CombatVFX_{phase}_Procedural",
+                 parent,
+-                worldPositionStays: false);
+-
+-            PlayEffectSfx(effectGroupId);
++                localScale: scale,
++                localOffset: Vector3.up);
++
++            Pal3.Instance.StartCoroutine(DestroyProceduralPulseAsync(procedural));
++        }
++
++        private static IEnumerator DestroyProceduralPulseAsync(IGameEntity effect)
++        {
++            yield return new WaitForSeconds(0.22f);
++            if (effect != null && !effect.IsNativeObjectDisposed)
++            {
++                effect.Destroy();
++            }
+         }
+ 
+         private static void PlayEffectSfx(int effectGroupId)
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
+@@ -12,8 +12,8 @@
+ 
+     /// <summary>
+     /// Presentation-only F7 smoke harness. It intentionally does not resolve combat truth.
+-    /// The effect ids are known PAL3 VFX groups used only to prove the Unity playback pipeline;
+-    /// they are not claimed to represent a specific original PAL3 spell.
++    /// The default profile is fully procedural so it stays visible even when the optional
++    /// third-party PAL3 VFX prefab pack is unavailable.
+     /// </summary>
+     public static class ProjectilePresentationSmoke
+     {
+@@ -40,10 +40,10 @@
+             }
+ 
+             UnityProjectileVisualProfile profile = new(
+-                key: "debug.projectile.251",
+-                castEffectGroupId: 256,
+-                travelEffectGroupId: 251,
+-                impactEffectGroupId: 257,
++                key: "debug.procedural.projectile",
++                castEffectGroupId: 0,
++                travelEffectGroupId: 0,
++                impactEffectGroupId: 0,
+                 travelDurationSeconds: 0.45f);
+ 
+             SkillPresentationPlan plan = new(
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProceduralCombatVfx.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProceduralCombatVfx.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProceduralCombatVfx.cs
+@@ -0,0 +1,40 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity open procedural combat VFX fallback. No third-party prefab pack is required.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Presentation
++{
++    using Engine.Core.Abstraction;
++    using Engine.Core.Implementation;
++    using UnityEngine;
++
++    public static class ProceduralCombatVfx
++    {
++        public static IGameEntity CreateOrb(
++            string name,
++            IGameEntity parent,
++            float localScale,
++            Vector3? localOffset = null)
++        {
++            GameObject nativeObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
++            nativeObject.name = name;
++
++            Collider collider = nativeObject.GetComponent<Collider>();
++            if (collider != null)
++            {
++                Object.Destroy(collider);
++            }
++
++            Light light = nativeObject.AddComponent<Light>();
++            light.type = LightType.Point;
++            light.range = 2.5f;
++            light.intensity = 4f;
++
++            IGameEntity entity = new GameEntity(nativeObject);
++            entity.SetParent(parent, worldPositionStays: false);
++            entity.Transform.LocalPosition = localOffset ?? Vector3.zero;
++            entity.Transform.LocalScale = Vector3.one * localScale;
++            return entity;
++        }
++    }
++}
