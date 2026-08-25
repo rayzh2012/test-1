@@ -1,0 +1,11 @@
+{
+  "game_id": "ordinary-royal-blood-vxace",
+  "name": "Royal Blood",
+  "version": "current public release",
+  "engine": "RPG Maker VX Ace",
+  "corpus_role": "ordinary_rpg_reference",
+  "source_kind": "public_free_original_game",
+  "min_mb": 1,
+  "sources": ["https://yurukae.itch.io/royal-blood"],
+  "provenance_note": "Released RPG Maker VX Ace jam RPG. The public page exposes project/game files including Game.rvproj2; candidate selected for inspectable RGSS baseline coverage. Binary/project payload is analyzed transiently and is not committed to the public corpus."
+}

@@ -1,0 +1,90 @@
+{
+  "schema": "fangame.public_analysis.v0.1",
+  "descriptor_version": "fangame.public_descriptors.v0.1",
+  "identity": {
+    "game_id": "final-redemption-current",
+    "title": "Final Redemption",
+    "version": "2026-08-16 current itch build",
+    "engine": "RPG Maker MV",
+    "sha256": "692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b",
+    "bytes": 1005259975,
+    "source_url": "https://infiniv.itch.io/final-redemption"
+  },
+  "reproducibility": {
+    "input_schema": "fangame.normalized_profile.v0.1",
+    "parser_version": "rpgmaker_mv_genome.v0.1",
+    "analysis_version": "fangame.public_descriptors.v0.1"
+  },
+  "observed": {
+    "maps": 999,
+    "events": 9631,
+    "event_pages": 13845,
+    "event_commands": 224227,
+    "dialogue_blocks": 22537,
+    "dialogue_lines": 33788,
+    "dialogue_chars": 1013558,
+    "choice_commands": 1791,
+    "choice_options": 3824,
+    "conditional_branches": 18188,
+    "transfers": 4427,
+    "battle_calls": 1793,
+    "shops": 194,
+    "common_events": 12,
+    "actors": 190,
+    "classes": 48,
+    "skills": 287,
+    "items": 851,
+    "weapons": 167,
+    "armors": 270,
+    "enemies": 587,
+    "troops": 796,
+    "states": 10,
+    "enabled_plugins": 2,
+    "total_plugins": 2,
+    "image_count": 2494,
+    "audio_count": 459
+  },
+  "derived": {
+    "events_per_map": 9.64064064064064,
+    "event_commands_per_map": 224.45145145145145,
+    "dialogue_chars_per_map": 1014.5725725725725,
+    "dialogue_chars_per_event": 105.23912366317101,
+    "choice_options_per_map": 3.8278278278278277,
+    "conditional_branches_per_map": 18.206206206206208,
+    "transfers_per_map": 4.431431431431432,
+    "battle_calls_per_map": 1.7947947947947949,
+    "shops_per_100_maps": 19.41941941941942,
+    "maps_with_events_ratio": 1.0
+  },
+  "progression": {
+    "random_encounter_map_ratio": 0.4914914914914915,
+    "encounter_step_median": 30.0,
+    "enemy_exp_median": 30.0,
+    "enemy_gold_median": 0.0,
+    "equipment_price_median": 1000.0
+  },
+  "system_evidence": {
+    "difficulty_slider_plugin": false,
+    "autosave_plugin": false,
+    "quest_journal_plugin": false,
+    "new_game_plus_plugin": false,
+    "speed_up_plugin": false,
+    "letbs_related_enabled_plugins": 0
+  },
+  "descriptors": [
+    {"id": "large_map_surface", "kind": "ABSOLUTE_HEURISTIC", "evidence": "maps=999"},
+    {"id": "heavy_event_scripting", "kind": "ABSOLUTE_HEURISTIC", "evidence": "event_commands=224227"},
+    {"id": "broad_database_surface", "kind": "ABSOLUTE_HEURISTIC", "evidence": "database_objects=3218"},
+    {"id": "dialogue_dense_absolute", "kind": "ABSOLUTE_HEURISTIC", "evidence": "dialogue_chars_per_map=1014.57"}
+  ],
+  "baseline": {
+    "status": "REAL_ORDINARY_RPG_BASELINE_PENDING",
+    "comparison": null
+  },
+  "publication_policy": {
+    "contains_game_binary": false,
+    "contains_private_drive_ids": false,
+    "contains_personal_fit": false,
+    "percentile_claims_require_compatible_baseline": true
+  }
+}

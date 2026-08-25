@@ -1,0 +1,95 @@
+{
+  "schema": "fangame.public_analysis.v0.1",
+  "descriptor_version": "fangame.public_descriptors.v0.2",
+  "identity": {
+    "game_id": "pokemon-sisyphus-unchained-current",
+    "title": "Pokemon Sisyphus Unchained",
+    "version": "current itch release",
+    "engine": "RPG Maker XP",
+    "sha256": "ebd2bc828f260eec89492105c8b8c2f369934386b7d63bdaab933cd45f61b8b7",
+    "bytes": 853993702,
+    "source_url": "https://socialistcubone.itch.io/sisyphus-unchained"
+  },
+  "reproducibility": {
+    "input_schema": "fangame.normalized_profile.v0.1",
+    "parser_family": "RGSS_MARSHAL",
+    "parser_version": "rpgmaker_rgss_normalized.v0.1",
+    "analysis_version": "fangame.public_descriptors.v0.2"
+  },
+  "observed": {
+    "maps": 209,
+    "events": 2688,
+    "event_pages": 3780,
+    "event_commands": 37350,
+    "dialogue_blocks": 4510,
+    "dialogue_lines": 6377,
+    "dialogue_chars": 222973,
+    "choice_options": 2020,
+    "conditional_branches": 1193,
+    "transfers": 500,
+    "battle_calls": 0,
+    "shops": 0,
+    "common_events": 10,
+    "actors": 1,
+    "classes": 1,
+    "skills": 1,
+    "items": 1,
+    "weapons": 1,
+    "armors": 1,
+    "enemies": 1,
+    "troops": 1,
+    "states": 1,
+    "image_count": 10114,
+    "audio_count": 1032
+  },
+  "derived": {
+    "events_per_map": 12.861244019138756,
+    "event_commands_per_map": 178.70813397129186,
+    "dialogue_chars_per_map": 1066.8564593301435,
+    "dialogue_chars_per_event": 82.95126488095238,
+    "choice_options_per_map": 9.665071770334928,
+    "conditional_branches_per_map": 5.708133971291866,
+    "transfers_per_map": 2.3923444976076556,
+    "battle_calls_per_map": 0.0,
+    "shops_per_100_maps": 0.0
+  },
+  "progression": {
+    "random_encounter_map_ratio": 0.0,
+    "encounter_step_median": null,
+    "enemy_exp_median": null,
+    "enemy_gold_median": null,
+    "equipment_price_median": null
+  },
+  "system_evidence": {
+    "rgss_marshal_probe": true,
+    "graph_probe": true,
+    "progression_probe": true,
+    "content_inference": true
+  },
+  "metric_semantics": [
+    "RGSS battle/shop/random-encounter counts describe native RPG Maker event/database structures. Script frameworks such as Pokemon Essentials can implement major systems outside those native slots, so native zero counts do not mean the game lacks those systems.",
+    "RGSS database object counts can be placeholders when a custom script framework keeps gameplay data in separate files or scripts; interpret very small native database counts conservatively."
+  ],
+  "descriptors": [
+    {
+      "id": "no_native_random_encounter_maps",
+      "kind": "OBSERVED_STRUCTURE",
+      "evidence": "random_encounter_map_ratio=0"
+    },
+    {
+      "id": "dialogue_dense_absolute",
+      "kind": "ABSOLUTE_HEURISTIC",
+      "evidence": "dialogue_chars_per_map=1066.86"
+    }
+  ],
+  "baseline": {
+    "status": "REAL_ORDINARY_RPG_BASELINE_PENDING",
+    "comparison": null
+  },
+  "publication_policy": {
+    "contains_game_binary": false,
+    "contains_private_drive_ids": false,
+    "contains_personal_fit": false,
+    "percentile_claims_require_compatible_baseline": true
+  }
+}

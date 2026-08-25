@@ -1,18 +1,6 @@
 name: Fangame Fetch
 
 on:
-  pull_request:
-    branches: [ master ]
-    paths:
-      - 'fangame_targets/**.json'
-      - 'tools/fangame_fetcher.py'
-      - 'tools/fangame_inspect.py'
-      - 'tools/fangame_smoke.py'
-      - 'tools/fangame_review_card.py'
-      - 'tools/rpgmaker_marshal_probe.rb'
-      - 'tools/rpgmaker_graph_probe.rb'
-      - 'tools/rpgmaker_progression_probe.rb'
-      - '.github/workflows/fangame-fetch.yml'
   workflow_dispatch:
 
 jobs:

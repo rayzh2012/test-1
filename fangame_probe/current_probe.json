@@ -1,0 +1,6 @@
+{
+  "sample_id": "pokemon-sisyphus-unchained-current",
+  "target": "fangame_targets/pokemon_sisyphus_unchained.json",
+  "purpose": "NEXT_FANGAME_GENOME",
+  "artifact_policy": "METRICS_AND_REPORTS_ONLY_NO_GAME_BINARY"
+}

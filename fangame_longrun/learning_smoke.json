@@ -1,0 +1,29 @@
+{
+  "schema": "fangame.learning_longrun_config.v0.1",
+  "mode": "DEATH_LEARNING_SMOKE_6M",
+  "game_id": "final-redemption-current",
+  "target": "fangame_targets/final_redemption_mv.json",
+  "decision_engine": "runtime_symbolic_agent_v0.3_failure_memory_checkpoint_replay",
+  "external_ai_api": false,
+  "local_llm": false,
+  "runner": "ubuntu-latest",
+  "paid_larger_runner": false,
+  "duration_minutes": 6,
+  "max_duration_minutes": 6,
+  "max_intro_confirms": 360,
+  "stall_seconds": 25,
+  "checkpoint_seconds": 120,
+  "autosave_seconds": 30,
+  "save_slot": 20,
+  "learning_window_actions": 120,
+  "package_identity": {
+    "itch_upload_id": "18933248",
+    "bytes": 1005262766,
+    "sha256": "1c51f198f51a1fb704f645d734f86b0a1807e00c2572e66c30a9781bf82875bc"
+  },
+  "regression_target": {
+    "prior_terminal": "LONGRUN_STOPPED_GAME_OVER",
+    "prior_death_seconds": 217.374,
+    "pass_if": "run exceeds prior death point and either recovers a death or remains alive with route progress"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "game_id": "ordinary-a-kings-son-v1.6",
+  "name": "A King's Son",
+  "version": "1.6",
+  "engine": "RPG Maker MV",
+  "corpus_role": "ordinary_rpg_reference",
+  "source_kind": "public_free_original_game",
+  "min_mb": 150,
+  "sources": [
+    "https://enzevil.itch.io/a-kings-son"
+  ],
+  "provenance_note": "Released free original RPG Maker MV game. Binary is analyzed transiently and is not committed to the public corpus."
+}

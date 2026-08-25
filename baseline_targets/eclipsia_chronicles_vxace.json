@@ -1,0 +1,11 @@
+{
+  "game_id": "ordinary-eclipsia-chronicles-vxace",
+  "name": "Eclipsia Chronicles",
+  "version": "current public release",
+  "engine": "RPG Maker VX Ace",
+  "corpus_role": "ordinary_rpg_reference",
+  "source_kind": "public_free_original_game",
+  "min_mb": 70,
+  "sources": ["https://sc37games.itch.io/eclipsia-chronicles"],
+  "provenance_note": "Released original RPG Maker VX Ace role-playing game on itch.io. Binary is analyzed transiently and is not committed to the public corpus."
+}

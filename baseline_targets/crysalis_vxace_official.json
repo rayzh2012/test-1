@@ -1,0 +1,12 @@
+{
+  "game_id": "ordinary-crysalis-vxace-official",
+  "name": "Crysalis",
+  "version": "official RPG Maker Web sample",
+  "engine": "RPG Maker VX Ace",
+  "corpus_role": "ordinary_rpg_reference",
+  "source_kind": "official_free_sample",
+  "sources": [
+    "https://dl.komodo.jp/rpgmakerweb/sample-games/crysalis.zip"
+  ],
+  "provenance_note": "Official RPG Maker Web sample game; free download. Binary is analyzed transiently and is not committed to the public corpus."
+}

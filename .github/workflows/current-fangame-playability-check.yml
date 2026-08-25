@@ -1,0 +1,145 @@
+name: Current Fangame Playability Check
+
+on:
+  pull_request:
+    paths:
+      - 'fangame_rescue/current_rescue.json'
+      - '.github/workflows/current-fangame-playability-check.yml'
+      - 'tools/fangame_fetcher.py'
+      - 'tools/fangame_inspect.py'
+      - 'tools/fangame_smoke.py'
+  workflow_dispatch:
+
+jobs:
+  playability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve current rescue target
+        id: cfg
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          c=json.load(open('fangame_rescue/current_rescue.json',encoding='utf-8'))
+          print('sample_id='+c['sample_id'])
+          print('target='+c['target'])
+          PY
+
+      - name: Fetch exact public package
+        shell: bash
+        run: |
+          rm -rf play_fetch play_work play_out
+          mkdir -p play_fetch play_work play_out
+          python3 tools/fangame_fetcher.py '${{ steps.cfg.outputs.target }}' -o play_fetch
+
+      - name: Enforce expected bytes and SHA256
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          cfg=json.load(open('fangame_rescue/current_rescue.json',encoding='utf-8'))
+          target=json.load(open(cfg['target'],encoding='utf-8'))
+          got=json.load(open('play_fetch/fetch_report.json',encoding='utf-8'))
+          eb=target.get('expected_bytes'); es=(target.get('expected_sha256') or '').lower() or None
+          if eb is not None and got.get('bytes') != eb:
+              raise SystemExit(f'BYTE_IDENTITY_MISMATCH expected={eb} got={got.get("bytes")}')
+          if es is not None and (got.get('sha256') or '').lower() != es:
+              raise SystemExit(f'SHA256_IDENTITY_MISMATCH expected={es} got={got.get("sha256")}')
+          print('PACKAGE_IDENTITY_VERIFIED')
+          PY
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            p7zip-full unar libarchive-tools ruby \
+            xvfb xdotool scrot imagemagick fonts-noto-cjk locales \
+            pulseaudio pulseaudio-utils wine wine64
+          sudo locale-gen zh_CN.UTF-8 || true
+
+      - name: Static inspect and extract
+        shell: bash
+        env:
+          LANG: zh_CN.UTF-8
+          LC_ALL: zh_CN.UTF-8
+        run: |
+          game=$(python3 - <<'PY'
+          import json
+          print(json.load(open('play_fetch/fetch_report.json',encoding='utf-8'))['file'])
+          PY
+          )
+          python3 tools/fangame_inspect.py \
+            "play_fetch/$game" \
+            --workdir play_work \
+            --out play_out/playability_static.json \
+            --graph-out play_out/rpgmaker_graph.json \
+            --progression-out play_out/rpgmaker_progression.json
+
+      - name: Boot confirm and input smoke
+        shell: bash
+        env:
+          LANG: zh_CN.UTF-8
+          LC_ALL: zh_CN.UTF-8
+        run: |
+          python3 tools/fangame_smoke.py \
+            --static play_out/playability_static.json \
+            --extract-root play_work/extract \
+            --outdir play_out/smoke
+
+      - name: Build playability verdict
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          root=pathlib.Path('play_out')
+          f=pathlib.Path('play_fetch/fetch_report.json')
+          fetch=json.load(open(f,encoding='utf-8')) if f.exists() else {}
+          s=root/'smoke'/'playability_smoke.json'
+          smoke=json.load(open(s,encoding='utf-8')) if s.exists() else {}
+          cls=smoke.get('playability_class') or 'PLAYABILITY_UNKNOWN'
+          verdict={
+            'schema':'fangame.playability_verdict.v0.1',
+            'package_bytes':fetch.get('bytes'),
+            'package_sha256':fetch.get('sha256'),
+            'engine':smoke.get('engine'),
+            'runtime':smoke.get('runtime'),
+            'status':smoke.get('status'),
+            'playability_class':cls,
+            'process_alive_boot':smoke.get('process_alive_boot'),
+            'visible_windows_boot':smoke.get('visible_windows_boot'),
+            'process_alive_after_confirm':smoke.get('process_alive_after_confirm'),
+            'process_alive_after_inputs':smoke.get('process_alive_after_inputs'),
+            'boot_to_confirm_changed_pixels':smoke.get('boot_to_confirm_changed_pixels'),
+            'confirm_to_movement_changed_pixels':smoke.get('confirm_to_movement_changed_pixels'),
+            'stage_evidence':smoke.get('stage_evidence',[]),
+            'notes':smoke.get('notes',[]),
+            'human_play_ready': cls in {'PLAYABILITY_VERIFIED_INPUT_FLOW','PLAYABILITY_VERIFIED_BOOT'},
+            'boundary':'CI smoke proves startup/input responsiveness only; it does not prove hours-long stability, save/load, battle completion, or absence of later softlocks.'
+          }
+          (root/'playability_verdict.json').write_text(json.dumps(verdict,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(verdict,ensure_ascii=False,indent=2))
+          PY
+
+      - name: Upload playability evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-fangame-playability-${{ steps.cfg.outputs.sample_id }}
+          path: |
+            play_fetch/fetch_report.json
+            play_fetch/SHA256.txt
+            play_out/playability_static.json
+            play_out/playability_verdict.json
+            play_out/smoke/playability_smoke.json
+            play_out/smoke/fangame_review_card.json
+            play_out/smoke/fangame_review_card.md
+            play_out/smoke/runtime.log
+            play_out/smoke/*.png
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 6

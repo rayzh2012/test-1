@@ -1,0 +1,59 @@
+{
+  "schema": "fangame.public_report_index.v0.1",
+  "reports": [
+    {
+      "game_id": "pokemon_unchosen_v1.5.10_eng_joiplay",
+      "title": "Pokémon Unchosen",
+      "version": "1.5.10 ENG JoiPlay",
+      "engine": "RPG Maker MV + LeTBS",
+      "json": "public_reports/pokemon_unchosen_v1.5.10_eng_joiplay.json",
+      "markdown": "public_reports/pokemon_unchosen_v1.5.10_eng_joiplay.md",
+      "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING"
+    },
+    {
+      "game_id": "final-redemption-current",
+      "title": "Final Redemption",
+      "version": "2026-08-16 current itch build",
+      "engine": "RPG Maker MV",
+      "sha256": "692ce84549b838c095c0f777b6085f2d9eeabdfe3a73c40431c061f8c8d68c3b",
+      "corpus_role": "fangame_deep_observation",
+      "source_status": "Prototype",
+      "json": "public_reports/final_redemption_current.json",
+      "markdown": "public_reports/final_redemption_current.md",
+      "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING"
+    },
+    {
+      "game_id": "pokemon-sisyphus-unchained-current",
+      "title": "Pokemon Sisyphus Unchained",
+      "version": "current itch release",
+      "engine": "RPG Maker XP",
+      "sha256": "ebd2bc828f260eec89492105c8b8c2f369934386b7d63bdaab933cd45f61b8b7",
+      "corpus_role": "fangame_deep_observation",
+      "json": "public_reports/pokemon_sisyphus_unchained_current.json",
+      "markdown": "public_reports/pokemon_sisyphus_unchained_current.md",
+      "baseline_status": "REAL_ORDINARY_RPG_BASELINE_PENDING"
+    },
+    {
+      "game_id": "pokemon-central-core-current-itch",
+      "title": "Pokémon Central Core",
+      "version": "Released / current itch lineage",
+      "engine": "RPG Maker XP",
+      "sha256": "5f81f7b2e386c6ef4520567e7057756b490d998556a4b153173aea9a4d89b80f",
+      "corpus_role": "fangame_opaque_observation",
+      "json": "public_reports/pokemon_central_core_opaque.json",
+      "markdown": "public_reports/pokemon_central_core_opaque.md",
+      "content_visibility": "OPAQUE_ENCRYPTED"
+    },
+    {
+      "game_id": "ordinary-a-kings-son-v1.6",
+      "title": "A King's Son",
+      "version": "1.6",
+      "engine": "RPG Maker MV",
+      "sha256": "4462623cec4ba1b840c4f942c065b35b4e6bf6f8eb8777f55cb019111c895091",
+      "corpus_role": "ordinary_rpg_reference",
+      "json": "public_reports/ordinary_a_kings_son_v1.6.json",
+      "markdown": "public_reports/ordinary_a_kings_son_v1.6.md",
+      "baseline_status": "MV_JSON_DRAFT_N1_NO_PRODUCTION_PERCENTILES"
+    }
+  ]
+}

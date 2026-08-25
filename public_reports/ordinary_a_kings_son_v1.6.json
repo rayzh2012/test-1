@@ -1,0 +1,89 @@
+{
+  "schema": "fangame.public_analysis.v0.1",
+  "descriptor_version": "fangame.public_descriptors.v0.1",
+  "identity": {
+    "game_id": "ordinary-a-kings-son-v1.6",
+    "title": "A King's Son",
+    "version": "1.6",
+    "engine": "RPG Maker MV",
+    "sha256": "4462623cec4ba1b840c4f942c065b35b4e6bf6f8eb8777f55cb019111c895091",
+    "bytes": 202420886,
+    "source_url": "https://enzevil.itch.io/a-kings-son"
+  },
+  "reproducibility": {
+    "input_schema": "fangame.normalized_profile.v0.1",
+    "parser_version": "ordinary-rpg-probe.v0.1",
+    "analysis_version": "fangame.public_descriptors.v0.1"
+  },
+  "observed": {
+    "maps": 23,
+    "events": 576,
+    "event_pages": 888,
+    "event_commands": 9666,
+    "dialogue_blocks": 1547,
+    "dialogue_lines": 3906,
+    "dialogue_chars": 89537,
+    "choice_commands": 72,
+    "choice_options": 149,
+    "conditional_branches": 201,
+    "transfers": 71,
+    "battle_calls": 25,
+    "shops": 5,
+    "common_events": 4,
+    "actors": 5,
+    "classes": 5,
+    "skills": 56,
+    "items": 25,
+    "weapons": 20,
+    "armors": 20,
+    "enemies": 15,
+    "troops": 20,
+    "states": 20,
+    "enabled_plugins": 3,
+    "total_plugins": 5,
+    "image_count": 176,
+    "audio_count": 136
+  },
+  "derived": {
+    "events_per_map": 25.043478260869566,
+    "event_commands_per_map": 420.2608695652174,
+    "dialogue_chars_per_map": 3892.913043478261,
+    "dialogue_chars_per_event": 155.44618055555554,
+    "choice_options_per_map": 6.478260869565218,
+    "conditional_branches_per_map": 8.73913043478261,
+    "transfers_per_map": 3.0869565217391304,
+    "battle_calls_per_map": 1.0869565217391304,
+    "shops_per_100_maps": 21.73913043478261,
+    "maps_with_events_ratio": 1.0
+  },
+  "progression": {
+    "random_encounter_map_ratio": 0.0,
+    "encounter_step_median": null,
+    "enemy_exp_median": 50.0,
+    "enemy_gold_median": 0.0,
+    "equipment_price_median": 600.0
+  },
+  "system_evidence": {
+    "difficulty_slider_plugin": false,
+    "autosave_plugin": false,
+    "quest_journal_plugin": false,
+    "new_game_plus_plugin": false,
+    "speed_up_plugin": false,
+    "letbs_related_enabled_plugins": 0
+  },
+  "descriptors": [
+    {"id": "no_native_random_encounter_maps", "kind": "OBSERVED_STRUCTURE", "evidence": "random_encounter_map_ratio=0"},
+    {"id": "scripted_or_event_driven_combat_structure", "kind": "DERIVED_STRUCTURE", "evidence": "battle_calls=25; random_encounter_map_ratio=0"},
+    {"id": "dialogue_dense_absolute", "kind": "ABSOLUTE_HEURISTIC", "evidence": "dialogue_chars_per_map=3892.91"}
+  ],
+  "baseline": {
+    "status": "REAL_ORDINARY_RPG_BASELINE_PENDING",
+    "comparison": null
+  },
+  "publication_policy": {
+    "contains_game_binary": false,
+    "contains_private_drive_ids": false,
+    "contains_personal_fit": false,
+    "percentile_claims_require_compatible_baseline": true
+  }
+}

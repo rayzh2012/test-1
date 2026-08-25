@@ -1,0 +1,1340 @@
+{
+  "schema": "fangame.mv_longrun_probe.v0.2",
+  "mode": "PROOF_OF_POSSIBILITY",
+  "game_id": "final-redemption-current",
+  "decision_engine": "runtime_symbolic_agent_v0.2_event_targeted_frontier_bfs",
+  "external_ai_api": false,
+  "requested_duration_minutes": 180,
+  "max_duration_minutes": 240,
+  "engine": "RPG Maker MV",
+  "index_html": "/home/runner/work/test-1/test-1/longrun_work/extract/Final Redemption/www/index.html",
+  "status": "LONGRUN_STOPPED_GAME_OVER",
+  "battle_verified": true,
+  "save_load_verified": false,
+  "long_run_3h_verified": false,
+  "long_run_4h_verified": false,
+  "index_uri": "file:///home/runner/work/test-1/test-1/longrun_work/extract/Final%20Redemption/www/index.html",
+  "console_tail": [
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    },
+    {
+      "type": "warning",
+      "text": "The provided value 'undefined' is not a valid enum value of type CanvasTextAlign."
+    }
+  ],
+  "page_errors": [],
+  "title_state": {
+    "scene": "Scene_Title",
+    "map_id": 0,
+    "map_size_error": "TypeError: Cannot read properties of null (reading 'width')",
+    "player_error": "TypeError: Cannot read properties of null (reading 'scrollType')",
+    "events": [],
+    "message_busy": false,
+    "choices": [],
+    "event_running": false,
+    "in_battle": false,
+    "party": [
+      {
+        "id": 1,
+        "hp": 900,
+        "mhp": 900,
+        "mp": 180,
+        "mmp": 180,
+        "dead": false
+      }
+    ]
+  },
+  "after_new_game_enter": {
+    "scene": "Scene_Map",
+    "map_id": 32,
+    "map_size": {
+      "width": 17,
+      "height": 13
+    },
+    "player": {
+      "x": 8,
+      "y": 6,
+      "direction": 2,
+      "moving": false,
+      "transparent": false,
+      "passable": {
+        "2": false,
+        "4": false,
+        "6": false,
+        "8": false
+      }
+    },
+    "events": [
+      {
+        "id": 1,
+        "x": 7,
+        "y": 5,
+        "name": "Intro",
+        "trigger": 3,
+        "priority": 0,
+        "through": false,
+        "erased": false,
+        "page_index": 0,
+        "has_transfer": true,
+        "has_battle": false,
+        "has_text": true,
+        "command_count": 71
+      }
+    ],
+    "message_busy": true,
+    "choices": [],
+    "event_running": true,
+    "in_battle": false,
+    "party": [
+      {
+        "id": 1,
+        "hp": 900,
+        "mhp": 900,
+        "mp": 180,
+        "mmp": 180,
+        "dead": false
+      }
+    ]
+  },
+  "first_idle_map": {
+    "confirm_index": 31,
+    "state": {
+      "scene": "Scene_Map",
+      "map_id": 2,
+      "map_size": {
+        "width": 30,
+        "height": 15
+      },
+      "player": {
+        "x": 14,
+        "y": 9,
+        "direction": 2,
+        "moving": false,
+        "transparent": false,
+        "passable": {
+          "2": true,
+          "4": false,
+          "6": true,
+          "8": true
+        }
+      },
+      "events": [
+        {
+          "id": 1,
+          "x": 25,
+          "y": 4,
+          "name": "EV001",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 12
+        },
+        {
+          "id": 2,
+          "x": 2,
+          "y": 3,
+          "name": "EV002",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 12
+        },
+        {
+          "id": 3,
+          "x": 1,
+          "y": 3,
+          "name": "EV003",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 12
+        },
+        {
+          "id": 5,
+          "x": 8,
+          "y": 0,
+          "name": "EV005",
+          "trigger": 1,
+          "priority": 0,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": true,
+          "has_battle": false,
+          "has_text": false,
+          "command_count": 3
+        },
+        {
+          "id": 6,
+          "x": 15,
+          "y": 4,
+          "name": "Kappa to Vargas comment",
+          "trigger": 1,
+          "priority": 0,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 16
+        },
+        {
+          "id": 7,
+          "x": 10,
+          "y": 7,
+          "name": "EV007",
+          "trigger": 1,
+          "priority": 0,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 36
+        },
+        {
+          "id": 8,
+          "x": 20,
+          "y": 3,
+          "name": "EV008",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 12
+        },
+        {
+          "id": 9,
+          "x": 13,
+          "y": 10,
+          "name": "EV009",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 12
+        },
+        {
+          "id": 10,
+          "x": 3,
+          "y": 4,
+          "name": "EV010",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 12
+        },
+        {
+          "id": 11,
+          "x": 5,
+          "y": 6,
+          "name": "EV011",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 12
+        },
+        {
+          "id": 12,
+          "x": 8,
+          "y": 1,
+          "name": "Magitek Walk Through 2",
+          "trigger": 1,
+          "priority": 0,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": false,
+          "command_count": 2
+        },
+        {
+          "id": 14,
+          "x": 7,
+          "y": 14,
+          "name": "EV014",
+          "trigger": 1,
+          "priority": 0,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": true,
+          "has_battle": false,
+          "has_text": false,
+          "command_count": 2
+        },
+        {
+          "id": 15,
+          "x": 8,
+          "y": 14,
+          "name": "EV015",
+          "trigger": 1,
+          "priority": 0,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": true,
+          "has_battle": false,
+          "has_text": false,
+          "command_count": 2
+        },
+        {
+          "id": 16,
+          "x": 9,
+          "y": 14,
+          "name": "EV016",
+          "trigger": 1,
+          "priority": 0,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": true,
+          "has_battle": false,
+          "has_text": false,
+          "command_count": 2
+        },
+        {
+          "id": 17,
+          "x": 15,
+          "y": 8,
+          "name": "Kappa",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 130
+        },
+        {
+          "id": 18,
+          "x": 26,
+          "y": 9,
+          "name": "EV018",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 12
+        },
+        {
+          "id": 19,
+          "x": 3,
+          "y": 5,
+          "name": "EV019",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 12
+        },
+        {
+          "id": 20,
+          "x": 27,
+          "y": 6,
+          "name": "EV020",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 12
+        },
+        {
+          "id": 21,
+          "x": 22,
+          "y": 2,
+          "name": "Kazus Gem Mine",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 150
+        },
+        {
+          "id": 22,
+          "x": 21,
+          "y": 7,
+          "name": "Pickaxe",
+          "trigger": 0,
+          "priority": 1,
+          "through": false,
+          "erased": false,
+          "page_index": 0,
+          "has_transfer": false,
+          "has_battle": false,
+          "has_text": true,
+          "command_count": 6
+        }
+      ],
+      "message_busy": false,
+      "choices": [],
+      "event_running": false,
+      "in_battle": false,
+      "party": [
+        {
+          "id": 1,
+          "hp": 900,
+          "mhp": 900,
+          "mp": 180,
+          "mmp": 180,
+          "dead": false
+        }
+      ]
+    }
+  },
+  "final_state": {
+    "scene": "Scene_Gameover",
+    "map_id": 6,
+    "map_size": {
+      "width": 21,
+      "height": 17
+    },
+    "player": {
+      "x": 10,
+      "y": 3,
+      "direction": 4,
+      "moving": false,
+      "transparent": false,
+      "passable": {
+        "2": false,
+        "4": true,
+        "6": true,
+        "8": true
+      }
+    },
+    "events": [
+      {
+        "id": 1,
+        "x": 2,
+        "y": 2,
+        "name": "EV001",
+        "trigger": 1,
+        "priority": 0,
+        "through": false,
+        "erased": false,
+        "page_index": 0,
+        "has_transfer": true,
+        "has_battle": false,
+        "has_text": false,
+        "command_count": 3
+      },
+      {
+        "id": 2,
+        "x": 10,
+        "y": 8,
+        "name": "EV002",
+        "trigger": 1,
+        "priority": 0,
+        "through": false,
+        "erased": false,
+        "page_index": 0,
+        "has_transfer": true,
+        "has_battle": false,
+        "has_text": false,
+        "command_count": 3
+      }
+    ],
+    "message_busy": false,
+    "choices": [],
+    "event_running": false,
+    "in_battle": false,
+    "party": [
+      {
+        "id": 1,
+        "hp": 0,
+        "mhp": 900,
+        "mp": 180,
+        "mmp": 180,
+        "dead": true
+      },
+      {
+        "id": 2,
+        "hp": 0,
+        "mhp": 791,
+        "mp": 124,
+        "mmp": 124,
+        "dead": true
+      }
+    ]
+  },
+  "page_still_open": true,
+  "elapsed_play_seconds": 217.374,
+  "actions": 459,
+  "unique_maps": [
+    2,
+    6
+  ],
+  "unique_map_count": 2,
+  "unique_position_count": 63,
+  "map_transitions": 9,
+  "coordinate_changes": 75,
+  "battle_starts": 4,
+  "battle_completions": 3,
+  "stalls_recovered": 3,
+  "nav_refreshes": 2,
+  "event_route_steps": 112,
+  "event_interactions": 5,
+  "frontier_steps": 0,
+  "scene_counts": {
+    "Scene_Map": 216,
+    "Scene_Battle": 243,
+    "Scene_Gameover": 1
+  },
+  "fatal_stop": "GAME_OVER",
+  "duration_reached": false,
+  "progress_observed": true,
+  "route_progress_verified": false,
+  "local_motion_only": false,
+  "github_run_id": "32627206944",
+  "github_run_attempt": "1",
+  "source_commit": "1cff377e128f26b15ab32635a46ca20fa5c5afc6",
+  "archived_by": "current-mv-longrun-free.yml"
+}
