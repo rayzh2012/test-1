@@ -1,0 +1,8 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
+@@ -102,3 +102,4 @@
+             }
+         }
+     }
++}
