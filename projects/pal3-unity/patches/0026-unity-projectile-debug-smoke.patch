@@ -30,23 +30,50 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs b/Asse
          {
 +            if (Keyboard.current.f7Key.wasPressedThisFrame)
 +            {
-+                StartProjectilePresentationSmoke();
++                ProjectilePresentationSmoke.Start(_projectilePresentationAdapter, _combatScene);
 +            }
 +
              if (Keyboard.current.escapeKey.wasPressedThisFrame)
              {
                  OnCombatFinished?.Invoke(this, new CombatResult
-@@ -257,5 +265,44 @@
-                 Pal3.Instance.StartCoroutine(fromController.StartNormalAttackAsync(toController, _combatScene));
-             }
-         }
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
+@@ -0,0 +1,70 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity manual runtime smoke harness for the first visible Projectile presentation slice.
++// ---------------------------------------------------------------------------------------------
 +
-+        private void StartProjectilePresentationSmoke()
++namespace Pal3.Game.GameSystems.Combat.Presentation
++{
++    using Actor.Controllers;
++    using Core.Contract.Enums;
++    using Domain;
++    using Engine.Logging;
++    using Scene;
++
++    /// <summary>
++    /// Presentation-only F7 smoke harness. It intentionally does not resolve combat truth.
++    /// The effect ids are known PAL3 VFX groups used only to prove the Unity playback pipeline;
++    /// they are not claimed to represent a specific original PAL3 spell.
++    /// </summary>
++    public static class ProjectilePresentationSmoke
++    {
++        public static void Start(
++            UnityProjectileSkillPresentationAdapter adapter,
++            CombatScene combatScene)
 +        {
++            if (adapter == null || combatScene == null)
++            {
++                EngineLogger.LogWarning("Projectile presentation smoke is unavailable before combat is loaded.");
++                return;
++            }
++
 +            CombatActorController caster =
-+                _combatScene.GetCombatActorController(ElementPosition.AllyWater);
++                combatScene.GetCombatActorController(ElementPosition.AllyWater);
 +            CombatActorController target =
-+                _combatScene.GetCombatActorController(ElementPosition.EnemyWater);
++                combatScene.GetCombatActorController(ElementPosition.EnemyWater);
 +
 +            if (caster == null || target == null)
 +            {
@@ -55,9 +82,6 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs b/Asse
 +                return;
 +            }
 +
-+            // These group ids are deliberately a visual smoke profile only. They are known PAL3
-+            // effect groups already referenced by EffectConstants.EffectSfxInfo, but they are not
-+            // asserted to belong to any specific original PAL3 skill.
 +            UnityProjectileVisualProfile profile = new(
 +                key: "debug.projectile.251",
 +                castEffectGroupId: 256,
@@ -71,13 +95,20 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs b/Asse
 +                visualProfileKey: profile.Key,
 +                cues: new[]
 +                {
-+                    new SkillPresentationCue(SkillPresentationCueKind.Cast, CombatEventKind.SkillCast),
-+                    new SkillPresentationCue(SkillPresentationCueKind.Travel, triggerEventKind: null),
-+                    new SkillPresentationCue(SkillPresentationCueKind.Impact, CombatEventKind.Damage, resolvedAmount: 1),
++                    new SkillPresentationCue(
++                        SkillPresentationCueKind.Cast,
++                        CombatEventKind.SkillCast),
++                    new SkillPresentationCue(
++                        SkillPresentationCueKind.Travel,
++                        triggerEventKind: null),
++                    new SkillPresentationCue(
++                        SkillPresentationCueKind.Impact,
++                        CombatEventKind.Damage,
++                        resolvedAmount: 1),
 +                });
 +
 +            Pal3.Instance.StartCoroutine(
-+                _projectilePresentationAdapter.PlayAsync(plan, profile, caster, target, _combatScene));
++                adapter.PlayAsync(plan, profile, caster, target, combatScene));
 +        }
-     }
- }
++    }
++}
