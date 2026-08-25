@@ -1,0 +1,68 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
+@@ -5,6 +5,7 @@
+ namespace Pal3.Game.GameSystems.Combat.Presentation
+ {
++    using System.Collections;
+     using Actor.Controllers;
+     using Core.Contract.Enums;
+     using Domain;
+@@ -17,6 +18,8 @@ namespace Pal3.Game.GameSystems.Combat.Presentation
+     /// </summary>
+     public static class ProjectilePresentationSmoke
+     {
++        private static bool _isRunning;
++
+         public static void Start(
+             UnityProjectileSkillPresentationAdapter adapter,
+             CombatScene combatScene)
+@@ -27,6 +30,13 @@ namespace Pal3.Game.GameSystems.Combat.Presentation
+                 return;
+             }
+ 
++            if (_isRunning)
++            {
++                EngineLogger.LogWarning(
++                    "Projectile presentation smoke is already running; duplicate F7 trigger ignored.");
++                return;
++            }
++
+             CombatActorController caster =
+                 combatScene.GetCombatActorController(ElementPosition.AllyWater);
+             CombatActorController target =
+@@ -65,8 +75,31 @@ namespace Pal3.Game.GameSystems.Combat.Presentation
+                         resolvedAmount: 1),
+                 });
+ 
+-            Pal3.Instance.StartCoroutine(
+-                adapter.PlayAsync(plan, profile, caster, target, combatScene));
++            _isRunning = true;
++            Pal3.Instance.StartCoroutine(
++                RunAsync(adapter, plan, profile, caster, target, combatScene));
++        }
++
++        private static IEnumerator RunAsync(
++            UnityProjectileSkillPresentationAdapter adapter,
++            SkillPresentationPlan plan,
++            UnityProjectileVisualProfile profile,
++            CombatActorController caster,
++            CombatActorController target,
++            CombatScene combatScene)
++        {
++            EngineLogger.Log(
++                "[PAL3-PRESENTATION] F7 projectile smoke started: " +
++                "profile=debug.procedural.projectile, caster=AllyWater, target=EnemyWater.");
++
++            try
++            {
++                yield return adapter.PlayAsync(plan, profile, caster, target, combatScene);
++            }
++            finally
++            {
++                _isRunning = false;
++                EngineLogger.Log("[PAL3-PRESENTATION] F7 projectile smoke completed.");
++            }
+         }
+     }
+ }
