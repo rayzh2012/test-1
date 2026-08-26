@@ -1,0 +1,136 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
+@@ -34,5 +36,6 @@ namespace Pal3.Game.GameSystems.Combat
+     public sealed class CombatResult
+     {
+         public bool IsPlayerWin { get; set; }
++        public CombatRewardSummary Rewards { get; set; } = CombatRewardSummary.Empty;
+         public CombatContext CombatContext { get; set; }
+     }
+@@ -60,5 +62,6 @@ namespace Pal3.Game.GameSystems.Combat
+         private CombatScene _combatScene;
+         private CombatContext _currentCombatContext;
+         private CombatRuntimeRegistry<CombatActorController> _runtimeCombatStates = new();
+         private readonly Dictionary<CombatActorController, CombatParty> _runtimeCombatParties = new();
++        private readonly List<CombatRewardSource> _enemyRewardSources = new();
+         private bool _combatFinishSignaled;
+@@ -137,4 +140,5 @@ namespace Pal3.Game.GameSystems.Combat
+             _runtimeCombatStates.Clear();
+             _runtimeCombatParties.Clear();
++            _enemyRewardSources.Clear();
+ 
+             // Stop combat music
+@@ -150,5 +154,6 @@ namespace Pal3.Game.GameSystems.Combat
+             _runtimeCombatStates = new CombatRuntimeRegistry<CombatActorController>();
+             _runtimeCombatParties.Clear();
++            _enemyRewardSources.Clear();
+             _combatFinishSignaled = false;
+ 
+             foreach ((ElementPosition elementPosition, CombatActorInfo actorInfo) in combatActors)
+@@ -168,5 +173,13 @@ namespace Pal3.Game.GameSystems.Combat
+                 _runtimeCombatParties[controller] = (int)elementPosition <= (int)ElementPosition.AllyCenter
+                     ? CombatParty.First
+                     : CombatParty.Enemy;
++                if (_runtimeCombatParties[controller] == CombatParty.Enemy)
++                {
++                    _enemyRewardSources.Add(new CombatRewardSource(
++                        actorInfo.Experience,
++                        actorInfo.MoneyWhenKilled,
++                        actorInfo.NormalLoot,
++                        actorInfo.NormalLootCount));
++                }
+                 controller.NormalAttackHit -= OnNormalAttackHit;
+                 controller.NormalAttackHit += OnNormalAttackHit;
+@@ -236,25 +259,30 @@ namespace Pal3.Game.GameSystems.Combat
+             switch (outcome)
+             {
+                 case CombatOutcomeStatus.PlayerWin:
+-                    SignalCombatFinished(isPlayerWin: true);
++                    SignalCombatFinished(
++                        isPlayerWin: true,
++                        rewards: CombatRewardResolver.Resolve(_enemyRewardSources));
+                     break;
+                 case CombatOutcomeStatus.PlayerLose:
+-                    SignalCombatFinished(isPlayerWin: false);
++                    SignalCombatFinished(
++                        isPlayerWin: false,
++                        rewards: CombatRewardSummary.Empty);
+                     break;
+                 case CombatOutcomeStatus.MutualDefeat:
+                     EngineLogger.LogWarning(
+                         "Combat reached mutual defeat; no PAL3 tie semantics are locked yet.");
+                     break;
+             }
+         }
+ 
+-        private void SignalCombatFinished(bool isPlayerWin)
++        private void SignalCombatFinished(bool isPlayerWin, CombatRewardSummary rewards)
+         {
+             if (_combatFinishSignaled) return;
+             _combatFinishSignaled = true;
+ 
+             OnCombatFinished?.Invoke(this, new CombatResult
+             {
+                 IsPlayerWin = isPlayerWin,
++                Rewards = rewards ?? throw new ArgumentNullException(nameof(rewards)),
+                 CombatContext = _currentCombatContext,
+             });
+@@ -292,6 +300,8 @@ namespace Pal3.Game.GameSystems.Combat
+             if (Keyboard.current.escapeKey.wasPressedThisFrame)
+             {
+                 EngineLogger.LogWarning("Debug combat finish forced by Escape key.");
+-                SignalCombatFinished(isPlayerWin: true);
++                SignalCombatFinished(
++                    isPlayerWin: true,
++                    rewards: CombatRewardSummary.Empty);
+                 return;
+             }
+ 
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs
+@@ -19,4 +19,5 @@ namespace Pal3.Game.GameSystems.Combat
+     using Core.Utilities;
+     using Data;
++    using Domain;
+     using Engine.Core.Abstraction;
+     using Engine.Logging;
+@@ -157,8 +158,9 @@ namespace Pal3.Game.GameSystems.Combat
+         private void OnCombatFinished(object sender, CombatResult combatResult)
+         {
+             _lastCombatPlayerWin = combatResult.IsPlayerWin;
+             _combatManager.ExitCombat();
++            ApplyCombatRewards(combatResult);
+             combatResult.CombatContext.ScriptWaiter?.CancelWait();
+             _combatContextBuilder.ResetContext();
+ 
+             if (combatResult.IsPlayerWin || combatResult.CombatContext.IsNoGameOverWhenLose)
+@@ -174,5 +178,27 @@ namespace Pal3.Game.GameSystems.Combat
+                 Pal3.Instance.Execute(new GameSwitchToMainMenuCommand());
+             }
+         }
+ 
++        private static void ApplyCombatRewards(CombatResult combatResult)
++        {
++            if (!combatResult.IsPlayerWin) return;
++
++            CombatRewardSummary rewards = combatResult.Rewards;
++            if (rewards.Money > 0)
++            {
++                Pal3.Instance.Execute(new InventoryAddMoneyCommand(rewards.Money));
++            }
++
++            foreach ((uint itemId, int count) in rewards.Items)
++            {
++                Pal3.Instance.Execute(new InventoryAddItemCommand(checked((int)itemId), count));
++            }
++
++            if (rewards.Experience > 0)
++            {
++                EngineLogger.LogWarning(
++                    $"Combat EXP reward pending persistent actor-stat support: {rewards.Experience}");
++            }
++        }
++
+         private string GetCombatSceneName(GameScene currentScene)
