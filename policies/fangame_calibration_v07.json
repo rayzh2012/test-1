@@ -8,6 +8,11 @@
     "4": "Severe: long repetitive farming/level/economy loops are a central progression requirement and dominate substantial portions of the main path."
   },
   "context_rule": "A grind or hours label is never universal without its difficulty, speed-up, cheat/debug and completion context. Distinct materially different contexts should be separate label records, not averaged into one fact.",
+  "baseline_training_context": {
+    "cheats_or_debug_used": false,
+    "speedup_used": false,
+    "note": "v0.7 baseline models do not yet consume play-context features. Labels collected with speed-up or cheats remain valuable but are CONTEXTUAL_ONLY until a context-conditioned model exists."
+  },
   "hours_quality": {
     "direct_training_basis": ["MEASURED_SESSION_SUM", "COMPLETION_SELF_REPORT"],
     "reference_only_basis": ["AUTHOR_STATED_RANGE", "COMMUNITY_REPORTED_RANGE", "GUIDE_DERIVED_RANGE"],
