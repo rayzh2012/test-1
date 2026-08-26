@@ -1,8 +1,9 @@
 diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatOutcomeResolver.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatOutcomeResolver.cs
 new file mode 100644
+index 0000000..e6067e9
 --- /dev/null
 +++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatOutcomeResolver.cs
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,66 @@
 +// ---------------------------------------------------------------------------------------------
 +//  PAL3.Unity deterministic encounter outcome resolution.
 +// ---------------------------------------------------------------------------------------------
@@ -71,9 +72,10 @@ new file mode 100644
 +}
 +diff --git a/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs b/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs
 +new file mode 100644
++index 0000000..ecc8151
 +--- /dev/null
 ++++ b/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs
-+@@ -0,0 +1,93 @@
++@@ -0,0 +1,88 @@
 ++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
 ++{
 ++    using System;
