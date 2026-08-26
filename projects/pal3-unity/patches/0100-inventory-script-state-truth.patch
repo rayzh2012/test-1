@@ -1,0 +1,43 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Inventory/InventoryManager.cs b/Assets/Scripts/Pal3.Game/GameSystems/Inventory/InventoryManager.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Inventory/InventoryManager.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Inventory/InventoryManager.cs
+@@ -60,16 +60,7 @@
+ 
+         public bool HaveItem(int itemId)
+         {
+-            // TODO: Remove this
+-            {
+-                if (_gameItemInfos.ContainsKey(itemId) &&
+-                    _gameItemInfos[itemId].Type == ItemType.Plot)
+-                {
+-                    return true;
+-                }
+-            }
+-
+-            return _items.ContainsKey(itemId);
++            return _items.TryGetValue(itemId, out int count) && count > 0;
+         }
+ 
+         public int GetTotalMoney()
+diff --git a/Assets/Scripts/Pal3.Game/Script/UserVariableManager.cs b/Assets/Scripts/Pal3.Game/Script/UserVariableManager.cs
+--- a/Assets/Scripts/Pal3.Game/Script/UserVariableManager.cs
++++ b/Assets/Scripts/Pal3.Game/Script/UserVariableManager.cs
+@@ -20,6 +20,7 @@
+     using Engine.Services;
+     using GameSystems.Dialogue;
+     using GameSystems.Favor;
++    using GameSystems.Inventory;
+     using GameSystems.MiniGames;
+     using Scene;
+     using State;
+@@ -139,9 +140,7 @@
+ 
+         public void Execute(ScriptVarSetMoneyCommand command)
+         {
+-            // TODO: Remove this and uncomment the following line
+-            int totalMoney = 777777;
+-            // var totalMoney = ServiceLocator.Instance.Get<InventoryManager>().GetTotalMoney();
++            int totalMoney = ServiceLocator.Instance.Get<InventoryManager>().GetTotalMoney();
+             Set(command.Variable, totalMoney);
+         }
+ 
