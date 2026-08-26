@@ -38,9 +38,26 @@ def main() -> int:
     script_runner = read(workspace, "Assets/Scripts/Pal3.Game/Script/PalScriptRunner.cs")
     save_manager = read(workspace, "Assets/Scripts/Pal3.Game/State/SaveManager.cs")
     money_command = read(workspace, "Assets/Scripts/Pal3.Core/Command/SceCommands/ScriptVarSetMoneyCommand.cs")
+    combat_result_command = read(
+        workspace,
+        "Assets/Scripts/Pal3.Core/Command/SceCommands/ScriptVarSetCombatResultCommand.cs",
+    )
+    combat_manager = read(
+        workspace,
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs",
+    )
+    combat_coordinator = read(
+        workspace,
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs",
+    )
+    combat_outcome = read(
+        workspace,
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatOutcomeResolver.cs",
+    )
 
     checks: list[dict] = []
 
+    # Inventory / money truth.
     check_contains(
         checks,
         inventory,
@@ -85,11 +102,76 @@ def main() -> int:
         "new InventoryAddItemCommand(item.Key, item.Value)",
     )
 
+    # Combat-result truth.
+    check_contains(
+        checks,
+        combat_result_command,
+        "sce_command_132_semantics_are_zero_lose_one_win",
+        "取得战斗结果（0输1赢）并赋值给变量",
+    )
+    check_contains(
+        checks,
+        combat_outcome,
+        "combat_outcome_reads_domain_alive_state",
+        "member.Party == CombatParty.Enemy && member.State.IsAlive",
+    )
+    check_contains(
+        checks,
+        combat_manager,
+        "combat_manager_resolves_terminal_outcome_from_runtime_state",
+        "CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(members);",
+    )
+    check_contains(
+        checks,
+        combat_manager,
+        "combat_manager_signals_real_player_loss",
+        "SignalCombatFinished(isPlayerWin: false);",
+    )
+    check_contains(
+        checks,
+        combat_coordinator,
+        "combat_coordinator_persists_last_result_before_script_resume",
+        "_lastCombatPlayerWin = combatResult.IsPlayerWin;",
+    )
+    check_contains(
+        checks,
+        combat_coordinator,
+        "combat_loss_can_resume_when_no_game_over_flag_is_set",
+        "combatResult.IsPlayerWin || combatResult.CombatContext.IsNoGameOverWhenLose",
+    )
+    check_contains(
+        checks,
+        variables,
+        "script_combat_result_reads_coordinator_state",
+        "combatCoordinator.TryGetLastCombatResult(out bool isPlayerWin)",
+    )
+    check_absent(
+        checks,
+        variables,
+        "script_combat_result_has_no_random_win_loss_stub",
+        "你战胜了重楼",
+    )
+    check_absent(
+        checks,
+        variables,
+        "script_combat_result_has_no_random_pal3a_stub",
+        "你战胜了景小楼",
+    )
+    check_contains(
+        checks,
+        combat_manager,
+        "escape_finish_is_explicitly_debug_labeled",
+        "Debug combat finish forced by Escape key.",
+    )
+
     failed = [item for item in checks if not item["pass"]]
     report = {
-        "schema_version": "pal3_state_truth_gate.v0.1",
+        "schema_version": "pal3_state_truth_gate.v0.2",
         "status": "PASS" if not failed else "FAIL",
-        "verification_boundary": "source-contract verification after ordered patch replay; not a Unity runtime playthrough",
+        "verification_boundary": (
+            "source-contract verification after ordered patch replay; pure combat-outcome domain "
+            "is separately compiled/tested by Fast Lane; not a Unity runtime playthrough"
+        ),
         "checks": checks,
     }
 
