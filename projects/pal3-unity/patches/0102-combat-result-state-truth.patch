@@ -1,0 +1,204 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
+@@ -60,7 +60,9 @@ namespace Pal3.Game.GameSystems.Combat
+         private CombatScene _combatScene;
+         private CombatContext _currentCombatContext;
+         private CombatRuntimeRegistry<CombatActorController> _runtimeCombatStates = new();
++        private readonly Dictionary<CombatActorController, CombatParty> _runtimeCombatParties = new();
++        private bool _combatFinishSignaled;
+ 
+         public CombatManager(GameResourceProvider resourceProvider,
+             TeamManager teamManager,
+@@ -135,6 +137,7 @@ namespace Pal3.Game.GameSystems.Combat
+             }
+ 
+             _runtimeCombatStates.Clear();
++            _runtimeCombatParties.Clear();
+ 
+             // Stop combat music
+             Pal3.Instance.Execute(new StopScriptMusicCommand());
+@@ -145,6 +148,8 @@ namespace Pal3.Game.GameSystems.Combat
+         private void InitializeRuntimeCombatState(Dictionary<ElementPosition, CombatActorInfo> combatActors)
+         {
+             _runtimeCombatStates = new CombatRuntimeRegistry<CombatActorController>();
++            _runtimeCombatParties.Clear();
++            _combatFinishSignaled = false;
+ 
+             foreach ((ElementPosition elementPosition, CombatActorInfo actorInfo) in combatActors)
+             {
+@@ -160,6 +165,9 @@ namespace Pal3.Game.GameSystems.Combat
+                     controller,
+                     new CombatantState(maxHp: hp, attack: attack, defense: defense));
+ 
++                _runtimeCombatParties[controller] = (int)elementPosition <= (int)ElementPosition.AllyCenter
++                    ? CombatParty.First
++                    : CombatParty.Enemy;
+                 controller.NormalAttackHit -= OnNormalAttackHit;
+                 controller.NormalAttackHit += OnNormalAttackHit;
+             }
+@@ -197,6 +205,53 @@ namespace Pal3.Game.GameSystems.Combat
+                 $"targetHp={targetState.CurrentHp}/{targetState.MaxHp}, " +
+                 $"defeated={resolution.IsTargetDefeated}");
++
++            if (resolution.IsTargetDefeated)
++            {
++                TryFinishCombatFromRuntimeState();
++            }
++        }
++
++        private void TryFinishCombatFromRuntimeState()
++        {
++            if (_combatFinishSignaled) return;
++
++            List<CombatOutcomeMember> members = new();
++            foreach (CombatActorController controller in _runtimeCombatStates.Keys)
++            {
++                members.Add(new CombatOutcomeMember(
++                    _runtimeCombatParties[controller],
++                    _runtimeCombatStates.Get(controller)));
++            }
++
++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(members);
++            switch (outcome)
++            {
++                case CombatOutcomeStatus.PlayerWin:
++                    SignalCombatFinished(isPlayerWin: true);
++                    break;
++                case CombatOutcomeStatus.PlayerLose:
++                    SignalCombatFinished(isPlayerWin: false);
++                    break;
++                case CombatOutcomeStatus.MutualDefeat:
++                    EngineLogger.LogWarning(
++                        "Combat reached mutual defeat; no PAL3 tie semantics are locked yet.");
++                    break;
++            }
++        }
++
++        private void SignalCombatFinished(bool isPlayerWin)
++        {
++            if (_combatFinishSignaled) return;
++            _combatFinishSignaled = true;
++
++            OnCombatFinished?.Invoke(this, new CombatResult
++            {
++                IsPlayerWin = isPlayerWin,
++                CombatContext = _currentCombatContext,
++            });
+         }
+ 
+         private void SetCameraPosition(CombatCameraConfig config)
+@@ -239,12 +294,10 @@ namespace Pal3.Game.GameSystems.Combat
+         {
+             if (Keyboard.current.escapeKey.wasPressedThisFrame)
+             {
+-                OnCombatFinished?.Invoke(this, new CombatResult
+-                {
+-                    IsPlayerWin = true,
+-                    CombatContext = _currentCombatContext,
+-                });
++                EngineLogger.LogWarning("Debug combat finish forced by Escape key.");
++                SignalCombatFinished(isPlayerWin: true);
++                return;
+             }
+ 
+             CombatActorController fromController = null;
+ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs
+@@ -47,6 +47,7 @@ namespace Pal3.Game.GameSystems.Combat
+ 
+         private readonly CombatScnFile _combatScnFile;
+         private readonly CombatContextBuilder _combatContextBuilder = new();
++        private bool? _lastCombatPlayerWin;
+ 
+         public CombatCoordinator(GameResourceProvider resourceProvider,
+             GameSettings gameSettings,
+@@ -78,6 +79,18 @@ namespace Pal3.Game.GameSystems.Combat
+             CommandExecutorRegistry<ICommand>.Instance.UnRegister(this);
+         }
+ 
++        public bool TryGetLastCombatResult(out bool isPlayerWin)
++        {
++            if (_lastCombatPlayerWin.HasValue)
++            {
++                isPlayerWin = _lastCombatPlayerWin.Value;
++                return true;
++            }
++
++            isPlayerWin = false;
++            return false;
++        }
++
+         private void StartCombat()
+         {
+             if (!_gameSettings.IsTurnBasedCombatEnabled) return;
+@@ -115,6 +128,7 @@ namespace Pal3.Game.GameSystems.Combat
+             CombatContext combatContext = _combatContextBuilder.Build();
+ 
+             // Start combat
++            _lastCombatPlayerWin = null;
+             EngineLogger.LogWarning($"Starting combat with context: {combatContext}");
+             _gameStateManager.TryGoToState(GameState.Combat);
+             _combatManager.EnterCombat(combatContext);
+@@ -122,13 +136,15 @@ namespace Pal3.Game.GameSystems.Combat
+ 
+         private void OnCombatFinished(object sender, CombatResult combatResult)
+         {
++            _lastCombatPlayerWin = combatResult.IsPlayerWin;
+             _combatManager.ExitCombat();
+             combatResult.CombatContext.ScriptWaiter?.CancelWait();
+             _combatContextBuilder.ResetContext();
+ 
+-            if (combatResult.IsPlayerWin)
++            if (combatResult.IsPlayerWin || combatResult.CombatContext.IsNoGameOverWhenLose)
+             {
+                 _gameStateManager.GoToPreviousState();
+             }
+@@ -225,6 +241,7 @@ namespace Pal3.Game.GameSystems.Combat
+         public void Execute(ResetGameStateCommand command)
+         {
+             _combatContextBuilder.ResetContext();
++            _lastCombatPlayerWin = null;
+         }
+ 
+         // Player actor collides with combat NPC in maze
+ diff --git a/Assets/Scripts/Pal3.Game/Script/UserVariableManager.cs b/Assets/Scripts/Pal3.Game/Script/UserVariableManager.cs
+--- a/Assets/Scripts/Pal3.Game/Script/UserVariableManager.cs
++++ b/Assets/Scripts/Pal3.Game/Script/UserVariableManager.cs
+@@ -18,6 +18,7 @@ namespace Pal3.Game.Script
+     using Core.Utilities;
+     using Engine.Logging;
+     using Engine.Services;
++    using GameSystems.Combat;
+     using GameSystems.Dialogue;
+     using GameSystems.Favor;
+     using GameSystems.Inventory;
+@@ -183,18 +184,15 @@ namespace Pal3.Game.Script
+         #endif
+ 
+-        // TODO: Impl
+         public void Execute(ScriptVarSetCombatResultCommand command)
+         {
+-            bool won = RandomGenerator.Range(0f, 1f) > 0.35f;
+-            #if PAL3
+-            Pal3.Instance.Execute(won
+-                ? new UIDisplayNoteCommand("你战胜了重楼")
+-                : new UIDisplayNoteCommand("你输给了重楼"));
+-            #elif PAL3A
+-            Pal3.Instance.Execute(won
+-                ? new UIDisplayNoteCommand("你战胜了景小楼")
+-                : new UIDisplayNoteCommand("你输给了景小楼"));
+-            #endif
+-            Set(command.Variable, won ? 1 : 0);
++            CombatCoordinator combatCoordinator = ServiceLocator.Instance.Get<CombatCoordinator>();
++            if (!combatCoordinator.TryGetLastCombatResult(out bool isPlayerWin))
++            {
++                throw new InvalidOperationException(
++                    "No completed combat result is available for ScriptVarSetCombatResultCommand.");
++            }
++
++            Set(command.Variable, isPlayerWin ? 1 : 0);
+         }
+ 
+         public void Execute(ResetGameStateCommand command)
