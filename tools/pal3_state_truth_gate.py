@@ -54,6 +54,10 @@ def main() -> int:
         workspace,
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatOutcomeResolver.cs",
     )
+    combat_reward = read(
+        workspace,
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatRewardResolver.cs",
+    )
 
     checks: list[dict] = []
 
@@ -125,7 +129,7 @@ def main() -> int:
         checks,
         combat_manager,
         "combat_manager_signals_real_player_loss",
-        "SignalCombatFinished(isPlayerWin: false);",
+        "isPlayerWin: false,\n                        rewards: CombatRewardSummary.Empty",
     )
     check_contains(
         checks,
@@ -164,13 +168,75 @@ def main() -> int:
         "Debug combat finish forced by Escape key.",
     )
 
+    # Combat reward truth.
+    check_contains(
+        checks,
+        combat_reward,
+        "reward_domain_uses_checked_money_aggregation",
+        "money = checked(money + source.Money);",
+    )
+    check_contains(
+        checks,
+        combat_manager,
+        "enemy_reward_sources_use_gdb_experience",
+        "actorInfo.Experience,",
+    )
+    check_contains(
+        checks,
+        combat_manager,
+        "enemy_reward_sources_use_gdb_money_when_killed",
+        "actorInfo.MoneyWhenKilled,",
+    )
+    check_contains(
+        checks,
+        combat_manager,
+        "enemy_reward_sources_use_gdb_normal_loot",
+        "actorInfo.NormalLoot,",
+    )
+    check_contains(
+        checks,
+        combat_manager,
+        "real_player_win_resolves_rewards",
+        "rewards: CombatRewardResolver.Resolve(_enemyRewardSources)",
+    )
+    check_contains(
+        checks,
+        combat_manager,
+        "debug_escape_cannot_generate_rewards",
+        "Debug combat finish forced by Escape key.\");\n                SignalCombatFinished(\n                    isPlayerWin: true,\n                    rewards: CombatRewardSummary.Empty",
+    )
+    check_contains(
+        checks,
+        combat_coordinator,
+        "combat_reward_settlement_requires_player_win",
+        "if (!combatResult.IsPlayerWin) return;",
+    )
+    check_contains(
+        checks,
+        combat_coordinator,
+        "combat_money_reward_enters_inventory_command_bus",
+        "new InventoryAddMoneyCommand(rewards.Money)",
+    )
+    check_contains(
+        checks,
+        combat_coordinator,
+        "combat_loot_reward_enters_inventory_command_bus",
+        "new InventoryAddItemCommand(checked((int)itemId), count)",
+    )
+    check_contains(
+        checks,
+        combat_coordinator,
+        "combat_exp_is_explicitly_pending_persistent_actor_stats",
+        "Combat EXP reward pending persistent actor-stat support",
+    )
+
     failed = [item for item in checks if not item["pass"]]
     report = {
-        "schema_version": "pal3_state_truth_gate.v0.2",
+        "schema_version": "pal3_state_truth_gate.v0.3",
         "status": "PASS" if not failed else "FAIL",
         "verification_boundary": (
-            "source-contract verification after ordered patch replay; pure combat-outcome domain "
-            "is separately compiled/tested by Fast Lane; not a Unity runtime playthrough"
+            "source-contract verification after ordered patch replay; pure combat outcome and reward "
+            "domains are separately compiled/tested by Fast Lane; not a Unity runtime playthrough"
         ),
         "checks": checks,
     }
