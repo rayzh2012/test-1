@@ -4,7 +4,7 @@ import collections
 import json
 from pathlib import Path
 
-AUDIT_VERSION = "fangame.calibration.audit.v0.7"
+AUDIT_VERSION = "fangame.calibration.audit.v0.8"
 
 
 def load(path):
@@ -34,6 +34,8 @@ def semantic_errors(rec):
             errors.append("hours labeled with UNKNOWN basis/confidence")
         if not hours.get("evidence_refs"):
             errors.append("hours labeled without evidence_refs")
+    elif any(hours.get(k) is not None for k in ("min_hours", "max_hours", "measured_hours")):
+        errors.append("hours UNKNOWN but numeric hours are populated")
 
     if grind.get("status") == "LABELED":
         if grind.get("ordinal") is None:
@@ -94,8 +96,7 @@ def readiness(records, kind, policy):
         reasons.append(f"distinct_games {len(games)} < {gate['min_distinct_games']}")
     ordinal_classes = []
     if kind == "grind":
-        ordinal_classes = sorted({(r.get("labels") or {}).get("grind_pressure", {}).get("ordinal") for r in direct})
-        ordinal_classes = [x for x in ordinal_classes if x is not None]
+        ordinal_classes = sorted({(r.get("labels") or {}).get("grind_pressure", {}).get("ordinal") for r in direct if (r.get("labels") or {}).get("grind_pressure", {}).get("ordinal") is not None})
         if len(ordinal_classes) < gate["min_distinct_ordinal_classes"]:
             reasons.append(f"ordinal_classes {len(ordinal_classes)} < {gate['min_distinct_ordinal_classes']}")
     return {
@@ -105,6 +106,43 @@ def readiness(records, kind, policy):
         "distinct_ordinal_classes": ordinal_classes if kind == "grind" else None,
         "blocking_reasons": reasons,
     }
+
+
+def build_game_index(records, policy):
+    out = {}
+    for rec in records:
+        ident = rec.get("identity") or {}
+        gid = str(ident.get("game_id"))
+        if not gid or gid == "None":
+            continue
+        entry = out.setdefault(gid, {
+            "title": ident.get("title"),
+            "versions": [],
+            "sha256": [],
+            "label_records": 0,
+            "hours_classes": [],
+            "grind_classes": [],
+            "has_direct_hours": False,
+            "has_direct_grind": False,
+            "has_any_hours_label": False,
+            "has_any_grind_label": False,
+        })
+        entry["label_records"] += 1
+        for key in ("version", "sha256"):
+            v = ident.get(key)
+            dest = "versions" if key == "version" else "sha256"
+            if v and v not in entry[dest]:
+                entry[dest].append(v)
+        hc = label_class(rec, "hours", policy); gc = label_class(rec, "grind", policy)
+        if hc not in entry["hours_classes"]: entry["hours_classes"].append(hc)
+        if gc not in entry["grind_classes"]: entry["grind_classes"].append(gc)
+        if hc == "DIRECT_TRAINING": entry["has_direct_hours"] = True
+        if gc == "DIRECT_TRAINING": entry["has_direct_grind"] = True
+        if hc != "UNLABELED": entry["has_any_hours_label"] = True
+        if gc != "UNLABELED": entry["has_any_grind_label"] = True
+    for entry in out.values():
+        entry["hours_classes"].sort(); entry["grind_classes"].sort(); entry["versions"].sort(); entry["sha256"].sort()
+    return dict(sorted(out.items()))
 
 
 def main():
@@ -168,13 +206,14 @@ def main():
         "label_classes": {k: dict(v) for k, v in classes.items()},
         "hours_readiness": readiness(records, "hours", policy),
         "grind_readiness": readiness(records, "grind", policy),
+        "game_index": build_game_index(records, policy),
         "context_partitions": [
             {"completion_scope": k[0], "speedup_used": k[1], "cheats_or_debug_used": k[2], "records": n}
             for k, n in sorted(context_counts.items(), key=lambda kv: (-kv[1], str(kv[0])))
         ],
         "invalid": invalid,
         "policy_note": policy.get("readiness_note"),
-        "training_boundary": "Only DIRECT_TRAINING labels count toward v0.7 baseline readiness. REFERENCE_ONLY, CONTEXTUAL_ONLY and EXPERIMENTAL records remain preserved but do not open the calibration gate.",
+        "training_boundary": "Only DIRECT_TRAINING labels count toward baseline readiness. REFERENCE_ONLY, CONTEXTUAL_ONLY and EXPERIMENTAL records remain preserved and are exposed through game_index without contaminating canonical Feature Store evidence.",
     }
     Path(args.out).write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
