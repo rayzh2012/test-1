@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rayzh2012/test-1/schemas/fangame_calibration_label_v07.schema.json",
+  "title": "Fangame Calibration Label v0.7",
+  "type": "object",
+  "required": ["schema_version", "identity", "context", "labels", "provenance", "audit"],
+  "properties": {
+    "schema_version": {"const": "fangame.calibration.v0.7"},
+    "identity": {
+      "type": "object",
+      "required": ["game_id", "title"],
+      "properties": {
+        "game_id": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "version": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-fA-F]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "context": {
+      "type": "object",
+      "required": ["completion_scope", "difficulty", "speedup_used", "cheats_or_debug_used"],
+      "properties": {
+        "completion_scope": {"enum": ["MAIN_STORY_COMPLETE", "FULL_COMPLETION", "PARTIAL_PLAY", "AUTHOR_STATEMENT", "COMMUNITY_REPORT", "GUIDE_REVIEW", "AUTOMATED_LONGRUN"]},
+        "difficulty": {"type": ["string", "null"]},
+        "speedup_used": {"type": ["boolean", "null"]},
+        "speed_multiplier": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "cheats_or_debug_used": {"type": ["boolean", "null"]},
+        "exp_or_difficulty_mode": {"type": ["string", "null"]},
+        "optional_content_scope": {"type": ["string", "null"]},
+        "platform_runtime": {"type": ["string", "null"]},
+        "notes": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "labels": {
+      "type": "object",
+      "required": ["main_story_hours", "grind_pressure"],
+      "properties": {
+        "main_story_hours": {
+          "$ref": "#/$defs/hourLabel"
+        },
+        "grind_pressure": {
+          "$ref": "#/$defs/grindLabel"
+        },
+        "verified_sidequest_count": {
+          "type": ["object", "null"],
+          "properties": {
+            "value": {"type": "integer", "minimum": 0},
+            "basis": {"enum": ["PLAYTHROUGH_VERIFIED", "AUTHOR_DOCUMENTED", "GUIDE_VERIFIED"]},
+            "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
+            "evidence_refs": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["value", "basis", "confidence", "evidence_refs"],
+          "additionalProperties": false
+        },
+        "verified_ending_count": {
+          "type": ["object", "null"],
+          "properties": {
+            "value": {"type": "integer", "minimum": 1},
+            "basis": {"enum": ["PLAYTHROUGH_VERIFIED", "AUTHOR_DOCUMENTED", "GUIDE_VERIFIED"]},
+            "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
+            "evidence_refs": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["value", "basis", "confidence", "evidence_refs"],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["label_source_type", "source_ref"],
+      "properties": {
+        "label_source_type": {"enum": ["MEASURED_PLAY_SESSION", "SELF_REPORT", "AUTHOR_STATEMENT", "COMMUNITY_REPORT", "GUIDE_SYNTHESIS", "AUTOMATED_LONGRUN_REVIEW"]},
+        "source_ref": {"type": "string", "minLength": 1},
+        "rater_id": {"type": ["string", "null"]},
+        "source_date": {"type": ["string", "null"], "format": "date"},
+        "notes": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "audit": {
+      "type": "object",
+      "required": ["rubric_version", "created_at_utc"],
+      "properties": {
+        "rubric_version": {"const": "fangame.calibration.rubric.v0.7"},
+        "created_at_utc": {"type": "string", "format": "date-time"},
+        "label_record_id": {"type": ["string", "null"]},
+        "review_status": {"enum": ["DRAFT", "REVIEWED", "ACCEPTED", "REJECTED"]},
+        "review_notes": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "hourLabel": {
+      "type": "object",
+      "required": ["status", "basis", "confidence", "evidence_refs"],
+      "properties": {
+        "status": {"enum": ["LABELED", "UNKNOWN"]},
+        "min_hours": {"type": ["number", "null"], "minimum": 0},
+        "max_hours": {"type": ["number", "null"], "minimum": 0},
+        "measured_hours": {"type": ["number", "null"], "minimum": 0},
+        "basis": {"enum": ["MEASURED_SESSION_SUM", "COMPLETION_SELF_REPORT", "AUTHOR_STATED_RANGE", "COMMUNITY_REPORTED_RANGE", "GUIDE_DERIVED_RANGE", "UNKNOWN"]},
+        "confidence": {"enum": ["HIGH", "MEDIUM", "LOW", "UNKNOWN"]},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "LABELED"}}},
+          "then": {
+            "anyOf": [
+              {"required": ["measured_hours"], "properties": {"measured_hours": {"type": "number"}}},
+              {"required": ["min_hours", "max_hours"], "properties": {"min_hours": {"type": "number"}, "max_hours": {"type": "number"}}}
+            ]
+          }
+        }
+      ]
+    },
+    "grindLabel": {
+      "type": "object",
+      "required": ["status", "ordinal", "basis", "confidence", "evidence_refs"],
+      "properties": {
+        "status": {"enum": ["LABELED", "UNKNOWN"]},
+        "ordinal": {"type": ["integer", "null"], "minimum": 0, "maximum": 4},
+        "basis": {"enum": ["PLAYTHROUGH_RATED", "AUTHOR_DESCRIPTION", "COMMUNITY_CONSENSUS", "GUIDE_SYNTHESIS", "AUTOMATED_LONGRUN_REVIEW", "UNKNOWN"]},
+        "confidence": {"enum": ["HIGH", "MEDIUM", "LOW", "UNKNOWN"]},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}},
+        "rationale": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

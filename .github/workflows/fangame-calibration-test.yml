@@ -1,0 +1,22 @@
+name: Fangame Calibration Contract Tests
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'schemas/fangame_calibration_label_v07.schema.json'
+      - 'policies/fangame_calibration_v07.json'
+      - 'tools/fangame_calibration_audit.py'
+      - 'tests/test_fangame_calibration_v07.py'
+      - '.github/workflows/fangame-calibration-test.yml'
+  workflow_dispatch:
+
+jobs:
+  calibration-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install schema validator
+        run: python3 -m pip install --disable-pip-version-check --quiet jsonschema
+      - name: Run calibration regression
+        run: python3 tests/test_fangame_calibration_v07.py
