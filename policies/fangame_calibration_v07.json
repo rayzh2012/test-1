@@ -1,0 +1,35 @@
+{
+  "rubric_version": "fangame.calibration.rubric.v0.7",
+  "grind_pressure": {
+    "0": "Minimal/none: ordinary main-story progress does not materially require repeat combat/resource loops; catch-up, generous EXP, level scaling, or equivalent QoL may make incidental battles sufficient.",
+    "1": "Low: occasional repeat combat/resource acquisition may help, but the main path normally advances without deliberate extended farming.",
+    "2": "Moderate: repeated combat/economy/material loops are periodically useful or required to smooth progression, but do not dominate the experience.",
+    "3": "High: deliberate repeated combat/resource loops are materially required for multiple progression gates or consume a substantial share of play time.",
+    "4": "Severe: long repetitive farming/level/economy loops are a central progression requirement and dominate substantial portions of the main path."
+  },
+  "context_rule": "A grind or hours label is never universal without its difficulty, speed-up, cheat/debug and completion context. Distinct materially different contexts should be separate label records, not averaged into one fact.",
+  "hours_quality": {
+    "direct_training_basis": ["MEASURED_SESSION_SUM", "COMPLETION_SELF_REPORT"],
+    "reference_only_basis": ["AUTHOR_STATED_RANGE", "COMMUNITY_REPORTED_RANGE", "GUIDE_DERIVED_RANGE"],
+    "accepted_completion_scope": ["MAIN_STORY_COMPLETE", "FULL_COMPLETION"]
+  },
+  "grind_quality": {
+    "direct_training_basis": ["PLAYTHROUGH_RATED"],
+    "reference_only_basis": ["AUTHOR_DESCRIPTION", "COMMUNITY_CONSENSUS", "GUIDE_SYNTHESIS"],
+    "experimental_basis": ["AUTOMATED_LONGRUN_REVIEW"],
+    "accepted_completion_scope": ["MAIN_STORY_COMPLETE", "FULL_COMPLETION"]
+  },
+  "training_confidence": ["HIGH", "MEDIUM"],
+  "readiness_gates": {
+    "hours": {
+      "min_direct_label_records": 20,
+      "min_distinct_games": 15
+    },
+    "grind": {
+      "min_direct_label_records": 20,
+      "min_distinct_games": 15,
+      "min_distinct_ordinal_classes": 3
+    }
+  },
+  "readiness_note": "These are minimum policy gates for allowing a calibration experiment to start, not a claim of statistical adequacy or production accuracy. Cross-validation and error analysis remain mandatory after the gate opens."
+}
