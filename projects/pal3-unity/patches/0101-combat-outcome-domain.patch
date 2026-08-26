@@ -70,97 +70,98 @@ index 0000000..e6067e9
 +        }
 +    }
 +}
-+diff --git a/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs b/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs
-+new file mode 100644
-+index 0000000..ecc8151
-+--- /dev/null
-++++ b/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs
-+@@ -0,0 +1,88 @@
-++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
-++{
-++    using System;
-++    using NUnit.Framework;
-++    using Pal3.Game.GameSystems.Combat.Domain;
-++
-++    public sealed class CombatOutcomeResolverTests
-++    {
-++        [Test]
-++        public void Resolve_LivingMembersOnBothSides_IsInProgress()
-++        {
-++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
-++            {
-++                new CombatOutcomeMember(CombatParty.First, Living()),
-++                new CombatOutcomeMember(CombatParty.Enemy, Living()),
-++            });
-++
-++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.InProgress));
-++        }
-++
-++        [Test]
-++        public void Resolve_AllEnemiesDefeated_IsPlayerWin()
-++        {
-++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
-++            {
-++                new CombatOutcomeMember(CombatParty.First, Living()),
-++                new CombatOutcomeMember(CombatParty.First, Living()),
-++                new CombatOutcomeMember(CombatParty.Enemy, Defeated()),
-++            });
-++
-++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.PlayerWin));
-++        }
-++
-++        [Test]
-++        public void Resolve_AllPlayerMembersDefeated_IsPlayerLose()
-++        {
-++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
-++            {
-++                new CombatOutcomeMember(CombatParty.First, Defeated()),
-++                new CombatOutcomeMember(CombatParty.First, Defeated()),
-++                new CombatOutcomeMember(CombatParty.Enemy, Living()),
-++            });
-++
-++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.PlayerLose));
-++        }
-++
-++        [Test]
-++        public void Resolve_BothPartiesDefeated_IsExplicitMutualDefeat()
-++        {
-++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
-++            {
-++                new CombatOutcomeMember(CombatParty.First, Defeated()),
-++                new CombatOutcomeMember(CombatParty.Enemy, Defeated()),
-++            });
-++
-++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.MutualDefeat));
-++        }
-++
-++        [Test]
-++        public void Resolve_MissingParty_IsRejected()
-++        {
-++            Assert.Throws<InvalidOperationException>(() => CombatOutcomeResolver.Resolve(new[]
-++            {
-++                new CombatOutcomeMember(CombatParty.First, Living()),
-++            }));
-++        }
-++
-++        [Test]
-++        public void Resolve_NullMembers_IsRejected()
-++        {
-++            Assert.Throws<ArgumentNullException>(() => CombatOutcomeResolver.Resolve(null));
-++        }
-++
-++        private static CombatantState Living()
-++        {
-++            return new CombatantState(maxHp: 100, attack: 10, defense: 5);
-++        }
-++
-++        private static CombatantState Defeated()
-++        {
-++            CombatantState target = new(maxHp: 10, attack: 1, defense: 0);
-++            NormalAttackResolver.Resolve(
-++                new CombatantState(maxHp: 10, attack: 100, defense: 0),
-++                target);
-++            return target;
-++        }
-++    }
-++}
+
+diff --git a/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs b/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs
+new file mode 100644
+index 0000000..ecc8151
+--- /dev/null
++++ b/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs
+@@ -0,0 +1,88 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using NUnit.Framework;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class CombatOutcomeResolverTests
++    {
++        [Test]
++        public void Resolve_LivingMembersOnBothSides_IsInProgress()
++        {
++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
++            {
++                new CombatOutcomeMember(CombatParty.First, Living()),
++                new CombatOutcomeMember(CombatParty.Enemy, Living()),
++            });
++
++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.InProgress));
++        }
++
++        [Test]
++        public void Resolve_AllEnemiesDefeated_IsPlayerWin()
++        {
++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
++            {
++                new CombatOutcomeMember(CombatParty.First, Living()),
++                new CombatOutcomeMember(CombatParty.First, Living()),
++                new CombatOutcomeMember(CombatParty.Enemy, Defeated()),
++            });
++
++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.PlayerWin));
++        }
++
++        [Test]
++        public void Resolve_AllPlayerMembersDefeated_IsPlayerLose()
++        {
++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
++            {
++                new CombatOutcomeMember(CombatParty.First, Defeated()),
++                new CombatOutcomeMember(CombatParty.First, Defeated()),
++                new CombatOutcomeMember(CombatParty.Enemy, Living()),
++            });
++
++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.PlayerLose));
++        }
++
++        [Test]
++        public void Resolve_BothPartiesDefeated_IsExplicitMutualDefeat()
++        {
++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
++            {
++                new CombatOutcomeMember(CombatParty.First, Defeated()),
++                new CombatOutcomeMember(CombatParty.Enemy, Defeated()),
++            });
++
++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.MutualDefeat));
++        }
++
++        [Test]
++        public void Resolve_MissingParty_IsRejected()
++        {
++            Assert.Throws<InvalidOperationException>(() => CombatOutcomeResolver.Resolve(new[]
++            {
++                new CombatOutcomeMember(CombatParty.First, Living()),
++            }));
++        }
++
++        [Test]
++        public void Resolve_NullMembers_IsRejected()
++        {
++            Assert.Throws<ArgumentNullException>(() => CombatOutcomeResolver.Resolve(null));
++        }
++
++        private static CombatantState Living()
++        {
++            return new CombatantState(maxHp: 100, attack: 10, defense: 5);
++        }
++
++        private static CombatantState Defeated()
++        {
++            CombatantState target = new(maxHp: 10, attack: 1, defense: 0);
++            NormalAttackResolver.Resolve(
++                new CombatantState(maxHp: 10, attack: 100, defense: 0),
++                target);
++            return target;
++        }
++    }
++}
