@@ -1,181 +1,159 @@
 ---
 name: fangame-playability-miner
-description: Evidence→Feature→Inference Flow 的 Fangame domain adapter。Rescue 后对 fangame 做包身份校验、RPG Maker 静态内容挖掘、CI 启动与输入烟测、标准 Feature Record、后续结构图/支线/结局/时长/Grinding 保守推断，并写入 Fangame Feature Store。调用场景：新 rescue、补测可玩性、判断内容丰富度、批量排序真正值得玩的游戏。
-version: 0.2
+description: Evidence→Feature→Inference Flow 的 Fangame production adapter。Rescue 后完成包身份校验、RPG Maker/RGSS/MV-MZ 静态挖掘、CI 可玩性烟测、图结构、支线/结局候选、progression/grind evidence vector、canonical Feature Store，以及跨游戏相似度/聚类/异常/解释型排名。
+version: 0.6
 allowed-tools: [github, google_drive, notion, web, code_execution, file_ops]
 ---
 
 # Fangame Playability & Content Mining Skill
 
 ## Architecture
-This Skill is the first production adapter of the generic `evidence-feature-inference-flow` Skill.
+This is the first production adapter of `evidence-feature-inference-flow`.
 
-Core pattern:
+`Binary / Public Package`
+→ `Evidence Collector`
+→ `Static + Runtime Evidence`
+→ `Canonical Feature Store`
+→ `Graph + Conservative Inference`
+→ `Progression / Grind Evidence Vector`
+→ `Cross-game Compare / Cluster / Rank`
+→ `Human or Automation Action`
 
-`Raw Evidence -> Identity -> Observed Features -> Runtime Verification -> Derived Metrics -> Conservative Inference -> Ranking -> Action/Audit`
-
-Fangame adapter:
-
-`Binary Preservation -> Structural Understanding -> Runtime Evidence -> Canonical Feature Record -> Semantic Graph -> Conservative Inference -> Personal Ranking`
-
-The spreadsheet/Excel asset is a **Fangame Feature Store**, not merely a registry.
+The spreadsheet/NDJSON/JSON assets are analytical **Feature Stores**, not mere registries.
 
 ## Evidence classes
-Every persisted field belongs conceptually to one of:
-- `OBSERVED`: directly measured from files/runtime.
-- `DERIVED`: deterministic calculation from observed values.
-- `INFERRED`: model/rule inference with confidence, version and evidence summary.
-- `UNKNOWN`: evidence is insufficient. Never fill gaps by guessing.
+Persisted fields remain separated as:
+- `OBSERVED`
+- `DERIVED`
+- `INFERRED`
+- `UNKNOWN`
 
-Observed facts survive future inference-model revisions.
+Observed facts survive future model revisions. Candidate counts are never silently promoted into official quest/ending counts.
 
-## v0.2 canonical data contract
-Every successful normalization stage emits:
-- `fangame_features.json` — one canonical record per game/package.
-- `fangame_features.schema.json` — machine-readable schema contract.
-- batch `fangame_feature_store.ndjson` — append/stream-friendly analytical asset.
-- batch `fangame_feature_store.csv` — Excel/Sheets-friendly flattened feature table.
+## P0 Preservation / identity
+Validate the real package before analysis:
+- source/provenance
+- filename/version/lineage
+- bytes/archive magic
+- SHA256
+- complete game vs patch/stub/repack
+- Drive archival/readback when rescue is in scope
 
-Schema: `schemas/fangame_features.schema.json`
-Emitter: `tools/fangame_feature_emitter.py`
-Batch exporter: `tools/fangame_feature_batch.py`
-Normalizer workflow: `.github/workflows/fangame-feature-store.yml`
+## P1 Static mining
+Supported lanes now include classic RPG Maker/RGSS plus newer MV/MZ-oriented genome work.
 
-The normalizer is deliberately decoupled from the fetcher. `Fangame Fetch` is an **Evidence Collector**; `Fangame Feature Store` is a **Normalizer/Feature Emitter**. Any future sandbox or enterprise CI can integrate by producing the same evidence contract.
+Classic RGSS evidence includes maps, event pages/commands, dialogue, choices, common events, switches/variables, transfers, battles, shops, database objects, assets, progression/economy evidence, and script/opacity boundaries.
 
-## Pipeline
+## P2 Runtime verification
+Mechanical runtime and semantic screenshot evidence remain independent gates. Environment failure is never mislabeled as game failure.
 
-### P0 Package identity
-Verify source, filename, bytes, archive magic, SHA256, version/lineage, complete game vs patch/stub/repack.
+Typical gates:
+- title/window evidence
+- New Game / confirm response
+- input flow
+- map gameplay
+- future battle/save-load/long-run semantic evidence
 
-### P1 Static structure mining
-For inspectable RPG Maker packages collect at minimum:
-- engine / RGSS version
-- maps and map bytes
-- events / event pages / event commands
-- dialogue lines / dialogue chars
-- choices
-- common events
-- switches / variables
-- transfers / battle calls / shops
-- actors / classes / skills / items / weapons / armors / enemies / troops / states
-- image / audio / script counts and bytes
+## P3 Canonical Feature Store
+Main normalizer workflow:
+`.github/workflows/fangame-feature-store.yml`
 
-Encrypted/opaque packages retain an explicit opacity boundary.
-
-### P2 CI runtime smoke
-Runtime evidence stages are independent gates:
-1. `TITLE_VERIFIED`
-2. `NEW_GAME_VERIFIED`
-3. `INPUT_FLOW_VERIFIED`
-4. `MAP_GAMEPLAY_VERIFIED`
-5. future: `BATTLE_VERIFIED`, `SAVE_LOAD_VERIFIED`
-
-Mechanical smoke evidence and screenshot semantic claims remain separate. CI environment failures (Wine/audio/font/Xvfb) must not be mislabeled as game failures.
-
-### P2.5 Canonical Feature Emit
-Normalize fetch/static/smoke/review evidence into `fangame.features.v0.2`.
-
-Top-level sections:
+Current canonical record line reaches `fangame.features.v0.5b` and contains:
 - `identity`
 - `observed`
 - `runtime`
 - `derived`
+- `graph`
 - `inferred`
+- `progression`
+- `grind_vector`
 - `ranking`
 - `evidence`
 - `audit`
 
-v0.2 intentionally leaves unsupported inference fields as `UNKNOWN` / null. It does not manufacture sidequest/ending counts merely to populate the table.
+Outputs include per-game JSON plus NDJSON/CSV analytical assets.
 
-### P3 Semantic mining
-Parse event/data semantics into:
-- dialogue clusters
-- task accept/progress/complete/reward patterns
-- boss/combat gates
-- shops/heal/transport/save-point patterns
-- ending/credits/title-return/fadeout signals
-- switch/variable read-write relationships
-- map transfer graph
-- event/script call graph
+## P4 Graph evidence
+`tools/rpgmaker_graph_probe.rb` extracts observed graph evidence such as:
+- map-transfer edges
+- event-page/common-event nodes
+- switch/variable/self-switch reads and writes
+- common-event calls
+- choices/branches/battles/shops
+- terminal signals
+- graph connectivity/locality summaries
 
-Produce Event Graph, Map Graph, Switch/Variable Dependency Graph.
+## P5 Conservative sidequest / ending inference
+`tools/fangame_graph_inference.py` separates:
+- optional structural clusters
+- semantically promoted sidequest candidates
+- ending candidates / terminal clusters
 
-### P4 Derived features
-Deterministic examples:
-- `dialogue_density_per_map`
-- `event_command_density_per_map`
-- `choice_density_per_1000_commands`
-- `transfer_density_per_map`
-- `system_object_count`
-- `asset_count`
-- `content_richness_score_5`
-- future `optional_graph_ratio`, `terminal_map_count`, `reward_loop_count`
+Promotion requires evidence combinations; topology alone is not called a quest.
 
-### P5 Sidequest inference
-A `SIDEQUEST_CANDIDATE` should combine several signals:
-- branch from likely mainline and rejoin path
-- local switch/variable state with limited blast radius
-- accept -> progress -> complete/reward transition
-- dedicated NPC/map/boss/item-reward cluster
-- weak dependence on core mainline gates
-- skipping cluster still leaves route to later mainline
+## P6 Progression / grind evidence
+Progression probe and `fangame_grind_vector.py` normalize encounter/economy/reward/battle/shop/transfer signals.
 
-Output candidate count, cluster count, optional-content ratio, confidence and evidence summary. Candidate count is NOT official quest count.
+Important boundary: v0.5b grind vector is **UNLABELED_VECTOR_ONLY**. It deliberately emits no grind-pressure score and no hours estimate until a labeled calibration corpus exists.
 
-### P6 Ending inference
-Use combinations of credits/END resources, fade/title return/terminate, final-boss terminal paths, switch-conditioned terminal clusters and ending-specific dialogue/images/music.
+## P7 Cross-game Compare v0.6
+Generic engine:
+`tools/evidence_feature_compare.py`
 
-If evidence only supports at least one terminal route, record `>=1` rather than invent an exact number.
+Fangame policy:
+`policies/fangame_compare_v06.json`
 
-### P7 Time / Grinding inference
-Use ranges and confidence rather than fake precision. Candidate inputs:
-- map/event/dialogue scale
-- traversal distances
-- encounter structure
-- EXP rewards / level curves
-- economy / shop prices
-- recovery / teleport / speed-up
-- failure penalties
-- repeat-map / repeat-combat ratios
+Workflow:
+`.github/workflows/fangame-compare.yml`
 
-## Ranking separation
-Keep independent:
-- historical player reputation
-- CI playability
-- AI structural richness
-- personal fit
+Outputs:
+- nearest peer games
+- similarity score and evidence coverage
+- top matching/differing dimensions
+- deterministic clusters
+- anomaly score
+- explainable ranking score
+- component contributions and ranking coverage
 
-Do not collapse everything into one unexplained score. Final priority may be computed, but component evidence must remain visible.
+Uncalibrated grind-vector dimensions may participate in neutral similarity, but are forbidden from ranking until calibration exists.
+
+## Public genome lane
+The broader system also has an in-progress public analysis/corpus lane for sanitized fangame genome reports. Publication boundaries exclude private archive metadata, Drive IDs, private notes, and binaries. This lane can become a natural cross-game corpus source for the Compare Core once merged into the canonical branch.
 
 ## Current executors
-Repository: `rayzh2012/test-1`
-
-Evidence collection:
+Evidence / runtime:
 - `tools/fangame_fetcher.py`
 - `tools/fangame_inspect.py`
 - `tools/rpgmaker_marshal_probe.rb`
+- `tools/rpgmaker_graph_probe.rb`
+- `tools/rpgmaker_progression_probe.rb`
 - `tools/fangame_smoke.py`
-- `tools/fangame_review_card.py`
-- `.github/workflows/fangame-fetch.yml`
 
-Feature normalization:
-- `schemas/fangame_features.schema.json`
+Feature / inference:
 - `tools/fangame_feature_emitter.py`
+- `tools/fangame_graph_feature_merge.py`
+- `tools/fangame_graph_inference.py`
+- `tools/fangame_inference_feature_merge.py`
+- `tools/fangame_progression_feature_merge.py`
+- `tools/fangame_grind_vector.py`
 - `tools/fangame_feature_batch.py`
-- `.github/workflows/fangame-feature-store.yml`
 
-Known benchmark: `怒龙战记3 V3.0` has verified title, New Game and input flow; map gameplay remains a separate gate.
+Cross-object:
+- `tools/evidence_feature_compare.py`
+- `policies/fangame_compare_v06.json`
 
 ## Roadmap
-- [x] v0.1: Skill contract, evidence classes, feature-store concept, inference boundaries.
-- [x] v0.2: canonical feature schema + JSON emitter + NDJSON/CSV analytical export + decoupled normalizer workflow.
-- [ ] v0.3: Event/Map/Switch graph exporter.
-- [ ] v0.4: sidequest and ending candidate inference.
-- [ ] v0.5: playtime and grind-pressure interval model.
-- [ ] v0.6: cross-game clustering and ranking.
+- [x] v0.1 Skill/evidence contract
+- [x] v0.2 canonical schema + feature store
+- [x] v0.3 map/event/state graph evidence
+- [x] v0.4 optional/sidequest/ending candidate inference
+- [x] v0.5a progression evidence
+- [x] v0.5b normalized grind vector without fabricated score
+- [x] v0.6 generic cross-game comparison/clustering/anomaly/explainable ranking core
+- [ ] v0.7 labeled calibration corpus for grind/hour models
+- [ ] v0.8 active-learning loop: choose next game/test based on uncertainty reduction and information gain
 
-## Non-negotiable rule
-`OBSERVED != INFERRED`.
+## Non-negotiable
+`OBSERVED != DERIVED != INFERRED`.
 
-The goal is not merely to answer whether one game works. The goal is to make every tested game increase the value of the whole dataset and make the next decision easier.
+Every tested game should make the dataset more useful, improve peer comparisons, and reduce the cost of deciding what to test/play/rescue next.
