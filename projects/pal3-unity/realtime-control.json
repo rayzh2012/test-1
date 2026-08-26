@@ -1,5 +1,5 @@
 {
-  "schema_version": "pal3_realtime_control.v0.4",
+  "schema_version": "pal3_realtime_control.v0.5",
   "project_id": "pal3-unity",
   "mode": "chatgpt_direct",
   "transport": "conversation_to_github",
@@ -19,10 +19,14 @@
     "publication_targets": [
       "repository_markdown",
       "github_gist",
-      "medium"
+      "medium",
+      "zhihu"
     ],
     "current_writable_target": "repository_markdown",
     "gist_write_status": "PENDING_CONNECTOR_SUPPORT",
+    "medium_write_status": "PENDING_CONNECTOR_SUPPORT",
+    "zhihu_write_status": "DEFERRED_UNTIL_WRITABLE_CONNECTOR_OR_PUBLISH_TRANSPORT",
+    "publication_policy": "Every terminal material experiment must first land as canonical repository Markdown; mirror to GitHub Gist, Medium and Zhihu whenever a writable authenticated transport is available, without blocking engineering work.",
     "parallel_rule": "Each worker writes one uniquely named entry file. Parallel workers do not directly rewrite the aggregate markdown.",
     "aggregate_rule": "PAL3-AI-DEVLOG.md is a serial publication snapshot compiled from historical content plus terminal entry files.",
     "history_rule": "Published failure history must not be erased after later fixes succeed. First-attempt success must be recorded as such without invented failures."

@@ -1,0 +1,12 @@
+diff --git a/Assets/Tests/EditMode/SupportModifierSkillResolverTests.cs b/Assets/Tests/EditMode/SupportModifierSkillResolverTests.cs
+--- a/Assets/Tests/EditMode/SupportModifierSkillResolverTests.cs
++++ b/Assets/Tests/EditMode/SupportModifierSkillResolverTests.cs
+@@ -362,7 +362,7 @@ namespace Pal3.Game.Tests.GameSystems.Combat.Domain
+ 
+         private static CombatantState NewState(int maxMp = 0)
+         {
+-            return new CombatantState(maxHp: 100, attack: 30, defense: 20, maxMp);
++            return new CombatantState(maxHp: 100, attack: 30, defense: 20, maxMp: maxMp);
+         }
+ 
+         private static CombatTargetSlot<object>[] SingleFirstPartySlot(

@@ -1,0 +1,111 @@
+{
+  "schema_version": "pal3_experiment_log.v0.1",
+  "experiment_id": "pal3-exp-20260822-0352-step6b-support-modifiers-0014",
+  "roadmap_step": "6B1",
+  "title": "Source-grounded temporary support modifier states",
+  "created_at": "2026-08-22T03:52:00-04:00",
+  "status": "VERIFIED_DOMAIN_UNITY_BLOCKED_NO_LICENSE",
+  "terminal": true,
+  "base_control_ref": "master@f4f0cce9f4617969e336e6baae7b653e18f4bfbb",
+  "upstream_ref": "0x7c13/Pal3.Unity@cfed96a21fde248e93e64a47d465b2a9f839ccf8",
+  "objective": "Continue Roadmap Step 6 by implementing the eight source-declared temporary attack/defense/speed/luck increase/decrease states and an AssistMagic resolver for first-party single/all targets.",
+  "evidence": [
+    "Pinned CombatEnums.cs defines ActorCombatStateType AttackIncrease/Decrease, DefenseIncrease/Decrease, LuckIncrease/Decrease and SpeedIncrease/Decrease with comments stating temporary +/-10%.",
+    "Pinned SkillInfo schema carries CombatStateImpactTypes and target/resource fields, so support state changes can remain in the existing SkillDefinition combat-state effect contract."
+  ],
+  "hypothesis": "The verified target/resource transaction architecture can support these eight temporary modifier states without inventing duration or stat rounding by storing state presence, exposing exact +/-10% metadata, and emitting typed combat-state change facts.",
+  "design_constraints": [
+    "Use only AssistMagic with FirstPartySingle or FirstPartyAll in this slice.",
+    "Support exactly one combat-state effect per skill.",
+    "Support only the eight upstream attack/defense/speed/luck increase/decrease states.",
+    "Expose source-grounded +/-10 percent metadata without applying an invented integer rounding policy to Attack/Defense yet.",
+    "Support CombatStateImpactType.Increase and Remove only.",
+    "Reject duplicate application, removal of missing states and opposite-state conflicts before MP mutation rather than invent refresh/cancel semantics.",
+    "Spend MP once only after target identity/state/resource preconditions pass.",
+    "Preserve target order from CombatTargetResolver<TKey> and reject aliased target states.",
+    "Emit one SkillCast fact plus one typed CombatStateChanged fact per target.",
+    "Do not implement duration, rounds, stacking, refresh, cancellation, turn scheduler, Unity VFX or original stat rounding."
+  ],
+  "changed_surfaces": [
+    "projects/pal3-unity/patches/0025-support-modifier-state-events.patch",
+    "projects/pal3-unity/patches/0026-support-modifier-skill-resolution.patch",
+    "projects/pal3-unity/patches/0027-support-modifier-skill-tests.patch",
+    "projects/pal3-unity/patches/0028-support-modifier-test-named-argument.patch",
+    "projects/pal3-unity/patches/0029-combat-event-state-impact-qualification.patch",
+    "projects/pal3-unity/fast-tests.json",
+    "projects/pal3-unity/realtime-control.json",
+    ".github/workflows/pal3-unity-compile.yml"
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "head_sha": "8bfa9cced251a9b6e5a0cd3b9c9c7d261f5076e9",
+      "source_audit_run_id": 32561216589,
+      "source_audit": "PASS",
+      "fast_lane_run_id": 32561216579,
+      "fast_lane": "FAIL_COMPILE",
+      "artifact_id": 9472824162,
+      "artifact_sha256": "b9644476ab680570596d0b61cbe75c7e647026098bd3209e59dfea1056803208",
+      "error": "CombatEvent.cs(81,31): CS0120 object reference required for CombatEvent.CombatStateImpactType",
+      "root_cause": "The new CombatEvent property named CombatStateImpactType shadowed the enum type name inside the static ForCombatStateChange factory.",
+      "fix": "Add ordered patch 0029 and fully qualify Pal3.Core.Contract.Enums.CombatStateImpactType.None. No combat semantics changed."
+    },
+    {
+      "attempt": 2,
+      "head_sha": "6d7163d98f9959a36884a60477c289f665b12808",
+      "source_audit_run_id": 32561268576,
+      "source_audit": "PASS",
+      "fast_lane_run_id": 32561268552,
+      "fast_lane": "PASS",
+      "tests_total": 135,
+      "tests_passed": 135,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "duration_ms": 140,
+      "artifact_id": 9472839320,
+      "artifact_sha256": "109ab955cd12d55e6b1fb4a05011e424be967fbc4c4932407fab156d84190fdc",
+      "compile_gate_run_id": 32561268515,
+      "compile_gate": "FAIL_HARNESS_DEPENDENCY",
+      "compile_gate_error": "Legacy compile-gate scratch project copied only CombatCore.cs and CombatCoreTests.cs, so new ActorEnums/CombatEnums dependencies were absent.",
+      "compile_gate_classification": "CONTROL_PLANE_HARNESS_DRIFT, not PAL3 domain failure",
+      "fix": "Replace the compile gate's hand-maintained two-file .NET scratch test with the same fast-tests.json + pal3_fastlane.py manifest used by the verified Chat Fast Lane, preventing future dependency drift."
+    },
+    {
+      "attempt": 3,
+      "head_sha": "3a277d968cdacce0cc88717c896a4e8e04e1577c",
+      "source_audit_run_id": 32561349662,
+      "source_audit": "PASS",
+      "fast_lane_run_id": 32561349663,
+      "fast_lane": "PASS",
+      "tests_total": 135,
+      "tests_passed": 135,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "duration_ms": 171,
+      "fast_lane_artifact_id": 9472863161,
+      "fast_lane_artifact_sha256": "02e0f9b519de330d8ca9948d93ac11910b27af744ccf895307d11550bbc12a29",
+      "compile_gate_run_id": 32561349674,
+      "compile_gate": "PASS_DOMAIN_GATE",
+      "compile_gate_artifact_id": 9472864077,
+      "compile_gate_artifact_sha256": "0a55e765811bc568def4d04cc6485d26f33461645dbde67706828e1489e03e50",
+      "unity_compile": "BLOCKED_NO_LICENSE",
+      "note": "The repaired compile gate replayed the same registered fast-test manifest successfully. Unity import/build remained skipped because activation material is absent."
+    }
+  ],
+  "verified_behavior": [
+    "All eight upstream temporary Attack/Defense/Speed/Luck increase/decrease states expose -10/0/+10 percent metadata.",
+    "AssistMagic supports living first-party single and first-party all targets in deterministic formation order.",
+    "MP is spent once only after target/state/resource preconditions pass.",
+    "Duplicate apply, missing-state remove, opposing-state conflict, unsupported state/type/range/SP cost and aliased target states reject before mutation.",
+    "One immutable SkillCast fact plus one typed CombatStateChanged fact per resolved target is emitted.",
+    "No duration, stacking, refresh/cancel or effective-stat rounding semantics were invented."
+  ],
+  "claim_boundary": "This experiment models only source-declared temporary +/-10% support-state presence, first-party targeting, MP transaction and typed state-change facts. It does not establish original PAL3 duration, stacking, refresh/cancellation, effective integer stat rounding, real GDB population frequency, Unity compile/runtime, iOS or playtest behavior.",
+  "next_if_pass": "Highest information gain is to inspect source/data/runtime evidence for modifier duration and stat rounding before consuming these percentages in attack/defense/scheduler math. Lifecycle-heavy poison/control/reflection states remain Step 7.",
+  "publication": {
+    "canonical_entry_required_on_terminal": true,
+    "canonical_entry": "projects/pal3-unity/devlog/entries/2026-08-22T0352-step6b-support-modifiers.md",
+    "targets": ["repository_markdown", "github_gist", "medium", "zhihu"],
+    "external_mirror_status": "DEFERRED_UNTIL_WRITABLE_TRANSPORT"
+  }
+}

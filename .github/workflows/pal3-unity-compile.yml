@@ -6,6 +6,7 @@ on:
     paths:
       - "projects/pal3-unity/**"
       - "tools/source_rewrite_controller.py"
+      - "tools/pal3_fastlane.py"
       - ".github/workflows/pal3-unity-compile.yml"
 
 permissions:
@@ -48,24 +49,14 @@ jobs:
             --workspace .control/upstream \
             --out out/pal3-unity
 
-      - name: Run CombatCore domain tests with .NET
+      - name: Run registered PAL3 domain fast gates
         shell: bash
         run: |
-          rm -rf .control/combatcore-dotnet
-          dotnet new nunit \
-            --name CombatCore.Tests \
-            --output .control/combatcore-dotnet \
-            --framework net8.0 \
-            --no-restore
-          rm -f .control/combatcore-dotnet/UnitTest1.cs
-          cp .control/upstream/Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs \
-            .control/combatcore-dotnet/CombatCore.cs
-          cp .control/upstream/Assets/Tests/EditMode/CombatCoreTests.cs \
-            .control/combatcore-dotnet/CombatCoreTests.cs
-          dotnet test .control/combatcore-dotnet/CombatCore.Tests.csproj \
-            --configuration Release \
-            --logger "trx;LogFileName=combatcore.trx" \
-            --results-directory out/pal3-unity/dotnet-tests
+          python tools/pal3_fastlane.py \
+            --config projects/pal3-unity/fast-tests.json \
+            --workspace .control/upstream \
+            --out out/pal3-unity \
+            --temp .control/compile-fastlane
 
       - name: Detect Unity activation
         id: unity_activation
@@ -88,7 +79,7 @@ jobs:
           {"status":"BLOCKED_NO_LICENSE","reason":"UNITY_LICENSE and UNITY_SERIAL are both absent","unity_compile_verified":false}
           JSON
             echo "### Unity gate: BLOCKED_NO_LICENSE" >> "$GITHUB_STEP_SUMMARY"
-            echo "Domain tests still ran. Unity import/compile was not attempted because no activation material is configured." >> "$GITHUB_STEP_SUMMARY"
+            echo "Registered PAL3 domain tests still ran. Unity import/compile was not attempted because no activation material is configured." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Cache Unity Library
