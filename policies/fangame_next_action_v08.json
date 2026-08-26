@@ -1,0 +1,84 @@
+{
+  "policy_version": "fangame.next-action.v0.8",
+  "identity_path": "identity.game_id",
+  "label_path": "identity.title",
+  "score_note": "Priorities are expected-information-value proxies only. They rank which evidence-gathering action is worth doing next; they are not gameplay quality scores or calibrated information gain.",
+  "actions": [
+    {
+      "action_id": "VERIFY_MAP_GAMEPLAY",
+      "label": "Semantic map-gameplay review",
+      "cost_units": 0.5,
+      "when": [
+        {"path": "record.runtime.map_gameplay_verified", "op": "missing", "weight": 1.0, "reason": "map gameplay semantic gate is still unknown"}
+      ],
+      "component_weights": {"uncertainty": 0.40, "decision_importance": 0.35, "novelty": 0.15, "feature_gap": 0.10},
+      "execution_hint": "Review runtime screenshots/behavior or run the smallest semantic smoke needed to prove actual map gameplay; do not promote mechanical window evidence alone."
+    },
+    {
+      "action_id": "REPAIR_PROGRESSION_EVIDENCE",
+      "label": "Progression/economy evidence repair",
+      "cost_units": 1.0,
+      "when": [
+        {"path": "record.progression.status", "op": "not_equals", "value": "PROGRESSION_OBSERVED", "weight": 1.0, "reason": "progression evidence is absent or incomplete"}
+      ],
+      "component_weights": {"uncertainty": 0.45, "novelty": 0.25, "decision_importance": 0.20, "feature_gap": 0.10},
+      "execution_hint": "Re-run/diagnose the engine-specific progression probe before attempting any grind calibration inference."
+    },
+    {
+      "action_id": "REPAIR_GRIND_VECTOR",
+      "label": "Grind-vector gap diagnosis",
+      "cost_units": 0.8,
+      "requires": [
+        {"path": "record.progression.status", "op": "equals", "value": "PROGRESSION_OBSERVED"}
+      ],
+      "when": [
+        {"path": "record.grind_vector.status", "op": "not_equals", "value": "VECTOR_READY", "weight": 1.0, "reason": "normalized grind vector is not fully ready"}
+      ],
+      "component_weights": {"uncertainty": 0.45, "novelty": 0.25, "decision_importance": 0.20, "feature_gap": 0.10},
+      "execution_hint": "Inspect missing_core_inputs and repair only measurable evidence gaps; do not invent a grind score."
+    },
+    {
+      "action_id": "SEMANTIC_BRANCH_ENDING_REVIEW",
+      "label": "Sidequest/ending semantic review",
+      "cost_units": 1.5,
+      "when": [
+        {"path": "record.inferred.sidequest_confidence", "op": "not_in", "values": ["HIGH", "MEDIUM"], "weight": 0.5, "reason": "sidequest inference remains low/unknown"},
+        {"path": "record.inferred.ending_confidence", "op": "not_in", "values": ["HIGH", "MEDIUM"], "weight": 0.5, "reason": "ending inference remains low/unknown"}
+      ],
+      "component_weights": {"uncertainty": 0.35, "novelty": 0.30, "decision_importance": 0.20, "peer_leverage": 0.15},
+      "execution_hint": "Review graph candidate clusters and terminal signals with semantic evidence. Preserve candidate vs verified counts."
+    },
+    {
+      "action_id": "COLLECT_BASELINE_CALIBRATION_PLAYTHROUGH",
+      "label": "Collect baseline completion calibration labels",
+      "cost_units": 8.0,
+      "min_uncertainty": 0.25,
+      "when": [
+        {"path": "aux.has_direct_hours", "op": "not_equals", "value": true, "weight": 0.5, "reason": "no direct baseline main-story-hours label"},
+        {"path": "aux.has_direct_grind", "op": "not_equals", "value": true, "weight": 0.5, "reason": "no direct baseline grind label"}
+      ],
+      "component_weights": {"uncertainty": 0.20, "novelty": 0.30, "decision_importance": 0.25, "peer_leverage": 0.25},
+      "execution_hint": "If a baseline no-cheat/no-speedup main-story completion is actually performed, record hours and grind labels under the v0.7 calibration schema. Never infer a direct label from static features."
+    },
+    {
+      "action_id": "RESEARCH_HISTORICAL_REPUTATION",
+      "label": "Historical reputation evidence",
+      "cost_units": 0.4,
+      "when": [
+        {"path": "record.ranking.historical_rating_5", "op": "missing", "weight": 1.0, "reason": "historical player rating is absent"}
+      ],
+      "component_weights": {"uncertainty": 0.45, "decision_importance": 0.30, "novelty": 0.15, "peer_leverage": 0.10},
+      "execution_hint": "Recover dated player-rating/vote/download evidence with source provenance; keep historical reputation separate from AI structural prediction."
+    },
+    {
+      "action_id": "ADD_PERSONAL_FIT_LABEL",
+      "label": "Personal-fit decision label",
+      "cost_units": 0.25,
+      "when": [
+        {"path": "record.ranking.personal_fit_score_5", "op": "missing", "weight": 1.0, "reason": "personal-fit component is absent"}
+      ],
+      "component_weights": {"uncertainty": 0.35, "decision_importance": 0.45, "novelty": 0.10, "peer_leverage": 0.10},
+      "execution_hint": "Add a user-specific fit label only when enough evidence exists; do not present it as a universal game-quality rating."
+    }
+  ]
+}
