@@ -1,0 +1,34 @@
+{
+  "policy_version": "fangame.compare.v0.6",
+  "identity_path": "identity.game_id",
+  "label_path": "identity.title",
+  "nearest_neighbors": 5,
+  "clustering": {
+    "similarity_threshold": 0.68,
+    "min_pair_coverage": 0.5
+  },
+  "similarity_features": [
+    {"path": "observed.maps", "weight": 1.0, "transform": "log1p"},
+    {"path": "observed.event_commands", "weight": 1.0, "transform": "log1p"},
+    {"path": "observed.dialogue_lines", "weight": 0.9, "transform": "log1p"},
+    {"path": "observed.common_events", "weight": 0.5, "transform": "log1p"},
+    {"path": "derived.choice_density_per_1000_commands", "weight": 0.7, "transform": "identity"},
+    {"path": "derived.transfer_density_per_map", "weight": 0.6, "transform": "identity"},
+    {"path": "graph.summary.unique_direct_map_pairs", "weight": 0.8, "transform": "log1p"},
+    {"path": "graph.summary.conditional_branch_nodes", "weight": 0.8, "transform": "log1p"},
+    {"path": "inferred.optional_cluster_candidate_count", "weight": 0.5, "transform": "log1p"},
+    {"path": "inferred.ending_candidate_count", "weight": 0.4, "transform": "log1p"},
+    {"path": "grind_vector.features.random_encounter_map_ratio", "weight": 0.6, "transform": "identity"},
+    {"path": "grind_vector.features.encounter_checks_proxy_per_100_steps", "weight": 0.5, "transform": "log1p"},
+    {"path": "grind_vector.features.log1p_equipment_price_to_enemy_gold_ratio", "weight": 0.5, "transform": "identity"},
+    {"path": "grind_vector.features.positive_reward_ops_per_1000_event_commands", "weight": 0.4, "transform": "log1p"},
+    {"path": "grind_vector.features.battle_processing_ops_per_100_maps", "weight": 0.5, "transform": "log1p"}
+  ],
+  "ranking_rules": [
+    {"path": "ranking.ai_structural_score_5", "weight": 0.40, "mode": "fixed", "min": 0, "max": 5, "direction": "higher_better"},
+    {"path": "ranking.ci_playability_score_5", "weight": 0.25, "mode": "fixed", "min": 0, "max": 5, "direction": "higher_better"},
+    {"path": "ranking.historical_rating_5", "weight": 0.20, "mode": "fixed", "min": 0, "max": 5, "direction": "higher_better"},
+    {"path": "ranking.personal_fit_score_5", "weight": 0.15, "mode": "fixed", "min": 0, "max": 5, "direction": "higher_better"}
+  ],
+  "note": "Similarity may use unlabelled grind-vector dimensions as neutral descriptors, but ranking deliberately does not convert those vectors into a grind score. v0.5b calibration policy remains intact. Ranking exposes component contributions and coverage; missing components are ignored rather than imputed."
+}

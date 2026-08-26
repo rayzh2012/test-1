@@ -1,0 +1,19 @@
+name: Evidence Feature Compare Tests
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'tools/evidence_feature_compare.py'
+      - 'policies/fangame_compare_v06.json'
+      - 'tests/test_evidence_feature_compare.py'
+      - '.github/workflows/evidence-feature-compare-test.yml'
+  workflow_dispatch:
+
+jobs:
+  compare-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run domain-agnostic compare regression
+        run: python3 tests/test_evidence_feature_compare.py

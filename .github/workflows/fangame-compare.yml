@@ -1,0 +1,98 @@
+name: Fangame Compare
+
+on:
+  workflow_run:
+    workflows: ["Fangame Feature Store"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_feature_run_id:
+        description: "Completed Fangame Feature Store run ID"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compare:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve Feature Store run
+        id: source
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run_id=${{ inputs.source_feature_run_id }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          ref: master
+
+      - name: Download canonical Feature Store artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_id=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and (.name | startswith("fangame-feature-store-")))] | last | .id // empty')
+          if [ -z "$artifact_id" ]; then
+            echo "No canonical fangame-feature-store artifact found on run ${SOURCE_RUN_ID}" >&2
+            exit 2
+          fi
+          mkdir -p compare_input compare_output
+          curl -fL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            -o /tmp/feature-store.zip
+          unzip -q -o /tmp/feature-store.zip -d compare_input
+          find compare_input -maxdepth 3 -type f -print
+
+      - name: Run explainable cross-game comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          store=$(find compare_input -name 'fangame_feature_store.ndjson' -type f | head -n1)
+          if [ -z "$store" ]; then
+            echo "fangame_feature_store.ndjson missing from source artifact" >&2
+            exit 3
+          fi
+          python3 tools/evidence_feature_compare.py \
+            --records "$store" \
+            --policy policies/fangame_compare_v06.json \
+            --out-json compare_output/fangame_compare.json \
+            --out-csv compare_output/fangame_compare.csv
+
+      - name: Verify compare contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          p=pathlib.Path('compare_output/fangame_compare.json')
+          d=json.loads(p.read_text(encoding='utf-8'))
+          assert d['engine_version']=='evidence.feature.compare.v0.6'
+          assert d['policy_version']=='fangame.compare.v0.6'
+          assert d['record_count'] >= 1
+          for x in d['objects']:
+              assert 'ranking' in x and 'coverage' in x['ranking']
+              assert 'nearest_neighbors' in x
+              assert 'anomaly_score' in x
+          print(json.dumps({'records':d['record_count'],'clusters':d['cluster_count'],'verified':True}))
+          PY
+
+      - name: Upload compare/ranking artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fangame-compare-${{ steps.source.outputs.run_id }}
+          path: compare_output/*
+          retention-days: 30
+          compression-level: 6
