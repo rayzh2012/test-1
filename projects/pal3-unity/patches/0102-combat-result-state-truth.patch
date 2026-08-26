@@ -1,7 +1,7 @@
 diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
 --- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
 +++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
-@@ -60,7 +60,9 @@ namespace Pal3.Game.GameSystems.Combat
+@@ -60,6 +60,8 @@ namespace Pal3.Game.GameSystems.Combat
          private CombatScene _combatScene;
          private CombatContext _currentCombatContext;
          private CombatRuntimeRegistry<CombatActorController> _runtimeCombatStates = new();
@@ -37,7 +37,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs b/Asse
                  controller.NormalAttackHit -= OnNormalAttackHit;
                  controller.NormalAttackHit += OnNormalAttackHit;
              }
-@@ -197,6 +205,53 @@ namespace Pal3.Game.GameSystems.Combat
+@@ -197,5 +205,50 @@ namespace Pal3.Game.GameSystems.Combat
                  $"targetHp={targetState.CurrentHp}/{targetState.MaxHp}, " +
                  $"defeated={resolution.IsTargetDefeated}");
 +
@@ -88,7 +88,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs b/Asse
          }
  
          private void SetCameraPosition(CombatCameraConfig config)
-@@ -239,12 +294,10 @@ namespace Pal3.Game.GameSystems.Combat
+@@ -239,11 +292,9 @@ namespace Pal3.Game.GameSystems.Combat
          {
              if (Keyboard.current.escapeKey.wasPressedThisFrame)
              {
@@ -142,7 +142,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs b/
              EngineLogger.LogWarning($"Starting combat with context: {combatContext}");
              _gameStateManager.TryGoToState(GameState.Combat);
              _combatManager.EnterCombat(combatContext);
-@@ -122,13 +136,15 @@ namespace Pal3.Game.GameSystems.Combat
+@@ -122,11 +136,12 @@ namespace Pal3.Game.GameSystems.Combat
  
          private void OnCombatFinished(object sender, CombatResult combatResult)
          {
@@ -156,7 +156,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatCoordinator.cs b/
              {
                  _gameStateManager.GoToPreviousState();
              }
-@@ -225,6 +241,7 @@ namespace Pal3.Game.GameSystems.Combat
+@@ -225,6 +240,7 @@ namespace Pal3.Game.GameSystems.Combat
          public void Execute(ResetGameStateCommand command)
          {
              _combatContextBuilder.ResetContext();
@@ -176,7 +176,7 @@ diff --git a/Assets/Scripts/Pal3.Game/Script/UserVariableManager.cs b/Assets/Scr
      using GameSystems.Dialogue;
      using GameSystems.Favor;
      using GameSystems.Inventory;
-@@ -183,18 +184,15 @@ namespace Pal3.Game.Script
+@@ -183,19 +184,15 @@ namespace Pal3.Game.Script
          #endif
  
 -        // TODO: Impl
