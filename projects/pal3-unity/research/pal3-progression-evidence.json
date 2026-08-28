@@ -1,0 +1,81 @@
+{
+  "schema_version": "pal3_progression_evidence.v0.1",
+  "status": "NON_AUTHORITATIVE_RESEARCH_EVIDENCE",
+  "runtime_use_allowed": false,
+  "reason": "The threshold table and Gold Gu King EXP behavior are currently supported by repeated community observations, not by a recovered original executable formula/table or original game-data artifact.",
+  "pinned_upstream": {
+    "repository": "0x7c13/Pal3.Unity",
+    "commit": "cfed96a21fde248e93e64a47d465b2a9f839ccf8"
+  },
+  "source_facts": {
+    "direct_level_item_semantic": {
+      "path": "Assets/Scripts/Pal3.Core/Contract/Enums/ItemEnums.cs",
+      "fact": "ItemSpecialType.LevelIncrease = 15, comment: 等级提升一级",
+      "related": [
+        "ItemSpecialType.ExIncrease5Percent = 20",
+        "ItemSpecialType.ExIncrease15Percent = 21"
+      ]
+    },
+    "script_level_assignment": {
+      "path": "Assets/Scripts/Pal3.Core/Command/SceCommands/PlayerSetActorLevelCommand.cs",
+      "fact": "Command 145 sets target actor level to the average current-actor level plus LevelIncrease; non-integral rounding semantics remain unresolved."
+    },
+    "persistent_progression_fields": {
+      "path": "Assets/Scripts/Pal3.Core/DataReader/Gdb/GdbFile.cs",
+      "fact": "CombatActorInfo contains Level, Experience, base actor attributes and base element attributes as independent fields."
+    }
+  },
+  "community_experience_threshold_table": {
+    "interpretation": "minimum cumulative EXP observed/reported for each level",
+    "evidence_grade": "REPEATED_COMMUNITY_TABLE",
+    "runtime_use_allowed": false,
+    "anchors": {
+      "1": 0,
+      "8": 1012,
+      "15": 7043,
+      "50": 380071,
+      "99": 2841743
+    },
+    "minimum_cumulative_exp_by_level_1_to_99": [
+      0,19,47,89,197,404,671,1012,1432,1943,2576,3342,4341,5594,7043,8633,10512,12641,15026,17591,20440,23633,27210,31057,35060,39560,44469,49869,55873,62747,70773,79851,90162,101215,113254,125923,139540,153789,168823,184158,200024,216403,233289,251347,270772,291299,312222,333890,356441,380071,404940,431269,459359,489044,520646,553261,587087,622390,659383,698296,739163,780838,823322,866613,910713,955621,1001336,1047860,1095192,1143332,1192280,1242037,1292601,1343973,1395728,1447909,1500897,1554589,1608686,1663290,1718703,1774924,1831914,1889342,1947179,2005824,2065277,2125538,2186608,2248485,2311170,2374664,2438965,2504075,2569992,2636718,2704252,2772593,2841743
+    ],
+    "derived_incremental_exp_for_level_1_to_99": [
+      0,19,28,42,108,207,267,341,420,511,633,766,999,1253,1449,1590,1879,2129,2385,2565,2849,3193,3577,3847,4003,4500,4909,5400,6004,6874,8026,9078,10311,11053,12039,12669,13617,14249,15034,15335,15866,16379,16886,18058,19425,20527,20923,21668,22551,23630,24869,26329,28090,29685,31602,32615,33826,35303,36993,38913,40867,41675,42484,43291,44100,44908,45715,46524,47332,48140,48948,49757,50564,51372,51755,52181,52988,53692,54097,54604,55413,56221,56990,57428,57837,58645,59453,60261,61070,61877,62685,63494,64301,65110,65917,66726,67534,68341,69150
+    ],
+    "cross_check": "A separate community answer publishes the incremental sequence; it matches first differences of the cumulative sequence exactly.",
+    "sources": [
+      "https://zhidao.baidu.com/question/107612317.html",
+      "https://zhidao.baidu.com/question/168394583.html",
+      "https://zhidao.baidu.com/question/591291834.html",
+      "https://zhidao.baidu.com/question/577494616.html",
+      "https://zhidao.baidu.com/question/173263031.html"
+    ]
+  },
+  "gold_gu_king": {
+    "identified_item_id": null,
+    "item_id_status": "OPEN_NO_ORIGINAL_GDB_OR_RELIABLE_ID_SOURCE",
+    "source_fact_link": "Upstream GDB exposes a generic ItemSpecialType.LevelIncrease semantic, but without original game data we cannot prove which item record is 金蛊王.",
+    "community_claim": "金蛊王 raises level by one without increasing stored EXP.",
+    "community_claim_runtime_use_allowed": false,
+    "patch_note_evidence": "PAL3 v1.2 patch notes state that using a permanent-stat item and then 金蛊王 could revert the permanent increase to the level-defined value, proving that the direct-level path recalculates level-defined stats.",
+    "patch_note_sources": [
+      "https://games.sina.com.cn/downgames/updatex/pcgames/2009-03-01/2258122057.shtml",
+      "https://patch.ali213.net/showpatch/6123.html"
+    ]
+  },
+  "architecture_constraints": [
+    "Level and Experience must remain independently persisted fields.",
+    "Do not derive Level from Experience on load.",
+    "Do not normalize Experience when restoring a snapshot.",
+    "A direct LevelIncrease path must eventually invoke level-defined stat growth/recalculation; the exact formula is still OPEN.",
+    "Combat EXP settlement must remain blocked until party distribution, threshold semantics, and level-growth behavior are evidence-backed.",
+    "Command 145 must remain blocked from runtime mutation until its average rounding rule and level-growth side effects are evidence-backed."
+  ],
+  "open_blockers": [
+    "Exact original EXP threshold table still lacks binary/original-data corroboration.",
+    "Exact per-character level-growth formulas for HP/SP/MP/Attack/Defense/Speed/Luck are unknown.",
+    "Command 145 non-integral average rounding rule is unknown.",
+    "Gold Gu King item ID is unknown without original GDB or a reliable data dump.",
+    "Combat EXP distribution rules and modifiers are not yet authoritative enough for runtime settlement."
+  ]
+}
