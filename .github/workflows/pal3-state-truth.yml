@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - "projects/pal3-unity/patches/0100-*.patch"
+      - "projects/pal3-unity/patches/*.patch"
       - "tools/pal3_state_truth_gate.py"
       - ".github/workflows/pal3-state-truth.yml"
   push:
     paths:
-      - "projects/pal3-unity/patches/0100-*.patch"
+      - "projects/pal3-unity/patches/*.patch"
       - "tools/pal3_state_truth_gate.py"
       - ".github/workflows/pal3-state-truth.yml"
 
@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   state-truth:
-    name: Replay PAL3 and verify inventory/script state truth
+    name: Replay PAL3 and verify persistent state truth
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -53,7 +53,7 @@ jobs:
             --workspace .control/upstream \
             --out out/pal3-unity
 
-      - name: Verify truthful inventory and script state
+      - name: Verify persistent state truth
         run: |
           python tools/pal3_state_truth_gate.py \
             --workspace .control/upstream \
