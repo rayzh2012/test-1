@@ -1,5 +1,5 @@
 {
-  "schema_version": "pal3_fast_tests.v0.4",
+  "schema_version": "pal3_fast_tests.v0.5",
   "slices": [
     {
       "id": "combat_core",
@@ -10,11 +10,15 @@
         "PAL3"
       ],
       "source_files": [
+        "Assets/Scripts/Pal3.Core/Command/ICommand.cs",
         "Assets/Scripts/Pal3.Core/Contract/Enums/ActorEnums.cs",
         "Assets/Scripts/Pal3.Core/Contract/Enums/CombatEnums.cs",
         "Assets/Scripts/Pal3.Core/Contract/Enums/ItemEnums.cs",
         "Assets/Scripts/Pal3.Core/Contract/Enums/SceneEnums.cs",
         "Assets/Scripts/Pal3.Core/DataReader/Gdb/GdbFile.cs",
+        "Assets/Scripts/Pal3.Game/Command/ConsoleAttribute.cs",
+        "Assets/Scripts/Pal3.Game/Command/CommandExtensions.cs",
+        "Assets/Scripts/Pal3.Game/Command/Extensions/PlayerRestoreActorProgressionCommand.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatCore.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/SingleHitGate.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Core/CombatRuntimeRegistry.cs",
@@ -30,7 +34,8 @@
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/RecoverySkillResolver.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/SkillPresentationPlan.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/MultiTargetSkillPresentationPlan.cs",
-        "Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs"
+        "Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs",
+        "Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionSaveCodec.cs"
       ],
       "test_files": [
         "Assets/Tests/EditMode/CombatCoreTests.cs",
@@ -47,7 +52,8 @@
         "Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs",
         "Assets/Tests/EditMode/MultiTargetSkillPresentationPlannerTests.cs",
         "Assets/Tests/EditMode/RecoverySkillResolverTests.cs",
-        "Assets/Tests/EditMode/PlayerActorProgressionStoreTests.cs"
+        "Assets/Tests/EditMode/PlayerActorProgressionStoreTests.cs",
+        "Assets/Tests/EditMode/PlayerActorProgressionSaveCodecTests.cs"
       ]
     }
   ]
