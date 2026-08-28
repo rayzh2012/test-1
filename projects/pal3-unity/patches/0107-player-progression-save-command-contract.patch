@@ -1,0 +1,306 @@
+diff --git a/Assets/Scripts/Pal3.Game/Command/Extensions/PlayerRestoreActorProgressionCommand.cs b/Assets/Scripts/Pal3.Game/Command/Extensions/PlayerRestoreActorProgressionCommand.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/Command/Extensions/PlayerRestoreActorProgressionCommand.cs
+@@ -0,0 +1,25 @@
++// ---------------------------------------------------------------------------------------------
++//  Internal save/load command for persistent player progression snapshots.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.Command.Extensions
++{
++    using System;
++    using Core.Command;
++
++    [AvailableInConsole]
++    public sealed class PlayerRestoreActorProgressionCommand : ICommand
++    {
++        public PlayerRestoreActorProgressionCommand(string payload)
++        {
++            if (string.IsNullOrWhiteSpace(payload))
++            {
++                throw new ArgumentException("Progression payload cannot be empty.", nameof(payload));
++            }
++
++            Payload = payload;
++        }
++
++        public string Payload { get; }
++    }
++}
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionSaveCodec.cs b/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionSaveCodec.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionSaveCodec.cs
+@@ -0,0 +1,131 @@
++// ---------------------------------------------------------------------------------------------
++//  Stable text codec used by PAL3.Unity command-based save files.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.PlayerProgression.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Globalization;
++    using Core.Contract.Enums;
++    using Pal3.Game.Command.Extensions;
++
++    public static class PlayerActorProgressionSaveCodec
++    {
++        private const int FORMAT_VERSION = 1;
++        private const int TOKEN_COUNT = 21;
++
++        public static PlayerRestoreActorProgressionCommand Encode(
++            PlayerActorProgressionSnapshot snapshot)
++        {
++            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
++
++            int[] values =
++            {
++                FORMAT_VERSION,
++                (int)snapshot.ActorId,
++                snapshot.Level,
++                snapshot.Experience,
++                Get(snapshot.AttributeValues, ActorAttributeType.Hp),
++                Get(snapshot.AttributeValues, ActorAttributeType.Sp),
++                Get(snapshot.AttributeValues, ActorAttributeType.Mp),
++                Get(snapshot.AttributeValues, ActorAttributeType.Attack),
++                Get(snapshot.AttributeValues, ActorAttributeType.Defense),
++                Get(snapshot.AttributeValues, ActorAttributeType.Speed),
++                Get(snapshot.AttributeValues, ActorAttributeType.Luck),
++                Get(snapshot.AttributeValues, ActorAttributeType.Water),
++                Get(snapshot.AttributeValues, ActorAttributeType.Fire),
++                Get(snapshot.AttributeValues, ActorAttributeType.Wind),
++                Get(snapshot.AttributeValues, ActorAttributeType.Thunder),
++                Get(snapshot.AttributeValues, ActorAttributeType.Earth),
++                Get(snapshot.ElementAttributeValues, ElementType.Water),
++                Get(snapshot.ElementAttributeValues, ElementType.Fire),
++                Get(snapshot.ElementAttributeValues, ElementType.Wind),
++                Get(snapshot.ElementAttributeValues, ElementType.Thunder),
++                Get(snapshot.ElementAttributeValues, ElementType.Earth),
++            };
++
++            string[] tokens = new string[values.Length];
++            for (int i = 0; i < values.Length; i++)
++            {
++                tokens[i] = values[i].ToString(CultureInfo.InvariantCulture);
++            }
++
++            return new PlayerRestoreActorProgressionCommand(string.Join(",", tokens));
++        }
++
++        public static PlayerActorProgressionSnapshot Decode(
++            PlayerRestoreActorProgressionCommand command)
++        {
++            if (command == null) throw new ArgumentNullException(nameof(command));
++
++            string[] tokens = command.Payload.Split(',');
++            if (tokens.Length != TOKEN_COUNT)
++            {
++                throw new FormatException(
++                    $"Expected {TOKEN_COUNT} progression tokens but found {tokens.Length}.");
++            }
++
++            int[] values = new int[TOKEN_COUNT];
++            for (int i = 0; i < tokens.Length; i++)
++            {
++                if (!int.TryParse(
++                        tokens[i],
++                        NumberStyles.Integer,
++                        CultureInfo.InvariantCulture,
++                        out values[i]))
++                {
++                    throw new FormatException(
++                        $"Invalid progression integer token at index [{i}]: [{tokens[i]}].");
++                }
++            }
++
++            if (values[0] != FORMAT_VERSION)
++            {
++                throw new NotSupportedException(
++                    $"Unsupported player progression save format version [{values[0]}].");
++            }
++
++            return new PlayerActorProgressionSnapshot(
++                (PlayerActorId)values[1],
++                values[2],
++                values[3],
++                new Dictionary<ActorAttributeType, int>
++                {
++                    [ActorAttributeType.Hp] = values[4],
++                    [ActorAttributeType.Sp] = values[5],
++                    [ActorAttributeType.Mp] = values[6],
++                    [ActorAttributeType.Attack] = values[7],
++                    [ActorAttributeType.Defense] = values[8],
++                    [ActorAttributeType.Speed] = values[9],
++                    [ActorAttributeType.Luck] = values[10],
++                    [ActorAttributeType.Water] = values[11],
++                    [ActorAttributeType.Fire] = values[12],
++                    [ActorAttributeType.Wind] = values[13],
++                    [ActorAttributeType.Thunder] = values[14],
++                    [ActorAttributeType.Earth] = values[15],
++                },
++                new Dictionary<ElementType, int>
++                {
++                    [ElementType.Water] = values[16],
++                    [ElementType.Fire] = values[17],
++                    [ElementType.Wind] = values[18],
++                    [ElementType.Thunder] = values[19],
++                    [ElementType.Earth] = values[20],
++                });
++        }
++
++        private static int Get<TKey>(
++            IReadOnlyDictionary<TKey, int> values,
++            TKey key)
++        {
++            if (!values.TryGetValue(key, out int value))
++            {
++                throw new InvalidOperationException(
++                    $"Progression snapshot is missing required key [{key}].");
++            }
++
++            return value;
++        }
++    }
++}
+diff --git a/Assets/Tests/EditMode/PlayerActorProgressionSaveCodecTests.cs b/Assets/Tests/EditMode/PlayerActorProgressionSaveCodecTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/PlayerActorProgressionSaveCodecTests.cs
+@@ -0,0 +1,100 @@
++namespace Pal3.Game.Tests.GameSystems.PlayerProgression.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Game.Command;
++    using Pal3.Game.Command.Extensions;
++    using Pal3.Game.GameSystems.PlayerProgression.Domain;
++
++    public sealed class PlayerActorProgressionSaveCodecTests
++    {
++        [Test]
++        public void EncodeDecode_RoundTripsAllProgressionFields()
++        {
++            PlayerActorProgressionSnapshot snapshot = CreateSnapshot();
++
++            PlayerRestoreActorProgressionCommand command =
++                PlayerActorProgressionSaveCodec.Encode(snapshot);
++            PlayerActorProgressionSnapshot restored =
++                PlayerActorProgressionSaveCodec.Decode(command);
++
++            Assert.That(restored.ActorId, Is.EqualTo(PlayerActorId.JingTian));
++            Assert.That(restored.Level, Is.EqualTo(8));
++            Assert.That(restored.Experience, Is.EqualTo(1012));
++            foreach ((ActorAttributeType key, int value) in snapshot.AttributeValues)
++            {
++                Assert.That(restored.AttributeValues[key], Is.EqualTo(value));
++            }
++            foreach ((ElementType key, int value) in snapshot.ElementAttributeValues)
++            {
++                Assert.That(restored.ElementAttributeValues[key], Is.EqualTo(value));
++            }
++        }
++
++        [Test]
++        public void CommandToString_UsesOneStableNoSpacePayloadArgument()
++        {
++            PlayerRestoreActorProgressionCommand command =
++                PlayerActorProgressionSaveCodec.Encode(CreateSnapshot());
++
++            string serialized = CommandExtensions.ToString(command);
++
++            Assert.That(serialized, Does.StartWith("PlayerRestoreActorProgression 1,"));
++            Assert.That(serialized.Split(' ').Length, Is.EqualTo(2));
++            Assert.That(serialized, Does.Contain(",8,1012,"));
++        }
++
++        [Test]
++        public void Decode_RejectsUnknownFormatVersion()
++        {
++            PlayerRestoreActorProgressionCommand command =
++                PlayerActorProgressionSaveCodec.Encode(CreateSnapshot());
++            string unsupportedPayload = "2" + command.Payload[1..];
++
++            Assert.Throws<NotSupportedException>(() =>
++                PlayerActorProgressionSaveCodec.Decode(
++                    new PlayerRestoreActorProgressionCommand(unsupportedPayload)));
++        }
++
++        [Test]
++        public void Decode_RejectsTruncatedPayload()
++        {
++            Assert.Throws<FormatException>(() =>
++                PlayerActorProgressionSaveCodec.Decode(
++                    new PlayerRestoreActorProgressionCommand("1,0,8")));
++        }
++
++        private static PlayerActorProgressionSnapshot CreateSnapshot()
++        {
++            return new PlayerActorProgressionSnapshot(
++                PlayerActorId.JingTian,
++                8,
++                1012,
++                new Dictionary<ActorAttributeType, int>
++                {
++                    [ActorAttributeType.Hp] = 501,
++                    [ActorAttributeType.Sp] = 102,
++                    [ActorAttributeType.Mp] = 83,
++                    [ActorAttributeType.Attack] = 44,
++                    [ActorAttributeType.Defense] = 35,
++                    [ActorAttributeType.Speed] = 26,
++                    [ActorAttributeType.Luck] = 17,
++                    [ActorAttributeType.Water] = 8,
++                    [ActorAttributeType.Fire] = 9,
++                    [ActorAttributeType.Wind] = 10,
++                    [ActorAttributeType.Thunder] = 11,
++                    [ActorAttributeType.Earth] = 12,
++                },
++                new Dictionary<ElementType, int>
++                {
++                    [ElementType.Water] = 1,
++                    [ElementType.Fire] = 2,
++                    [ElementType.Wind] = 3,
++                    [ElementType.Thunder] = 4,
++                    [ElementType.Earth] = 5,
++                });
++        }
++    }
++}
+diff --git a/Assets/Scripts/Pal3.Game/Command/ConsoleCommands.PAL3.g.cs b/Assets/Scripts/Pal3.Game/Command/ConsoleCommands.PAL3.g.cs
+--- a/Assets/Scripts/Pal3.Game/Command/ConsoleCommands.PAL3.g.cs
++++ b/Assets/Scripts/Pal3.Game/Command/ConsoleCommands.PAL3.g.cs
+@@ -54,6 +54,13 @@ namespace Pal3.Game.Command
+         {
+             Pal3.Instance.Execute(new ResetGameStateCommand());
+         }
++
++        // <auto-generated/>
++        [ConsoleMethodAttribute("PlayerRestoreActorProgression", "Execute PlayerRestoreActorProgressionCommand.")]
++        public static void PlayerRestoreActorProgression(System.String payload)
++        {
++            Pal3.Instance.Execute(new PlayerRestoreActorProgressionCommand(payload));
++        }
+ 
+         // <auto-generated/>
+         [ConsoleMethodAttribute("SceneSaveGlobalBidirectionalPushableObjectState", "Execute SceneSaveGlobalBidirectionalPushableObjectStateCommand.")]
+
+diff --git a/Assets/Scripts/Pal3.Game/Command/ConsoleCommands.PAL3A.g.cs b/Assets/Scripts/Pal3.Game/Command/ConsoleCommands.PAL3A.g.cs
+--- a/Assets/Scripts/Pal3.Game/Command/ConsoleCommands.PAL3A.g.cs
++++ b/Assets/Scripts/Pal3.Game/Command/ConsoleCommands.PAL3A.g.cs
+@@ -54,6 +54,13 @@ namespace Pal3.Game.Command
+         {
+             Pal3.Instance.Execute(new ResetGameStateCommand());
+         }
++
++        // <auto-generated/>
++        [ConsoleMethodAttribute("PlayerRestoreActorProgression", "Execute PlayerRestoreActorProgressionCommand.")]
++        public static void PlayerRestoreActorProgression(System.String payload)
++        {
++            Pal3.Instance.Execute(new PlayerRestoreActorProgressionCommand(payload));
++        }
+ 
+         // <auto-generated/>
+         [ConsoleMethodAttribute("SceneSaveGlobalBidirectionalPushableObjectState", "Execute SceneSaveGlobalBidirectionalPushableObjectStateCommand.")]
