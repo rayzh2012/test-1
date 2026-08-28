@@ -1,0 +1,346 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs b/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs
+@@ -0,0 +1,154 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity persistent per-player progression state.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.PlayerProgression.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Collections.ObjectModel;
++    using Core.Contract.Enums;
++    using Core.DataReader.Gdb;
++
++    public sealed class PlayerActorProgressionSnapshot
++    {
++        private readonly IReadOnlyDictionary<ActorAttributeType, int> _attributeValues;
++        private readonly IReadOnlyDictionary<ElementType, int> _elementAttributeValues;
++
++        public PlayerActorId ActorId { get; }
++        public int Level { get; }
++        public int Experience { get; }
++        public IReadOnlyDictionary<ActorAttributeType, int> AttributeValues => _attributeValues;
++        public IReadOnlyDictionary<ElementType, int> ElementAttributeValues => _elementAttributeValues;
++
++        public PlayerActorProgressionSnapshot(
++            PlayerActorId actorId,
++            int level,
++            int experience,
++            IDictionary<ActorAttributeType, int> attributeValues,
++            IDictionary<ElementType, int> elementAttributeValues)
++        {
++            if (attributeValues == null) throw new ArgumentNullException(nameof(attributeValues));
++            if (elementAttributeValues == null) throw new ArgumentNullException(nameof(elementAttributeValues));
++
++            ActorId = actorId;
++            Level = level;
++            Experience = experience;
++            _attributeValues = new ReadOnlyDictionary<ActorAttributeType, int>(
++                new Dictionary<ActorAttributeType, int>(attributeValues));
++            _elementAttributeValues = new ReadOnlyDictionary<ElementType, int>(
++                new Dictionary<ElementType, int>(elementAttributeValues));
++        }
++
++        public PlayerActorProgressionSnapshot Copy()
++        {
++            return new PlayerActorProgressionSnapshot(
++                ActorId,
++                Level,
++                Experience,
++                new Dictionary<ActorAttributeType, int>(_attributeValues),
++                new Dictionary<ElementType, int>(_elementAttributeValues));
++        }
++    }
++
++    public sealed class PlayerActorProgressionStore
++    {
++        private readonly Dictionary<PlayerActorId, CombatActorInfo> _baselines = new();
++        private readonly Dictionary<PlayerActorId, PlayerActorProgressionSnapshot> _snapshots = new();
++
++        public PlayerActorProgressionStore(IDictionary<PlayerActorId, CombatActorInfo> baselines)
++        {
++            if (baselines == null) throw new ArgumentNullException(nameof(baselines));
++
++            foreach ((PlayerActorId actorId, CombatActorInfo actorInfo) in baselines)
++            {
++                CombatActorInfo baseline = CloneCombatActorInfo(actorInfo);
++                _baselines[actorId] = baseline;
++                _snapshots[actorId] = CreateSnapshot(actorId, baseline);
++            }
++        }
++
++        public PlayerActorProgressionSnapshot GetSnapshot(PlayerActorId actorId)
++        {
++            if (!_snapshots.TryGetValue(actorId, out PlayerActorProgressionSnapshot snapshot))
++            {
++                throw new KeyNotFoundException($"No progression baseline registered for actor [{actorId}].");
++            }
++
++            return snapshot.Copy();
++        }
++
++        public void RestoreSnapshot(PlayerActorProgressionSnapshot snapshot)
++        {
++            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
++            if (!_baselines.ContainsKey(snapshot.ActorId))
++            {
++                throw new KeyNotFoundException(
++                    $"No progression baseline registered for actor [{snapshot.ActorId}].");
++            }
++
++            _snapshots[snapshot.ActorId] = snapshot.Copy();
++        }
++
++        public void Reset()
++        {
++            _snapshots.Clear();
++            foreach ((PlayerActorId actorId, CombatActorInfo baseline) in _baselines)
++            {
++                _snapshots[actorId] = CreateSnapshot(actorId, baseline);
++            }
++        }
++
++        public CombatActorInfo BuildCombatActorInfo(PlayerActorId actorId)
++        {
++            if (!_baselines.TryGetValue(actorId, out CombatActorInfo baseline))
++            {
++                throw new KeyNotFoundException($"No progression baseline registered for actor [{actorId}].");
++            }
++
++            PlayerActorProgressionSnapshot snapshot = _snapshots[actorId];
++            CombatActorInfo result = CloneCombatActorInfo(baseline);
++            result.Level = snapshot.Level;
++            result.Experience = snapshot.Experience;
++            result.AttributeValues =
++                new Dictionary<ActorAttributeType, int>(snapshot.AttributeValues);
++            result.ElementAttributeValues =
++                new Dictionary<ElementType, int>(snapshot.ElementAttributeValues);
++            return result;
++        }
++
++        private static PlayerActorProgressionSnapshot CreateSnapshot(
++            PlayerActorId actorId,
++            CombatActorInfo actorInfo)
++        {
++            return new PlayerActorProgressionSnapshot(
++                actorId,
++                actorInfo.Level,
++                actorInfo.Experience,
++                actorInfo.AttributeValues ?? new Dictionary<ActorAttributeType, int>(),
++                actorInfo.ElementAttributeValues ?? new Dictionary<ElementType, int>());
++        }
++
++        private static CombatActorInfo CloneCombatActorInfo(CombatActorInfo source)
++        {
++            CombatActorInfo clone = source;
++            clone.ElementAttributeValues = source.ElementAttributeValues == null
++                ? null
++                : new Dictionary<ElementType, int>(source.ElementAttributeValues);
++            clone.AttributeValues = source.AttributeValues == null
++                ? null
++                : new Dictionary<ActorAttributeType, int>(source.AttributeValues);
++            clone.CombatStateImpactTypes = source.CombatStateImpactTypes == null
++                ? null
++                : new Dictionary<ActorCombatStateType, CombatStateImpactType>(
++                    source.CombatStateImpactTypes);
++            clone.MainActorFavor = source.MainActorFavor == null
++                ? null
++                : (ushort[])source.MainActorFavor.Clone();
++            clone.SkillIds = source.SkillIds == null ? null : (uint[])source.SkillIds.Clone();
++            clone.SkillLevels = source.SkillLevels == null ? null : (byte[])source.SkillLevels.Clone();
++            clone.Properties = source.Properties == null ? null : (float[])source.Properties.Clone();
++            return clone;
++        }
++    }
++}
+
+diff --git a/Assets/Tests/EditMode/PlayerActorProgressionStoreTests.cs b/Assets/Tests/EditMode/PlayerActorProgressionStoreTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/PlayerActorProgressionStoreTests.cs
+@@ -0,0 +1,181 @@
++namespace Pal3.Game.Tests.GameSystems.PlayerProgression.Domain
++{
++    using System.Collections.Generic;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Core.DataReader.Gdb;
++    using Pal3.Game.GameSystems.PlayerProgression.Domain;
++
++    public sealed class PlayerActorProgressionStoreTests
++    {
++        [Test]
++        public void Constructor_SeedsSnapshotFromStaticGdbBaseline()
++        {
++            PlayerActorProgressionStore store = CreateStore();
++
++            PlayerActorProgressionSnapshot snapshot =
++                store.GetSnapshot(PlayerActorId.JingTian);
++
++            Assert.That(snapshot.Level, Is.EqualTo(5));
++            Assert.That(snapshot.Experience, Is.EqualTo(123));
++            Assert.That(snapshot.AttributeValues[ActorAttributeType.Hp], Is.EqualTo(500));
++            Assert.That(snapshot.ElementAttributeValues[ElementType.Wind], Is.EqualTo(6));
++        }
++
++        [Test]
++        public void Snapshot_DefensivelyCopiesProgressionDictionaries()
++        {
++            Dictionary<ActorAttributeType, int> attributes = new()
++            {
++                [ActorAttributeType.Hp] = 500,
++            };
++            Dictionary<ElementType, int> elements = new()
++            {
++                [ElementType.Wind] = 6,
++            };
++            PlayerActorProgressionSnapshot snapshot = new(
++                PlayerActorId.JingTian, 5, 123, attributes, elements);
++
++            attributes[ActorAttributeType.Hp] = 1;
++            elements[ElementType.Wind] = 1;
++
++            Assert.That(snapshot.AttributeValues[ActorAttributeType.Hp], Is.EqualTo(500));
++            Assert.That(snapshot.ElementAttributeValues[ElementType.Wind], Is.EqualTo(6));
++        }
++
++        [Test]
++        public void RestoreSnapshot_ChangesOnlyRequestedActor()
++        {
++            PlayerActorProgressionStore store = CreateStore();
++            PlayerActorProgressionSnapshot jingTian = store.GetSnapshot(PlayerActorId.JingTian);
++            PlayerActorProgressionSnapshot xueJianBefore = store.GetSnapshot(PlayerActorId.XueJian);
++
++            store.RestoreSnapshot(new PlayerActorProgressionSnapshot(
++                PlayerActorId.JingTian,
++                9,
++                999,
++                new Dictionary<ActorAttributeType, int>(jingTian.AttributeValues)
++                {
++                    [ActorAttributeType.Hp] = 900,
++                },
++                new Dictionary<ElementType, int>(jingTian.ElementAttributeValues)));
++
++            Assert.That(store.GetSnapshot(PlayerActorId.JingTian).Level, Is.EqualTo(9));
++            Assert.That(store.GetSnapshot(PlayerActorId.JingTian).Experience, Is.EqualTo(999));
++            Assert.That(
++                store.GetSnapshot(PlayerActorId.JingTian).AttributeValues[ActorAttributeType.Hp],
++                Is.EqualTo(900));
++            Assert.That(store.GetSnapshot(PlayerActorId.XueJian).Level, Is.EqualTo(xueJianBefore.Level));
++            Assert.That(
++                store.GetSnapshot(PlayerActorId.XueJian).Experience,
++                Is.EqualTo(xueJianBefore.Experience));
++        }
++
++        [Test]
++        public void BuildCombatActorInfo_OverlaysPersistentProgressionWithoutMutatingBaseline()
++        {
++            PlayerActorProgressionStore store = CreateStore();
++            PlayerActorProgressionSnapshot baseline = store.GetSnapshot(PlayerActorId.JingTian);
++
++            store.RestoreSnapshot(new PlayerActorProgressionSnapshot(
++                PlayerActorId.JingTian,
++                8,
++                1012,
++                new Dictionary<ActorAttributeType, int>(baseline.AttributeValues)
++                {
++                    [ActorAttributeType.Hp] = 777,
++                },
++                new Dictionary<ElementType, int>(baseline.ElementAttributeValues)));
++
++            CombatActorInfo combatInfo = store.BuildCombatActorInfo(PlayerActorId.JingTian);
++            combatInfo.AttributeValues[ActorAttributeType.Hp] = 1;
++
++            Assert.That(combatInfo.Level, Is.EqualTo(8));
++            Assert.That(combatInfo.Experience, Is.EqualTo(1012));
++            Assert.That(store.GetSnapshot(PlayerActorId.JingTian).AttributeValues[ActorAttributeType.Hp],
++                Is.EqualTo(777));
++        }
++
++        [Test]
++        public void Reset_RestoresOriginalGdbBaseline()
++        {
++            PlayerActorProgressionStore store = CreateStore();
++            PlayerActorProgressionSnapshot baseline = store.GetSnapshot(PlayerActorId.JingTian);
++
++            store.RestoreSnapshot(new PlayerActorProgressionSnapshot(
++                PlayerActorId.JingTian,
++                30,
++                123456,
++                new Dictionary<ActorAttributeType, int>(baseline.AttributeValues),
++                new Dictionary<ElementType, int>(baseline.ElementAttributeValues)));
++            store.Reset();
++
++            PlayerActorProgressionSnapshot restored = store.GetSnapshot(PlayerActorId.JingTian);
++            Assert.That(restored.Level, Is.EqualTo(5));
++            Assert.That(restored.Experience, Is.EqualTo(123));
++        }
++
++        [Test]
++        public void Constructor_ClonesStaticGdbReferenceFields()
++        {
++            CombatActorInfo source = CreateCombatActorInfo(101, 5, 123, 500, 6);
++            Dictionary<PlayerActorId, CombatActorInfo> baselines = new()
++            {
++                [PlayerActorId.JingTian] = source,
++            };
++
++            PlayerActorProgressionStore store = new(baselines);
++            source.AttributeValues[ActorAttributeType.Hp] = 1;
++            source.ElementAttributeValues[ElementType.Wind] = 1;
++
++            PlayerActorProgressionSnapshot snapshot = store.GetSnapshot(PlayerActorId.JingTian);
++            Assert.That(snapshot.AttributeValues[ActorAttributeType.Hp], Is.EqualTo(500));
++            Assert.That(snapshot.ElementAttributeValues[ElementType.Wind], Is.EqualTo(6));
++        }
++
++        private static PlayerActorProgressionStore CreateStore()
++        {
++            return new PlayerActorProgressionStore(new Dictionary<PlayerActorId, CombatActorInfo>
++            {
++                [PlayerActorId.JingTian] = CreateCombatActorInfo(101, 5, 123, 500, 6),
++                [PlayerActorId.XueJian] = CreateCombatActorInfo(104, 4, 88, 420, 2),
++            });
++        }
++
++        private static CombatActorInfo CreateCombatActorInfo(
++            uint id,
++            int level,
++            int experience,
++            int hp,
++            int wind)
++        {
++            return new CombatActorInfo
++            {
++                Id = id,
++                Type = CombatActorType.MainActor,
++                Name = $"Actor_{id}",
++                Level = level,
++                Experience = experience,
++                AttributeValues = new Dictionary<ActorAttributeType, int>
++                {
++                    [ActorAttributeType.Hp] = hp,
++                    [ActorAttributeType.Sp] = 100,
++                    [ActorAttributeType.Mp] = 80,
++                },
++                ElementAttributeValues = new Dictionary<ElementType, int>
++                {
++                    [ElementType.Water] = 1,
++                    [ElementType.Fire] = 2,
++                    [ElementType.Wind] = wind,
++                    [ElementType.Thunder] = 3,
++                    [ElementType.Earth] = 4,
++                },
++                CombatStateImpactTypes = new Dictionary<ActorCombatStateType, CombatStateImpactType>(),
++                MainActorFavor = new ushort[6],
++                SkillIds = new uint[4],
++                SkillLevels = new byte[4],
++                Properties = new float[10],
++            };
++        }
++    }
++}
