@@ -1,5 +1,5 @@
 {
-  "schema_version": "pal3_fast_tests.v0.5",
+  "schema_version": "pal3_fast_tests.v0.6",
   "slices": [
     {
       "id": "combat_core",
@@ -53,7 +53,8 @@
         "Assets/Tests/EditMode/MultiTargetSkillPresentationPlannerTests.cs",
         "Assets/Tests/EditMode/RecoverySkillResolverTests.cs",
         "Assets/Tests/EditMode/PlayerActorProgressionStoreTests.cs",
-        "Assets/Tests/EditMode/PlayerActorProgressionSaveCodecTests.cs"
+        "Assets/Tests/EditMode/PlayerActorProgressionSaveCodecTests.cs",
+        "Assets/Tests/EditMode/PlayerActorProgressionPersistenceRoundTripTests.cs"
       ]
     }
   ]
