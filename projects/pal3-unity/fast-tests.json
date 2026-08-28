@@ -1,5 +1,5 @@
 {
-  "schema_version": "pal3_fast_tests.v0.3",
+  "schema_version": "pal3_fast_tests.v0.4",
   "slices": [
     {
       "id": "combat_core",
@@ -29,7 +29,8 @@
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/MultiTargetSkillResolver.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/RecoverySkillResolver.cs",
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/SkillPresentationPlan.cs",
-        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/MultiTargetSkillPresentationPlan.cs"
+        "Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/MultiTargetSkillPresentationPlan.cs",
+        "Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs"
       ],
       "test_files": [
         "Assets/Tests/EditMode/CombatCoreTests.cs",
@@ -45,7 +46,8 @@
         "Assets/Tests/EditMode/CombatRewardResolverTests.cs",
         "Assets/Tests/EditMode/MultiTargetSkillResolverTests.cs",
         "Assets/Tests/EditMode/MultiTargetSkillPresentationPlannerTests.cs",
-        "Assets/Tests/EditMode/RecoverySkillResolverTests.cs"
+        "Assets/Tests/EditMode/RecoverySkillResolverTests.cs",
+        "Assets/Tests/EditMode/PlayerActorProgressionStoreTests.cs"
       ]
     }
   ]
