@@ -22,15 +22,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/Playe
 diff --git a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorProgressionManager.cs b/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorProgressionManager.cs
 --- a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorProgressionManager.cs
 +++ b/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorProgressionManager.cs
-@@ -8,6 +8,7 @@ namespace Pal3.Game.GameSystems.PlayerProgression
- {
-     using System;
-     using System.Collections.Generic;
-+    using Command.Extensions;
-     using Core.Command;
-     using Core.Command.SceCommands;
-     using Core.Contract.Constants;
-@@ -18,7 +19,8 @@ namespace Pal3.Game.GameSystems.PlayerProgression
+@@ -18,7 +18,8 @@ namespace Pal3.Game.GameSystems.PlayerProgression
      using Domain;
  
      public sealed class PlayerActorProgressionManager : IDisposable,
@@ -40,7 +32,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorP
      {
          private readonly PlayerActorProgressionStore _store;
  
-@@ -51,6 +53,11 @@ namespace Pal3.Game.GameSystems.PlayerProgression
+@@ -51,6 +52,11 @@ namespace Pal3.Game.GameSystems.PlayerProgression
              return _store.GetSnapshot(actorId);
          }
 +
@@ -51,7 +43,7 @@ diff --git a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorP
  
          public void RestoreSnapshot(PlayerActorProgressionSnapshot snapshot)
          {
-@@ -66,5 +73,10 @@ namespace Pal3.Game.GameSystems.PlayerProgression
+@@ -66,5 +72,10 @@ namespace Pal3.Game.GameSystems.PlayerProgression
          {
              _store.Reset();
          }
