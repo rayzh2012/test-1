@@ -37,6 +37,7 @@ def main() -> int:
     variables = read(workspace, "Assets/Scripts/Pal3.Game/Script/UserVariableManager.cs")
     script_runner = read(workspace, "Assets/Scripts/Pal3.Game/Script/PalScriptRunner.cs")
     save_manager = read(workspace, "Assets/Scripts/Pal3.Game/State/SaveManager.cs")
+    pal3 = read(workspace, "Assets/Scripts/Pal3.Game/Pal3.cs")
     money_command = read(workspace, "Assets/Scripts/Pal3.Core/Command/SceCommands/ScriptVarSetMoneyCommand.cs")
     combat_result_command = read(
         workspace,
@@ -57,6 +58,22 @@ def main() -> int:
     combat_reward = read(
         workspace,
         "Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatRewardResolver.cs",
+    )
+    progression_store = read(
+        workspace,
+        "Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs",
+    )
+    progression_manager = read(
+        workspace,
+        "Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorProgressionManager.cs",
+    )
+    progression_codec = read(
+        workspace,
+        "Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionSaveCodec.cs",
+    )
+    progression_restore_command = read(
+        workspace,
+        "Assets/Scripts/Pal3.Game/Command/Extensions/PlayerRestoreActorProgressionCommand.cs",
     )
 
     checks: list[dict] = []
@@ -226,17 +243,82 @@ def main() -> int:
     check_contains(
         checks,
         combat_coordinator,
-        "combat_exp_is_explicitly_pending_persistent_actor_stats",
+        "combat_exp_is_explicitly_pending_growth_semantics",
         "Combat EXP reward pending persistent actor-stat support",
+    )
+
+    # Persistent player-progression truth. These checks intentionally verify exact snapshot
+    # round-trip wiring only. They do not claim an EXP->level threshold or level-growth formula.
+    check_contains(
+        checks,
+        progression_store,
+        "progression_store_exports_defensive_snapshot_copies",
+        "snapshots[actorId] = snapshot.Copy();",
+    )
+    check_contains(
+        checks,
+        progression_manager,
+        "progression_manager_executes_restore_command",
+        "ICommandExecutor<PlayerRestoreActorProgressionCommand>",
+    )
+    check_contains(
+        checks,
+        progression_manager,
+        "progression_restore_decodes_into_runtime_owner",
+        "_store.RestoreSnapshot(PlayerActorProgressionSaveCodec.Decode(command));",
+    )
+    check_contains(
+        checks,
+        progression_codec,
+        "progression_codec_is_versioned",
+        "private const int FORMAT_VERSION = 1;",
+    )
+    check_contains(
+        checks,
+        progression_codec,
+        "progression_codec_roundtrip_command_encoder_exists",
+        "public static PlayerRestoreActorProgressionCommand Encode(",
+    )
+    check_contains(
+        checks,
+        progression_restore_command,
+        "progression_restore_command_rejects_empty_payload",
+        "string.IsNullOrWhiteSpace(payload)",
+    )
+    check_contains(
+        checks,
+        save_manager,
+        "save_manager_owns_progression_dependency",
+        "private readonly PlayerActorProgressionManager _playerActorProgressionManager;",
+    )
+    check_contains(
+        checks,
+        save_manager,
+        "save_manager_serializes_all_progression_snapshots",
+        "_playerActorProgressionManager.GetAllSnapshots()",
+    )
+    check_contains(
+        checks,
+        save_manager,
+        "save_manager_uses_versioned_progression_codec",
+        "PlayerActorProgressionSaveCodec.Encode(pair.Value)",
+    )
+    check_contains(
+        checks,
+        pal3,
+        "composition_root_injects_same_progression_owner_into_save_manager",
+        "_playerActorProgressionManager,\n                    _inventoryManager",
     )
 
     failed = [item for item in checks if not item["pass"]]
     report = {
-        "schema_version": "pal3_state_truth_gate.v0.3",
+        "schema_version": "pal3_state_truth_gate.v0.4",
         "status": "PASS" if not failed else "FAIL",
         "verification_boundary": (
-            "source-contract verification after ordered patch replay; pure combat outcome and reward "
-            "domains are separately compiled/tested by Fast Lane; not a Unity runtime playthrough"
+            "source-contract verification after ordered patch replay; pure combat outcome/reward and "
+            "progression codec domains are separately compiled/tested by Fast Lane; exact progression "
+            "snapshot persistence is checked here; not a Unity runtime playthrough and not evidence of "
+            "original PAL3 EXP thresholds or level-growth formulas"
         ),
         "checks": checks,
     }
