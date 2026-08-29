@@ -15,34 +15,14 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch full Guoque subpages and Wu Sangui focused sources
+      - name: Batch-fetch Guoque and Wu Sangui focused sources
         shell: bash
         run: |
           set -euxo pipefail
-          OUT=wusangui_gapfill
-          mkdir -p "$OUT/open_text/國榷_full_raw" "$OUT/open_text/吳三桂考_components" "$OUT/scans" "$OUT/manifest"
+          mkdir -p wusangui_gapfill/open_text/國榷_full_raw wusangui_gapfill/open_text/吳三桂考_components wusangui_gapfill/scans wusangui_gapfill/manifest
           python3 - <<'PY'
-          import urllib.parse, urllib.request, pathlib, re, time, json
-          root=pathlib.Path('wusangui_gapfill')
-          ua='Mozilla/5.0 public-domain-historical-research-archiver/1.0'
-          def get(title, dest, retries=5):
-              url='https://zh.wikisource.org/w/index.php?title='+urllib.parse.quote(title)+'&action=raw'
-              err=''
-              for n in range(retries):
-                  try:
-                      req=urllib.request.Request(url,headers={'User-Agent':ua})
-                      with urllib.request.urlopen(req,timeout=90) as r:
-                          b=r.read()
-                      pathlib.Path(dest).write_bytes(b)
-                      return {'title':title,'url':url,'status':'OK','bytes':len(b)}
-                  except Exception as e:
-                      err=repr(e); time.sleep(1+n)
-              return {'title':title,'url':url,'status':'FAILED','bytes':0,'error':err}
-          logs=[]
-          prelim=['國榷/序','國榷/義例','國榷/卷首之一','國榷/卷首之二','國榷/卷首之三','國榷/卷首之四']
-          for t in prelim:
-              fn=t.split('/')[-1]+'.wiki'
-              logs.append(get(t,root/'open_text/國榷_full_raw'/fn)); time.sleep(.3)
+          import urllib.parse, urllib.request, pathlib, json, time
+          root=pathlib.Path('wusangui_gapfill'); ua='Mozilla/5.0 public-domain-historical-research-archiver/1.0'
           nums='零一二三四五六七八九十百'
           def zh(n):
               if n==100:return '一百'
@@ -51,14 +31,38 @@ jobs:
               if n==10:return '十'
               if n<20:return '十'+nums[n%10]
               return nums[n//10]+'十'+(nums[n%10] if n%10 else '')
-          for n in range(1,105):
-              t='國榷/卷'+zh(n); fn=f'卷{n:03d}.wiki'
-              logs.append(get(t,root/'open_text/國榷_full_raw'/fn)); time.sleep(.3)
-          components=['平滇始末','平吳錄','吳逆取亡錄','吳逆始末記','吳三桂紀略','三藩紀事本末']
-          for t in components:
-              logs.append(get(t,root/'open_text/吳三桂考_components'/(t+'.wiki'))); time.sleep(.5)
+          guoque=['國榷/序','國榷/義例','國榷/卷首之一','國榷/卷首之二','國榷/卷首之三','國榷/卷首之四']+[f'國榷/卷{zh(n)}' for n in range(1,105)]
+          focused=['平滇始末','平吳錄','吳逆取亡錄','吳逆始末記','吳三桂紀略','三藩紀事本末']
+          titles=guoque+focused; logs=[]
+          def batch(items):
+              params={'action':'query','prop':'revisions','rvprop':'content','rvslots':'main','format':'json','formatversion':'2','titles':'|'.join(items)}
+              url='https://zh.wikisource.org/w/api.php?'+urllib.parse.urlencode(params)
+              req=urllib.request.Request(url,headers={'User-Agent':ua})
+              with urllib.request.urlopen(req,timeout=120) as r:return json.load(r),url
+          for i in range(0,len(titles),30):
+              chunk=titles[i:i+30]; data,url=batch(chunk)
+              for p in data.get('query',{}).get('pages',[]):
+                  title=p.get('title',''); missing='missing' in p
+                  content=''
+                  if not missing and p.get('revisions'):
+                      content=p['revisions'][0].get('slots',{}).get('main',{}).get('content','')
+                  if title.startswith('國榷/'):
+                      tail=title.split('/',1)[1]
+                      if tail.startswith('卷') and tail not in ('卷首之一','卷首之二','卷首之三','卷首之四'):
+                          try:
+                              n=guoque.index(title)-5
+                              fn=f'卷{n:03d}.wiki'
+                          except: fn=tail+'.wiki'
+                      else: fn=tail+'.wiki'
+                      dest=root/'open_text/國榷_full_raw'/fn
+                  else:
+                      dest=root/'open_text/吳三桂考_components'/(title+'.wiki')
+                  if not missing: dest.write_text(content,encoding='utf-8')
+                  logs.append({'title':title,'status':'MISSING' if missing else 'OK','bytes':len(content.encode()),'api_batch_url':url})
+              time.sleep(1)
           (root/'manifest/wikisource_fetch.json').write_text(json.dumps(logs,ensure_ascii=False,indent=2),encoding='utf-8')
-          print('OK',sum(x['status']=='OK' for x in logs),'FAILED',sum(x['status']!='OK' for x in logs),'BYTES',sum(x['bytes'] for x in logs))
+          print('OK',sum(x['status']=='OK' for x in logs),'MISSING',sum(x['status']!='OK' for x in logs),'BYTES',sum(x['bytes'] for x in logs))
+          print('MISSING_TITLES',[x['title'] for x in logs if x['status']!='OK'])
           PY
       - name: Retry missing Zuiweilu scans slowly
         shell: bash
@@ -67,18 +71,13 @@ jobs:
           python3 - <<'PY'
           import hashlib,pathlib,urllib.parse,urllib.request,time,json
           root=pathlib.Path('wusangui_gapfill'); out=root/'scans'; out.mkdir(exist_ok=True)
-          files=[
-            'SSID-11568962 四部叢刊三編 史部 罪惟錄 第3冊.pdf',
-            'SSID-11568963 四部叢刊三編 史部 罪惟錄 第4冊.pdf',
-            'SSID-11568964 四部叢刊三編 史部 罪惟錄 第5冊.pdf']
+          files=['SSID-11568962 四部叢刊三編 史部 罪惟錄 第3冊.pdf','SSID-11568963 四部叢刊三編 史部 罪惟錄 第4冊.pdf','SSID-11568964 四部叢刊三編 史部 罪惟錄 第5冊.pdf']
           rows=[]
           for idx,fn in enumerate(files):
-              norm=fn.replace(' ','_'); h=hashlib.md5(norm.encode()).hexdigest(); direct=f'https://upload.wikimedia.org/wikipedia/commons/{h[0]}/{h[:2]}/{urllib.parse.quote(norm)}'
-              redirect='https://commons.wikimedia.org/wiki/Special:Redirect/file/'+urllib.parse.quote(fn)+'?download=1'
-              dest=out/fn; status='FAILED'; err=''
-              if idx: time.sleep(25)
+              norm=fn.replace(' ','_'); h=hashlib.md5(norm.encode()).hexdigest(); direct=f'https://upload.wikimedia.org/wikipedia/commons/{h[0]}/{h[:2]}/{urllib.parse.quote(norm)}'; redirect='https://commons.wikimedia.org/wiki/Special:Redirect/file/'+urllib.parse.quote(fn)+'?download=1'; dest=out/fn; status='FAILED'; err=''
+              if idx: time.sleep(20)
               for url in (redirect,direct):
-                  for n in range(5):
+                  for n in range(3):
                       try:
                           req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 public-domain-historical-research-archiver/1.0'})
                           with urllib.request.urlopen(req,timeout=180) as r, dest.open('wb') as f:
@@ -86,14 +85,12 @@ jobs:
                                   b=r.read(1024*1024)
                                   if not b: break
                                   f.write(b)
-                          if dest.stat().st_size>1024:
-                              status='OK'; break
+                          if dest.stat().st_size>1024: status='OK'; break
                       except Exception as e:
-                          err=repr(e); time.sleep(10*(n+1))
+                          err=repr(e); time.sleep(15*(n+1))
                   if status=='OK': break
               rows.append({'filename':fn,'status':status,'bytes':dest.stat().st_size if dest.exists() else 0,'error':err})
-          (root/'manifest/zuiweilu_retry.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding='utf-8')
-          print(rows)
+          (root/'manifest/zuiweilu_retry.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding='utf-8'); print(rows)
           PY
       - name: Integrity manifest
         shell: bash
@@ -108,8 +105,7 @@ jobs:
                   with p.open('rb') as f:
                       for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
                   rows.append({'path':str(p.relative_to(root)),'bytes':p.stat().st_size,'sha256':h.hexdigest()})
-          (root/'manifest/integrity.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding='utf-8')
-          print('FILES',len(rows),'BYTES',sum(x['bytes'] for x in rows))
+          (root/'manifest/integrity.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding='utf-8'); print('FILES',len(rows),'BYTES',sum(x['bytes'] for x in rows))
           PY
       - name: Upload gapfill artifact
         uses: actions/upload-artifact@v4
