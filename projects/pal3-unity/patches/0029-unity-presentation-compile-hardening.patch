@@ -1,0 +1,12 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
+@@ -14,6 +14,7 @@ namespace Pal3.Game.GameSystems.Combat.Presentation
+     using Core.Command.SceCommands;
+     using Core.Contract.Constants;
+     using Data;
+     using Domain;
++    using Engine.Animation;
+     using Engine.Core.Abstraction;
+     using Engine.Core.Implementation;
+     using Engine.Extensions;

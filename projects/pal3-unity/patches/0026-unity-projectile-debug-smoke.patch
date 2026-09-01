@@ -1,0 +1,114 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/CombatManager.cs
+@@ -27,6 +27,7 @@
+     using Engine.Logging;
+     using Game.Scene;
+     using Pal3.Game.GameSystems.Combat.Domain;
++    using Pal3.Game.GameSystems.Combat.Presentation;
+     using Scene;
+     using State;
+     using Team;
+@@ -45,6 +46,7 @@
+         private readonly SceneManager _sceneManager;
+         private readonly CameraManager _cameraManager;
+         private readonly GameStateManager _gameStateManager;
++        private readonly UnityProjectileSkillPresentationAdapter _projectilePresentationAdapter;
+ 
+         private readonly IDictionary<int, CombatActorInfo> _combatActorInfos;
+         private readonly CombatCameraConfigFile _combatCameraConfigFile;
+@@ -65,5 +67,6 @@
+         {
+             Requires.IsNotNull(resourceProvider, nameof(resourceProvider));
++            _projectilePresentationAdapter = new UnityProjectileSkillPresentationAdapter(resourceProvider);
+             _teamManager = Requires.IsNotNull(teamManager, nameof(teamManager));
+             _cameraManager = Requires.IsNotNull(cameraManager, nameof(cameraManager));
+             _sceneManager = Requires.IsNotNull(sceneManager, nameof(sceneManager));
+@@ -202,6 +205,11 @@
+ 
+         public void Update(float deltaTime)
+         {
++            if (Keyboard.current.f7Key.wasPressedThisFrame)
++            {
++                ProjectilePresentationSmoke.Start(_projectilePresentationAdapter, _combatScene);
++            }
++
+             if (Keyboard.current.escapeKey.wasPressedThisFrame)
+             {
+                 OnCombatFinished?.Invoke(this, new CombatResult
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/ProjectilePresentationSmoke.cs
+@@ -0,0 +1,70 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity manual runtime smoke harness for the first visible Projectile presentation slice.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Presentation
++{
++    using Actor.Controllers;
++    using Core.Contract.Enums;
++    using Domain;
++    using Engine.Logging;
++    using Scene;
++
++    /// <summary>
++    /// Presentation-only F7 smoke harness. It intentionally does not resolve combat truth.
++    /// The effect ids are known PAL3 VFX groups used only to prove the Unity playback pipeline;
++    /// they are not claimed to represent a specific original PAL3 spell.
++    /// </summary>
++    public static class ProjectilePresentationSmoke
++    {
++        public static void Start(
++            UnityProjectileSkillPresentationAdapter adapter,
++            CombatScene combatScene)
++        {
++            if (adapter == null || combatScene == null)
++            {
++                EngineLogger.LogWarning("Projectile presentation smoke is unavailable before combat is loaded.");
++                return;
++            }
++
++            CombatActorController caster =
++                combatScene.GetCombatActorController(ElementPosition.AllyWater);
++            CombatActorController target =
++                combatScene.GetCombatActorController(ElementPosition.EnemyWater);
++
++            if (caster == null || target == null)
++            {
++                EngineLogger.LogWarning(
++                    "Projectile presentation smoke requires AllyWater and EnemyWater combatants.");
++                return;
++            }
++
++            UnityProjectileVisualProfile profile = new(
++                key: "debug.projectile.251",
++                castEffectGroupId: 256,
++                travelEffectGroupId: 251,
++                impactEffectGroupId: 257,
++                travelDurationSeconds: 0.45f);
++
++            SkillPresentationPlan plan = new(
++                skillId: 0xffff0001,
++                archetype: SkillVisualArchetype.Projectile,
++                visualProfileKey: profile.Key,
++                cues: new[]
++                {
++                    new SkillPresentationCue(
++                        SkillPresentationCueKind.Cast,
++                        CombatEventKind.SkillCast),
++                    new SkillPresentationCue(
++                        SkillPresentationCueKind.Travel,
++                        triggerEventKind: null),
++                    new SkillPresentationCue(
++                        SkillPresentationCueKind.Impact,
++                        CombatEventKind.Damage,
++                        resolvedAmount: 1),
++                });
++
++            Pal3.Instance.StartCoroutine(
++                adapter.PlayAsync(plan, profile, caster, target, combatScene));
++        }
++    }
++}

@@ -1,0 +1,232 @@
+diff --git a/Assets/Scripts/Pal3.PresentationSandbox.Editor/Pal3.PresentationSandbox.Editor.asmdef b/Assets/Scripts/Pal3.PresentationSandbox.Editor/Pal3.PresentationSandbox.Editor.asmdef
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.PresentationSandbox.Editor/Pal3.PresentationSandbox.Editor.asmdef
+@@ -0,0 +1,18 @@
++{
++    "name": "Pal3.PresentationSandbox.Editor",
++    "rootNamespace": "",
++    "references": [
++        "GUID:077e41948865f464a8105d046a0fdfe0"
++    ],
++    "includePlatforms": [
++        "Editor"
++    ],
++    "excludePlatforms": [],
++    "allowUnsafeCode": false,
++    "overrideReferences": false,
++    "precompiledReferences": [],
++    "autoReferenced": true,
++    "defineConstraints": [],
++    "versionDefines": [],
++    "noEngineReferences": false
++}
+diff --git a/Assets/Scripts/Pal3.PresentationSandbox.Editor/ProceduralProjectileSandboxCapture.cs b/Assets/Scripts/Pal3.PresentationSandbox.Editor/ProceduralProjectileSandboxCapture.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.PresentationSandbox.Editor/ProceduralProjectileSandboxCapture.cs
+@@ -0,0 +1,204 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity editor-only visual sandbox for the open procedural combat presentation fallback.
++//  This intentionally requires no PAL3 commercial game data.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.PresentationSandbox.Editor
++{
++    using System;
++    using System.Collections.Generic;
++    using System.IO;
++    using Engine.Core.Abstraction;
++    using Engine.Core.Implementation;
++    using global::Pal3.Game.GameSystems.Combat.Presentation;
++    using UnityEditor;
++    using UnityEditor.SceneManagement;
++    using UnityEngine;
++    using UnityEngine.SceneManagement;
++
++    public static class ProceduralProjectileSandboxCapture
++    {
++        private const int Width = 960;
++        private const int Height = 540;
++        private static readonly Vector3 CasterPosition = new(-2.2f, 0f, 0f);
++        private static readonly Vector3 TargetPosition = new(2.2f, 0f, 0f);
++
++        private readonly struct FrameSpec
++        {
++            public string FileName { get; }
++            public string Phase { get; }
++            public float TravelProgress { get; }
++            public bool ShowCast { get; }
++            public bool ShowTravel { get; }
++            public bool ShowImpact { get; }
++
++            public FrameSpec(
++                string fileName,
++                string phase,
++                float travelProgress,
++                bool showCast,
++                bool showTravel,
++                bool showImpact)
++            {
++                FileName = fileName;
++                Phase = phase;
++                TravelProgress = travelProgress;
++                ShowCast = showCast;
++                ShowTravel = showTravel;
++                ShowImpact = showImpact;
++            }
++        }
++
++        public static void Capture()
++        {
++            string outputDirectory = ResolveOutputDirectory();
++            Directory.CreateDirectory(outputDirectory);
++
++            IReadOnlyList<FrameSpec> frames = new[]
++            {
++                new FrameSpec("00_baseline.png", "Baseline", 0f, false, false, false),
++                new FrameSpec("01_cast.png", "Cast", 0f, true, false, false),
++                new FrameSpec("02_travel_00.png", "Travel", 0f, false, true, false),
++                new FrameSpec("03_travel_33.png", "Travel", 0.33f, false, true, false),
++                new FrameSpec("04_travel_66.png", "Travel", 0.66f, false, true, false),
++                new FrameSpec("05_travel_100.png", "Travel", 1f, false, true, false),
++                new FrameSpec("06_impact.png", "Impact", 1f, false, false, true),
++            };
++
++            foreach (FrameSpec frame in frames)
++            {
++                CaptureFrame(outputDirectory, frame);
++            }
++
++            File.WriteAllText(
++                Path.Combine(outputDirectory, "manifest.txt"),
++                "PAL3 procedural projectile sandbox\n" +
++                "Evidence boundary: Unity editor renderer + ProceduralCombatVfx only; " +
++                "not PAL3 combat runtime.\n" +
++                string.Join("\n", BuildManifestLines(frames)) + "\n");
++
++            Debug.Log($"[PAL3-PRESENTATION-SANDBOX] captured {frames.Count} frames to {outputDirectory}");
++        }
++
++        private static void CaptureFrame(string outputDirectory, FrameSpec frame)
++        {
++            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
++
++            GameObject rootObject = new("PAL3_PresentationSandbox_Root");
++            IGameEntity root = new GameEntity(rootObject);
++
++            CreateActorMarker("Caster", CasterPosition);
++            CreateActorMarker("Target", TargetPosition);
++
++            if (frame.ShowCast)
++            {
++                IGameEntity cast = ProceduralCombatVfx.CreateOrb(
++                    "Sandbox_Cast",
++                    root,
++                    localScale: 0.55f);
++                cast.Transform.Position = CasterPosition + Vector3.up;
++            }
++
++            if (frame.ShowTravel)
++            {
++                IGameEntity travel = ProceduralCombatVfx.CreateOrb(
++                    "Sandbox_Travel",
++                    root,
++                    localScale: 0.20f);
++                travel.Transform.Position = Vector3.Lerp(
++                    CasterPosition + Vector3.up,
++                    TargetPosition + Vector3.up,
++                    frame.TravelProgress);
++            }
++
++            if (frame.ShowImpact)
++            {
++                IGameEntity impact = ProceduralCombatVfx.CreateOrb(
++                    "Sandbox_Impact",
++                    root,
++                    localScale: 0.70f);
++                impact.Transform.Position = TargetPosition + Vector3.up;
++            }
++
++            Camera camera = CreateCamera();
++            CreateKeyLight();
++            RenderSettings.ambientLight = new Color(0.35f, 0.35f, 0.35f, 1f);
++
++            WriteCameraPng(camera, Path.Combine(outputDirectory, frame.FileName));
++        }
++
++        private static GameObject CreateActorMarker(string name, Vector3 position)
++        {
++            GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Capsule);
++            marker.name = $"Sandbox_{name}";
++            marker.transform.position = position;
++            marker.transform.localScale = new Vector3(0.65f, 1.2f, 0.65f);
++            return marker;
++        }
++
++        private static Camera CreateCamera()
++        {
++            GameObject cameraObject = new("Sandbox_Camera");
++            Camera camera = cameraObject.AddComponent<Camera>();
++            camera.clearFlags = CameraClearFlags.SolidColor;
++            camera.backgroundColor = new Color(0.035f, 0.04f, 0.055f, 1f);
++            camera.transform.position = new Vector3(0f, 2.1f, -9f);
++            camera.transform.LookAt(new Vector3(0f, 0.9f, 0f));
++            camera.fieldOfView = 48f;
++            return camera;
++        }
++
++        private static void CreateKeyLight()
++        {
++            GameObject lightObject = new("Sandbox_KeyLight");
++            Light keyLight = lightObject.AddComponent<Light>();
++            keyLight.type = LightType.Directional;
++            keyLight.intensity = 1.25f;
++            lightObject.transform.rotation = Quaternion.Euler(45f, -30f, 0f);
++        }
++
++        private static void WriteCameraPng(Camera camera, string outputPath)
++        {
++            RenderTexture renderTexture = new(Width, Height, 24, RenderTextureFormat.ARGB32);
++            Texture2D texture = new(Width, Height, TextureFormat.RGB24, mipChain: false);
++            RenderTexture previous = RenderTexture.active;
++
++            try
++            {
++                camera.targetTexture = renderTexture;
++                RenderTexture.active = renderTexture;
++                camera.Render();
++                texture.ReadPixels(new Rect(0f, 0f, Width, Height), 0, 0);
++                texture.Apply();
++                File.WriteAllBytes(outputPath, ImageConversion.EncodeToPNG(texture));
++            }
++            finally
++            {
++                camera.targetTexture = null;
++                RenderTexture.active = previous;
++                UnityEngine.Object.DestroyImmediate(texture);
++                UnityEngine.Object.DestroyImmediate(renderTexture);
++            }
++        }
++
++        private static IEnumerable<string> BuildManifestLines(IReadOnlyList<FrameSpec> frames)
++        {
++            foreach (FrameSpec frame in frames)
++            {
++                yield return $"{frame.FileName}|phase={frame.Phase}|travel={frame.TravelProgress:0.00}";
++            }
++        }
++
++        private static string ResolveOutputDirectory()
++        {
++            string overridePath = Environment.GetEnvironmentVariable("PAL3_PRESENTATION_SANDBOX_OUT");
++            if (!string.IsNullOrWhiteSpace(overridePath))
++            {
++                return Path.GetFullPath(overridePath);
++            }
++
++            string projectRoot = Directory.GetParent(Application.dataPath)!.FullName;
++            return Path.Combine(projectRoot, "out", "pal3-presentation-sandbox");
++        }
++    }
++}

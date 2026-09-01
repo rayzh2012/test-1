@@ -1,0 +1,18 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
+@@ -9,10 +9,11 @@
+     using System.Collections.Generic;
+     using System.Linq;
+     using Actor.Controllers;
++    using Core.Command.SceCommands;
+     using Core.Contract.Constants;
+     using Data;
++    using Domain;
+     using Engine.Core.Abstraction;
+     using Engine.Core.Implementation;
+     using Engine.Extensions;
+-    using Pal3.Game.Command;
+     using Scene;
+ 
+     using Vector3 = UnityEngine.Vector3;

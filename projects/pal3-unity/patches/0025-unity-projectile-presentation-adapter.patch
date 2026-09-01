@@ -1,0 +1,302 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/CombatActor.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/CombatActor.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/CombatActor.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/CombatActor.cs
+@@ -43,6 +43,27 @@
+                 ActorConstants.ActionToNameMap[ActorActionType.NpcRun];
+         }
+ 
++        public string GetMagicWaitAction()
++        {
++            return Info.Type == CombatActorType.MainActor ?
++                ActorConstants.ActionToNameMap[ActorActionType.MagicWait] :
++                ActorConstants.ActionToNameMap[ActorActionType.NpcStand1];
++        }
++
++        public string GetMagicAction()
++        {
++            return Info.Type == CombatActorType.MainActor ?
++                ActorConstants.ActionToNameMap[ActorActionType.Magic] :
++                ActorConstants.ActionToNameMap[ActorActionType.NpcMagic1];
++        }
++
++        public string GetHitReactionAction()
++        {
++            return Info.Type == CombatActorType.MainActor ?
++                ActorConstants.ActionToNameMap[ActorActionType.BeAttack] :
++                ActorConstants.ActionToNameMap[ActorActionType.NpcBeAttacked];
++        }
++
+         public float GetMovementSpeed()
+         {
+             return 12f;
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Actor/Controllers/CombatActorController.cs
+@@ -81,6 +81,19 @@
+             return _actionController;
+         }
+ 
++        public IEnumerator StartMagicCastAsync()
++        {
++            _actionController.PerformAction(_actor.GetMagicWaitAction());
++            yield return _actionController.PerformActionAsync(_actor.GetMagicAction());
++            _actionController.PerformAction(_actor.GetPreAttackAction());
++        }
++
++        public IEnumerator StartHitReactionAsync()
++        {
++            yield return _actionController.PerformActionAsync(_actor.GetHitReactionAction());
++            _actionController.PerformAction(_actor.GetPreAttackAction());
++        }
++
+         private void Activate()
+         {
+             if (_actionController is VertexAnimationActorActionController vertexActionController)
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Presentation/UnityProjectileSkillPresentationAdapter.cs
+@@ -0,0 +1,243 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity first Unity-facing skill presentation adapter.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Presentation
++{
++    using System;
++    using System.Collections;
++    using System.Collections.Generic;
++    using System.Linq;
++    using Actor.Controllers;
++    using Core.Contract.Constants;
++    using Data;
++    using Engine.Core.Abstraction;
++    using Engine.Core.Implementation;
++    using Engine.Extensions;
++    using Pal3.Game.Command;
++    using Scene;
++
++    using Vector3 = UnityEngine.Vector3;
++    using WaitForSeconds = UnityEngine.WaitForSeconds;
++
++    /// <summary>
++    /// Unity-only visual data for the first Projectile playback slice.
++    /// Effect group ids are presentation resources only; they never influence combat resolution.
++    /// </summary>
++    public sealed class UnityProjectileVisualProfile
++    {
++        public string Key { get; }
++        public int CastEffectGroupId { get; }
++        public int TravelEffectGroupId { get; }
++        public int ImpactEffectGroupId { get; }
++        public float TravelDurationSeconds { get; }
++
++        public UnityProjectileVisualProfile(
++            string key,
++            int castEffectGroupId,
++            int travelEffectGroupId,
++            int impactEffectGroupId,
++            float travelDurationSeconds)
++        {
++            if (string.IsNullOrWhiteSpace(key))
++            {
++                throw new ArgumentException("Profile key is required.", nameof(key));
++            }
++            if (castEffectGroupId < 0) throw new ArgumentOutOfRangeException(nameof(castEffectGroupId));
++            if (travelEffectGroupId <= 0) throw new ArgumentOutOfRangeException(nameof(travelEffectGroupId));
++            if (impactEffectGroupId <= 0) throw new ArgumentOutOfRangeException(nameof(impactEffectGroupId));
++            if (travelDurationSeconds <= 0f) throw new ArgumentOutOfRangeException(nameof(travelDurationSeconds));
++
++            Key = key;
++            CastEffectGroupId = castEffectGroupId;
++            TravelEffectGroupId = travelEffectGroupId;
++            ImpactEffectGroupId = impactEffectGroupId;
++            TravelDurationSeconds = travelDurationSeconds;
++        }
++
++        public IEnumerable<int> GetEffectGroupIds()
++        {
++            if (CastEffectGroupId > 0) yield return CastEffectGroupId;
++            yield return TravelEffectGroupId;
++            yield return ImpactEffectGroupId;
++        }
++    }
++
++    /// <summary>
++    /// Converts an already-resolved Projectile presentation plan into real Unity actor actions
++    /// and VFX entities. This adapter is deliberately presentation-only: it never selects
++    /// targets, spends resources, calculates damage or mutates HP.
++    /// </summary>
++    public sealed class UnityProjectileSkillPresentationAdapter
++    {
++        private readonly GameResourceProvider _resourceProvider;
++
++        public UnityProjectileSkillPresentationAdapter(GameResourceProvider resourceProvider)
++        {
++            _resourceProvider = resourceProvider ??
++                throw new ArgumentNullException(nameof(resourceProvider));
++        }
++
++        public IEnumerator PlayAsync(
++            SkillPresentationPlan plan,
++            UnityProjectileVisualProfile profile,
++            CombatActorController caster,
++            CombatActorController target,
++            CombatScene combatScene)
++        {
++            if (plan == null) throw new ArgumentNullException(nameof(plan));
++            if (profile == null) throw new ArgumentNullException(nameof(profile));
++            if (caster == null) throw new ArgumentNullException(nameof(caster));
++            if (target == null) throw new ArgumentNullException(nameof(target));
++            if (combatScene == null) throw new ArgumentNullException(nameof(combatScene));
++
++            if (plan.Archetype != SkillVisualArchetype.Projectile)
++            {
++                throw new NotSupportedException(
++                    "The first Unity presentation adapter only supports Projectile.");
++            }
++            if (!string.Equals(plan.VisualProfileKey, profile.Key, StringComparison.Ordinal))
++            {
++                throw new ArgumentException(
++                    "Presentation plan and Unity visual profile keys must match.",
++                    nameof(profile));
++            }
++
++            SkillPresentationCue[] cues = plan.Cues.ToArray();
++            RequireOrderedProjectileCues(cues);
++
++            foreach (int effectGroupId in profile.GetEffectGroupIds().Distinct())
++            {
++                yield return _resourceProvider.PreLoadVfxEffectAsync(effectGroupId);
++            }
++
++            foreach (SkillPresentationCue cue in cues)
++            {
++                switch (cue.Kind)
++                {
++                    case SkillPresentationCueKind.Cast:
++                        if (profile.CastEffectGroupId > 0)
++                        {
++                            SpawnAttachedEffect(
++                                profile.CastEffectGroupId,
++                                caster.GameEntity,
++                                "Cast");
++                        }
++                        yield return caster.StartMagicCastAsync();
++                        break;
++
++                    case SkillPresentationCueKind.Travel:
++                        yield return PlayTravelAsync(
++                            profile,
++                            caster,
++                            target,
++                            combatScene);
++                        break;
++
++                    case SkillPresentationCueKind.Impact:
++                        SpawnAttachedEffect(
++                            profile.ImpactEffectGroupId,
++                            target.GameEntity,
++                            "Impact");
++                        yield return target.StartHitReactionAsync();
++                        break;
++
++                    case SkillPresentationCueKind.TargetDefeated:
++                        // Domain truth already says the target is defeated. Death animation is a
++                        // separate presentation slice; do not fake it by mutating combat state here.
++                        break;
++
++                    default:
++                        throw new ArgumentOutOfRangeException(
++                            nameof(cue.Kind),
++                            cue.Kind,
++                            "Unknown presentation cue.");
++                }
++            }
++        }
++
++        private IEnumerator PlayTravelAsync(
++            UnityProjectileVisualProfile profile,
++            CombatActorController caster,
++            CombatActorController target,
++            CombatScene combatScene)
++        {
++            object prefab = _resourceProvider.GetVfxEffectPrefab(profile.TravelEffectGroupId);
++            if (prefab == null)
++            {
++                // Preserve sequencing even when the resource is missing. Runtime verification must
++                // still report the missing prefab instead of claiming visible travel.
++                yield return new WaitForSeconds(profile.TravelDurationSeconds);
++                yield break;
++            }
++
++            IGameEntity projectile = GameEntityFactory.Create(
++                name: $"CombatVFX_Travel_{profile.TravelEffectGroupId}",
++                prefab,
++                combatScene.GameEntity,
++                worldPositionStays: false);
++
++            Vector3 startPosition = caster.Transform.Position;
++            Vector3 targetPosition = target.Transform.Position;
++            projectile.Transform.Position = startPosition;
++
++            PlayEffectSfx(profile.TravelEffectGroupId);
++            yield return projectile.Transform.MoveAsync(
++                targetPosition,
++                profile.TravelDurationSeconds);
++
++            projectile.Destroy();
++        }
++
++        private void SpawnAttachedEffect(
++            int effectGroupId,
++            IGameEntity parent,
++            string phase)
++        {
++            object prefab = _resourceProvider.GetVfxEffectPrefab(effectGroupId);
++            if (prefab == null) return;
++
++            GameEntityFactory.Create(
++                name: $"CombatVFX_{phase}_{effectGroupId}",
++                prefab,
++                parent,
++                worldPositionStays: false);
++
++            PlayEffectSfx(effectGroupId);
++        }
++
++        private static void PlayEffectSfx(int effectGroupId)
++        {
++            if (EffectConstants.EffectSfxInfo.TryGetValue(effectGroupId, out string sfxName))
++            {
++                Pal3.Instance.Execute(new PlaySfxCommand(sfxName, 1));
++            }
++        }
++
++        private static void RequireOrderedProjectileCues(
++            IReadOnlyList<SkillPresentationCue> cues)
++        {
++            if (cues == null || cues.Count < 3)
++            {
++                throw new InvalidOperationException(
++                    "Projectile playback requires Cast, Travel and Impact cues.");
++            }
++
++            if (cues[0].Kind != SkillPresentationCueKind.Cast ||
++                cues[1].Kind != SkillPresentationCueKind.Travel ||
++                cues[2].Kind != SkillPresentationCueKind.Impact)
++            {
++                throw new InvalidOperationException(
++                    "Projectile playback must start with Cast -> Travel -> Impact.");
++            }
++
++            if (cues.Count > 4 ||
++                (cues.Count == 4 &&
++                 cues[3].Kind != SkillPresentationCueKind.TargetDefeated))
++            {
++                throw new InvalidOperationException(
++                    "Only an optional TargetDefeated cue may follow Projectile impact.");
++            }
++        }
++    }
++}

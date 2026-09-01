@@ -1,0 +1,144 @@
+diff --git a/Assets/Scripts/Pal3.PresentationSandbox.Editor/Pal3.PresentationSandbox.Editor.asmdef.meta b/Assets/Scripts/Pal3.PresentationSandbox.Editor/Pal3.PresentationSandbox.Editor.asmdef.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.PresentationSandbox.Editor/Pal3.PresentationSandbox.Editor.asmdef.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: dad5de45be1731912ec444b53b6b25ef
++AssemblyDefinitionImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/Scripts/Pal3.PresentationSandbox.Editor/ProceduralProjectileSandboxCapture.cs.meta b/Assets/Scripts/Pal3.PresentationSandbox.Editor/ProceduralProjectileSandboxCapture.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.PresentationSandbox.Editor/ProceduralProjectileSandboxCapture.cs.meta
+@@ -0,0 +1,3 @@
++fileFormatVersion: 2
++guid: 06d1023599218ef5218970ea6d4f3e23
++timeCreated: 1787633200
+diff --git a/Assets/Tests/PresentationSandbox.EditMode/Pal3.PresentationSandbox.Tests.EditMode.asmdef b/Assets/Tests/PresentationSandbox.EditMode/Pal3.PresentationSandbox.Tests.EditMode.asmdef
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/PresentationSandbox.EditMode/Pal3.PresentationSandbox.Tests.EditMode.asmdef
+@@ -0,0 +1,24 @@
++{
++    "name": "Pal3.PresentationSandbox.Tests.EditMode",
++    "rootNamespace": "",
++    "references": [
++        "Pal3.Game",
++        "Pal3.PresentationSandbox.Editor"
++    ],
++    "includePlatforms": [
++        "Editor"
++    ],
++    "excludePlatforms": [],
++    "allowUnsafeCode": false,
++    "overrideReferences": false,
++    "precompiledReferences": [],
++    "autoReferenced": false,
++    "defineConstraints": [
++        "UNITY_INCLUDE_TESTS"
++    ],
++    "versionDefines": [],
++    "noEngineReferences": false,
++    "optionalUnityReferences": [
++        "TestAssemblies"
++    ]
++}
+diff --git a/Assets/Tests/PresentationSandbox.EditMode/Pal3.PresentationSandbox.Tests.EditMode.asmdef.meta b/Assets/Tests/PresentationSandbox.EditMode/Pal3.PresentationSandbox.Tests.EditMode.asmdef.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/PresentationSandbox.EditMode/Pal3.PresentationSandbox.Tests.EditMode.asmdef.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 60b6a82b9c0b97555809a96996a13c34
++AssemblyDefinitionImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/Tests/PresentationSandbox.EditMode/ProceduralProjectileSandboxCaptureTests.cs b/Assets/Tests/PresentationSandbox.EditMode/ProceduralProjectileSandboxCaptureTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/PresentationSandbox.EditMode/ProceduralProjectileSandboxCaptureTests.cs
+@@ -0,0 +1,76 @@
++namespace Pal3.PresentationSandbox.Tests.EditMode
++{
++    using System;
++    using System.IO;
++    using NUnit.Framework;
++    using global::Pal3.PresentationSandbox.Editor;
++    using UnityEngine;
++
++    public sealed class ProceduralProjectileSandboxCaptureTests
++    {
++        private static readonly string[] ExpectedPngFiles =
++        {
++            "00_baseline.png",
++            "01_cast.png",
++            "02_travel_00.png",
++            "03_travel_33.png",
++            "04_travel_66.png",
++            "05_travel_100.png",
++            "06_impact.png",
++        };
++
++        [Test]
++        public void Capture_WritesSevenValidPngFramesAndBoundaryManifest()
++        {
++            string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
++            string outputDirectory = Path.Combine(projectRoot, "out", "pal3-presentation-sandbox");
++
++            if (Directory.Exists(outputDirectory))
++            {
++                Directory.Delete(outputDirectory, recursive: true);
++            }
++
++            Environment.SetEnvironmentVariable("PAL3_PRESENTATION_SANDBOX_OUT", outputDirectory);
++
++            try
++            {
++                ProceduralProjectileSandboxCapture.Capture();
++            }
++            finally
++            {
++                Environment.SetEnvironmentVariable("PAL3_PRESENTATION_SANDBOX_OUT", null);
++            }
++
++            Assert.That(Directory.Exists(outputDirectory), Is.True);
++
++            foreach (string fileName in ExpectedPngFiles)
++            {
++                string path = Path.Combine(outputDirectory, fileName);
++                Assert.That(File.Exists(path), Is.True, $"Missing sandbox frame: {fileName}");
++
++                byte[] bytes = File.ReadAllBytes(path);
++                Assert.That(bytes.Length, Is.GreaterThan(8), $"Empty sandbox frame: {fileName}");
++                Assert.That(bytes[0], Is.EqualTo(137), $"Invalid PNG signature: {fileName}");
++                Assert.That(bytes[1], Is.EqualTo(80), $"Invalid PNG signature: {fileName}");
++                Assert.That(bytes[2], Is.EqualTo(78), $"Invalid PNG signature: {fileName}");
++                Assert.That(bytes[3], Is.EqualTo(71), $"Invalid PNG signature: {fileName}");
++            }
++
++            string manifestPath = Path.Combine(outputDirectory, "manifest.txt");
++            Assert.That(File.Exists(manifestPath), Is.True);
++
++            string manifest = File.ReadAllText(manifestPath);
++            StringAssert.Contains(
++                "Unity editor renderer + ProceduralCombatVfx only; not PAL3 combat runtime.",
++                manifest);
++            StringAssert.Contains("01_cast.png|phase=Cast", manifest);
++            StringAssert.Contains("06_impact.png|phase=Impact", manifest);
++        }
++    }
++}
+diff --git a/Assets/Tests/PresentationSandbox.EditMode/ProceduralProjectileSandboxCaptureTests.cs.meta b/Assets/Tests/PresentationSandbox.EditMode/ProceduralProjectileSandboxCaptureTests.cs.meta
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/PresentationSandbox.EditMode/ProceduralProjectileSandboxCaptureTests.cs.meta
+@@ -0,0 +1,3 @@
++fileFormatVersion: 2
++guid: 3c4b0607bef0bbc8a5284ccc79f67cd1
++timeCreated: 1787633200
