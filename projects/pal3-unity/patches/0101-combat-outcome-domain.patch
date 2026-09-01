@@ -1,0 +1,167 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatOutcomeResolver.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatOutcomeResolver.cs
+new file mode 100644
+index 0000000..e6067e9
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatOutcomeResolver.cs
+@@ -0,0 +1,66 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity deterministic encounter outcome resolution.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Linq;
++
++    public enum CombatOutcomeStatus
++    {
++        InProgress = 0,
++        PlayerWin,
++        PlayerLose,
++        MutualDefeat,
++    }
++
++    public sealed class CombatOutcomeMember
++    {
++        public CombatParty Party { get; }
++        public CombatantState State { get; }
++
++        public CombatOutcomeMember(CombatParty party, CombatantState state)
++        {
++            Party = party;
++            State = state ?? throw new ArgumentNullException(nameof(state));
++        }
++    }
++
++    /// <summary>
++    /// Resolves encounter outcome from combat-domain HP truth only.
++    /// Presentation, input and script variables are deliberately excluded.
++    /// </summary>
++    public static class CombatOutcomeResolver
++    {
++        public static CombatOutcomeStatus Resolve(IEnumerable<CombatOutcomeMember> members)
++        {
++            if (members == null) throw new ArgumentNullException(nameof(members));
++
++            CombatOutcomeMember[] snapshot = members.ToArray();
++            bool hasPlayerParty = snapshot.Any(member => member.Party == CombatParty.First);
++            bool hasEnemyParty = snapshot.Any(member => member.Party == CombatParty.Enemy);
++
++            if (!hasPlayerParty || !hasEnemyParty)
++            {
++                throw new InvalidOperationException(
++                    "Combat outcome requires at least one member from each party.");
++            }
++
++            bool playerAlive = snapshot.Any(member =>
++                member.Party == CombatParty.First && member.State.IsAlive);
++            bool enemyAlive = snapshot.Any(member =>
++                member.Party == CombatParty.Enemy && member.State.IsAlive);
++
++            if (playerAlive && enemyAlive) return CombatOutcomeStatus.InProgress;
++            if (playerAlive) return CombatOutcomeStatus.PlayerWin;
++            if (enemyAlive) return CombatOutcomeStatus.PlayerLose;
++
++            // No current PAL3 mutation slice can defeat both parties in one atomic hit,
++            // but keeping this state explicit prevents a future effect from silently
++            // inventing win/lose semantics for simultaneous defeat.
++            return CombatOutcomeStatus.MutualDefeat;
++        }
++    }
++}
+
+diff --git a/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs b/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs
+new file mode 100644
+index 0000000..ecc8151
+--- /dev/null
++++ b/Assets/Tests/EditMode/CombatOutcomeResolverTests.cs
+@@ -0,0 +1,88 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using NUnit.Framework;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class CombatOutcomeResolverTests
++    {
++        [Test]
++        public void Resolve_LivingMembersOnBothSides_IsInProgress()
++        {
++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
++            {
++                new CombatOutcomeMember(CombatParty.First, Living()),
++                new CombatOutcomeMember(CombatParty.Enemy, Living()),
++            });
++
++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.InProgress));
++        }
++
++        [Test]
++        public void Resolve_AllEnemiesDefeated_IsPlayerWin()
++        {
++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
++            {
++                new CombatOutcomeMember(CombatParty.First, Living()),
++                new CombatOutcomeMember(CombatParty.First, Living()),
++                new CombatOutcomeMember(CombatParty.Enemy, Defeated()),
++            });
++
++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.PlayerWin));
++        }
++
++        [Test]
++        public void Resolve_AllPlayerMembersDefeated_IsPlayerLose()
++        {
++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
++            {
++                new CombatOutcomeMember(CombatParty.First, Defeated()),
++                new CombatOutcomeMember(CombatParty.First, Defeated()),
++                new CombatOutcomeMember(CombatParty.Enemy, Living()),
++            });
++
++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.PlayerLose));
++        }
++
++        [Test]
++        public void Resolve_BothPartiesDefeated_IsExplicitMutualDefeat()
++        {
++            CombatOutcomeStatus outcome = CombatOutcomeResolver.Resolve(new[]
++            {
++                new CombatOutcomeMember(CombatParty.First, Defeated()),
++                new CombatOutcomeMember(CombatParty.Enemy, Defeated()),
++            });
++
++            Assert.That(outcome, Is.EqualTo(CombatOutcomeStatus.MutualDefeat));
++        }
++
++        [Test]
++        public void Resolve_MissingParty_IsRejected()
++        {
++            Assert.Throws<InvalidOperationException>(() => CombatOutcomeResolver.Resolve(new[]
++            {
++                new CombatOutcomeMember(CombatParty.First, Living()),
++            }));
++        }
++
++        [Test]
++        public void Resolve_NullMembers_IsRejected()
++        {
++            Assert.Throws<ArgumentNullException>(() => CombatOutcomeResolver.Resolve(null));
++        }
++
++        private static CombatantState Living()
++        {
++            return new CombatantState(maxHp: 100, attack: 10, defense: 5);
++        }
++
++        private static CombatantState Defeated()
++        {
++            CombatantState target = new(maxHp: 10, attack: 1, defense: 0);
++            NormalAttackResolver.Resolve(
++                new CombatantState(maxHp: 10, attack: 100, defense: 0),
++                target);
++            return target;
++        }
++    }
++}

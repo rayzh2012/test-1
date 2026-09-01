@@ -1,0 +1,80 @@
+name: PAL3 State Truth Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "projects/pal3-unity/patches/*.patch"
+      - "tools/pal3_state_truth_gate.py"
+      - ".github/workflows/pal3-state-truth.yml"
+  push:
+    paths:
+      - "projects/pal3-unity/patches/*.patch"
+      - "tools/pal3_state_truth_gate.py"
+      - ".github/workflows/pal3-state-truth.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  state-truth:
+    name: Replay PAL3 and verify persistent state truth
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v6.0.3
+
+      - name: Read PAL3 target
+        id: target
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          cfg = json.load(open("projects/pal3-unity/control.json", encoding="utf-8"))
+          print(f"repo={cfg['upstream_repository']}")
+          print(f"ref={cfg['upstream_ref']}")
+          PY
+
+      - name: Checkout pinned PAL3 upstream without LFS
+        uses: actions/checkout@v6.0.3
+        with:
+          repository: ${{ steps.target.outputs.repo }}
+          ref: ${{ steps.target.outputs.ref }}
+          path: .control/upstream
+          fetch-depth: 1
+          lfs: false
+
+      - name: Replay ordered patch stack and audit
+        run: |
+          python tools/source_rewrite_controller.py audit \
+            --config projects/pal3-unity/control.json \
+            --workspace .control/upstream \
+            --out out/pal3-unity
+
+      - name: Verify persistent state truth
+        run: |
+          python tools/pal3_state_truth_gate.py \
+            --workspace .control/upstream \
+            --out out/pal3-unity/state-truth
+
+      - name: Publish summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f out/pal3-unity/source_control_report.md ]; then
+            cat out/pal3-unity/source_control_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f out/pal3-unity/state-truth/state_truth_report.md ]; then
+            printf '\n' >> "$GITHUB_STEP_SUMMARY"
+            cat out/pal3-unity/state-truth/state_truth_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pal3-state-truth-evidence
+          path: out/pal3-unity/
+          if-no-files-found: error

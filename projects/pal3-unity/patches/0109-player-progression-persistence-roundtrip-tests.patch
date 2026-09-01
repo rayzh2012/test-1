@@ -1,0 +1,165 @@
+diff --git a/Assets/Tests/EditMode/PlayerActorProgressionPersistenceRoundTripTests.cs b/Assets/Tests/EditMode/PlayerActorProgressionPersistenceRoundTripTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/PlayerActorProgressionPersistenceRoundTripTests.cs
+@@ -0,0 +1,151 @@
++namespace Pal3.Game.Tests.GameSystems.PlayerProgression.Domain
++{
++    using System.Collections.Generic;
++    using System.Linq;
++    using NUnit.Framework;
++    using Pal3.Core.Contract.Enums;
++    using Pal3.Core.DataReader.Gdb;
++    using Pal3.Game.Command.Extensions;
++    using Pal3.Game.GameSystems.PlayerProgression.Domain;
++
++    public sealed class PlayerActorProgressionPersistenceRoundTripTests
++    {
++        [Test]
++        public void SaveResetLoad_RestoresAllExportedActorSnapshots()
++        {
++            PlayerActorProgressionStore store = CreateStore();
++
++            store.RestoreSnapshot(CreateSnapshot(
++                PlayerActorId.JingTian,
++                level: 18,
++                experience: 12345,
++                hp: 888,
++                attack: 91,
++                wind: 17));
++            store.RestoreSnapshot(CreateSnapshot(
++                PlayerActorId.XueJian,
++                level: 16,
++                experience: 9876,
++                hp: 777,
++                attack: 83,
++                wind: 13));
++
++            PlayerRestoreActorProgressionCommand[] saveCommands =
++                store.GetAllSnapshots()
++                    .OrderBy(pair => (int)pair.Key)
++                    .Select(pair => PlayerActorProgressionSaveCodec.Encode(pair.Value))
++                    .ToArray();
++
++            store.Reset();
++            Assert.That(store.GetSnapshot(PlayerActorId.JingTian).Level, Is.EqualTo(5));
++            Assert.That(store.GetSnapshot(PlayerActorId.XueJian).Level, Is.EqualTo(4));
++
++            foreach (PlayerRestoreActorProgressionCommand command in saveCommands)
++            {
++                store.RestoreSnapshot(PlayerActorProgressionSaveCodec.Decode(command));
++            }
++
++            PlayerActorProgressionSnapshot jingTian = store.GetSnapshot(PlayerActorId.JingTian);
++            PlayerActorProgressionSnapshot xueJian = store.GetSnapshot(PlayerActorId.XueJian);
++
++            Assert.That(jingTian.Level, Is.EqualTo(18));
++            Assert.That(jingTian.Experience, Is.EqualTo(12345));
++            Assert.That(jingTian.AttributeValues[ActorAttributeType.Hp], Is.EqualTo(888));
++            Assert.That(jingTian.AttributeValues[ActorAttributeType.Attack], Is.EqualTo(91));
++            Assert.That(jingTian.ElementAttributeValues[ElementType.Wind], Is.EqualTo(17));
++
++            Assert.That(xueJian.Level, Is.EqualTo(16));
++            Assert.That(xueJian.Experience, Is.EqualTo(9876));
++            Assert.That(xueJian.AttributeValues[ActorAttributeType.Hp], Is.EqualTo(777));
++            Assert.That(xueJian.AttributeValues[ActorAttributeType.Attack], Is.EqualTo(83));
++            Assert.That(xueJian.ElementAttributeValues[ElementType.Wind], Is.EqualTo(13));
++        }
++
++        private static PlayerActorProgressionStore CreateStore()
++        {
++            return new PlayerActorProgressionStore(new Dictionary<PlayerActorId, CombatActorInfo>
++            {
++                [PlayerActorId.JingTian] = CreateCombatActorInfo(
++                    id: 101,
++                    level: 5,
++                    experience: 123,
++                    hp: 500,
++                    attack: 40,
++                    wind: 6),
++                [PlayerActorId.XueJian] = CreateCombatActorInfo(
++                    id: 104,
++                    level: 4,
++                    experience: 88,
++                    hp: 420,
++                    attack: 35,
++                    wind: 2),
++            });
++        }
++
++        private static PlayerActorProgressionSnapshot CreateSnapshot(
++            PlayerActorId actorId,
++            int level,
++            int experience,
++            int hp,
++            int attack,
++            int wind)
++        {
++            return new PlayerActorProgressionSnapshot(
++                actorId,
++                level,
++                experience,
++                CreateActorAttributes(hp, attack, wind),
++                CreateElementAttributes(wind));
++        }
++
++        private static CombatActorInfo CreateCombatActorInfo(
++            uint id,
++            int level,
++            int experience,
++            int hp,
++            int attack,
++            int wind)
++        {
++            return new CombatActorInfo
++            {
++                Id = id,
++                Type = CombatActorType.MainActor,
++                Name = $"Actor_{id}",
++                Level = level,
++                Experience = experience,
++                AttributeValues = CreateActorAttributes(hp, attack, wind),
++                ElementAttributeValues = CreateElementAttributes(wind),
++                CombatStateImpactTypes = new Dictionary<ActorCombatStateType, CombatStateImpactType>(),
++                MainActorFavor = new ushort[6],
++                SkillIds = new uint[4],
++                SkillLevels = new byte[4],
++                Properties = new float[10],
++            };
++        }
++
++        private static Dictionary<ActorAttributeType, int> CreateActorAttributes(
++            int hp,
++            int attack,
++            int wind)
++        {
++            return new Dictionary<ActorAttributeType, int>
++            {
++                [ActorAttributeType.Hp] = hp,
++                [ActorAttributeType.Sp] = 100,
++                [ActorAttributeType.Mp] = 80,
++                [ActorAttributeType.Attack] = attack,
++                [ActorAttributeType.Defense] = 30,
++                [ActorAttributeType.Speed] = 20,
++                [ActorAttributeType.Luck] = 10,
++                [ActorAttributeType.Water] = 1,
++                [ActorAttributeType.Fire] = 2,
++                [ActorAttributeType.Wind] = wind,
++                [ActorAttributeType.Thunder] = 3,
++                [ActorAttributeType.Earth] = 4,
++            };
++        }
++
++        private static Dictionary<ElementType, int> CreateElementAttributes(int wind)
++        {
++            return new Dictionary<ElementType, int>
++            {
++                [ElementType.Water] = 1,
++                [ElementType.Fire] = 2,
++                [ElementType.Wind] = wind,
++                [ElementType.Thunder] = 3,
++                [ElementType.Earth] = 4,
++            };
++        }
++    }
++}

@@ -1,0 +1,116 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs b/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/Domain/PlayerActorProgressionStore.cs
+@@ -76,6 +76,17 @@ namespace Pal3.Game.GameSystems.PlayerProgression.Domain
+             return snapshot.Copy();
+         }
++
++        public IReadOnlyDictionary<PlayerActorId, PlayerActorProgressionSnapshot> GetAllSnapshots()
++        {
++            Dictionary<PlayerActorId, PlayerActorProgressionSnapshot> snapshots = new();
++            foreach ((PlayerActorId actorId, PlayerActorProgressionSnapshot snapshot) in _snapshots)
++            {
++                snapshots[actorId] = snapshot.Copy();
++            }
++
++            return new ReadOnlyDictionary<PlayerActorId, PlayerActorProgressionSnapshot>(snapshots);
++        }
+ 
+         public void RestoreSnapshot(PlayerActorProgressionSnapshot snapshot)
+         {
+             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorProgressionManager.cs b/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorProgressionManager.cs
+--- a/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorProgressionManager.cs
++++ b/Assets/Scripts/Pal3.Game/GameSystems/PlayerProgression/PlayerActorProgressionManager.cs
+@@ -18,7 +18,8 @@ namespace Pal3.Game.GameSystems.PlayerProgression
+     using Domain;
+ 
+     public sealed class PlayerActorProgressionManager : IDisposable,
+-        ICommandExecutor<ResetGameStateCommand>
++        ICommandExecutor<ResetGameStateCommand>,
++        ICommandExecutor<PlayerRestoreActorProgressionCommand>
+     {
+         private readonly PlayerActorProgressionStore _store;
+ 
+@@ -51,6 +52,11 @@ namespace Pal3.Game.GameSystems.PlayerProgression
+             return _store.GetSnapshot(actorId);
+         }
++
++        public IReadOnlyDictionary<PlayerActorId, PlayerActorProgressionSnapshot> GetAllSnapshots()
++        {
++            return _store.GetAllSnapshots();
++        }
+ 
+         public void RestoreSnapshot(PlayerActorProgressionSnapshot snapshot)
+         {
+@@ -66,5 +72,10 @@ namespace Pal3.Game.GameSystems.PlayerProgression
+         {
+             _store.Reset();
+         }
++
++        public void Execute(PlayerRestoreActorProgressionCommand command)
++        {
++            _store.RestoreSnapshot(PlayerActorProgressionSaveCodec.Decode(command));
++        }
+     }
+ }
+diff --git a/Assets/Scripts/Pal3.Game/State/SaveManager.cs b/Assets/Scripts/Pal3.Game/State/SaveManager.cs
+--- a/Assets/Scripts/Pal3.Game/State/SaveManager.cs
++++ b/Assets/Scripts/Pal3.Game/State/SaveManager.cs
+@@ -30,6 +30,8 @@ namespace Pal3.Game.State
+     using GamePlay;
+     using GameSystems.WorldMap;
+     using GameSystems.Favor;
++    using GameSystems.PlayerProgression;
++    using GameSystems.PlayerProgression.Domain;
+     using GameSystems.Inventory;
+     using GameSystems.Team;
+     using Scene;
+@@ -62,6 +64,7 @@ namespace Pal3.Game.State
+         private readonly SceneManager _sceneManager;
+         private readonly PlayerActorManager _playerActorManager;
+         private readonly TeamManager _teamManager;
++        private readonly PlayerActorProgressionManager _playerActorProgressionManager;
+         private readonly InventoryManager _inventoryManager;
+         private readonly SceneStateManager _sceneStateManager;
+         private readonly WorldMapManager _worldMapManager;
+@@ -81,6 +84,7 @@ namespace Pal3.Game.State
+         public SaveManager(SceneManager sceneManager,
+             PlayerActorManager playerActorManager,
+             TeamManager teamManager,
++            PlayerActorProgressionManager playerActorProgressionManager,
+             InventoryManager inventoryManager,
+             SceneStateManager sceneStateManager,
+             WorldMapManager worldMapManager,
+@@ -99,6 +103,8 @@ namespace Pal3.Game.State
+             _sceneManager = Requires.IsNotNull(sceneManager, nameof(sceneManager));
+             _playerActorManager = Requires.IsNotNull(playerActorManager, nameof(playerActorManager));
+             _teamManager = Requires.IsNotNull(teamManager, nameof(teamManager));
++            _playerActorProgressionManager = Requires.IsNotNull(
++                playerActorProgressionManager, nameof(playerActorProgressionManager));
+             _inventoryManager = Requires.IsNotNull(inventoryManager, nameof(inventoryManager));
+             _sceneStateManager = Requires.IsNotNull(sceneStateManager, nameof(sceneStateManager));
+             _worldMapManager = Requires.IsNotNull(worldMapManager, nameof(worldMapManager));
+@@ -208,6 +214,11 @@ namespace Pal3.Game.State
+             commands.AddRange(_teamManager.GetActorsInTeam()
+                 .Select(actorId => new TeamAddOrRemoveActorCommand((int) actorId, 1)));
++
++            // Save persistent player progression before any scene/combat-local state is restored.
++            commands.AddRange(_playerActorProgressionManager.GetAllSnapshots()
++                .OrderBy(pair => (int) pair.Key)
++                .Select(pair => (ICommand) PlayerActorProgressionSaveCodec.Encode(pair.Value)));
+ 
+             // Save favor info
+             commands.AddRange(_favorManager.GetAllActorFavorInfo()
+                 .Select(favorInfo => new FavorAddCommand(favorInfo.Key, favorInfo.Value)));
+diff --git a/Assets/Scripts/Pal3.Game/Pal3.cs b/Assets/Scripts/Pal3.Game/Pal3.cs
+--- a/Assets/Scripts/Pal3.Game/Pal3.cs
++++ b/Assets/Scripts/Pal3.Game/Pal3.cs
+@@ -418,6 +418,7 @@ namespace Pal3.Game
+                 new SaveManager(_sceneManager,
+                     _playerActorManager,
+                     _teamManager,
++                    _playerActorProgressionManager,
+                     _inventoryManager,
+                     _sceneStateManager,
+                     _worldMapManager,

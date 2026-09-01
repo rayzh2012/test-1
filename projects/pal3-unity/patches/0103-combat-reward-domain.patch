@@ -1,0 +1,182 @@
+diff --git a/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatRewardResolver.cs b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatRewardResolver.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Scripts/Pal3.Game/GameSystems/Combat/Domain/CombatRewardResolver.cs
+@@ -0,0 +1,95 @@
++// ---------------------------------------------------------------------------------------------
++//  PAL3.Unity deterministic combat reward aggregation.
++// ---------------------------------------------------------------------------------------------
++
++namespace Pal3.Game.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using System.Collections.ObjectModel;
++    using System.Linq;
++
++    public sealed class CombatRewardSource
++    {
++        public int Experience { get; }
++        public int Money { get; }
++        public uint LootItemId { get; }
++        public int LootCount { get; }
++
++        public CombatRewardSource(int experience, int money, uint lootItemId = 0, int lootCount = 0)
++        {
++            if (experience < 0) throw new ArgumentOutOfRangeException(nameof(experience));
++            if (money < 0) throw new ArgumentOutOfRangeException(nameof(money));
++            if (lootCount < 0) throw new ArgumentOutOfRangeException(nameof(lootCount));
++
++            if ((lootItemId == 0) != (lootCount == 0))
++            {
++                throw new ArgumentException(
++                    "Loot item id and loot count must either both be zero or both be non-zero.");
++            }
++
++            Experience = experience;
++            Money = money;
++            LootItemId = lootItemId;
++            LootCount = lootCount;
++        }
++    }
++
++    public sealed class CombatRewardSummary
++    {
++        private readonly IReadOnlyDictionary<uint, int> _items;
++
++        public int Experience { get; }
++        public int Money { get; }
++        public IReadOnlyDictionary<uint, int> Items => _items;
++
++        public static CombatRewardSummary Empty { get; } =
++            new(0, 0, new Dictionary<uint, int>());
++
++        public CombatRewardSummary(int experience, int money, IDictionary<uint, int> items)
++        {
++            if (experience < 0) throw new ArgumentOutOfRangeException(nameof(experience));
++            if (money < 0) throw new ArgumentOutOfRangeException(nameof(money));
++            if (items == null) throw new ArgumentNullException(nameof(items));
++            if (items.Any(item => item.Key == 0 || item.Value <= 0))
++            {
++                throw new ArgumentException(
++                    "Reward items require non-zero ids and positive counts.",
++                    nameof(items));
++            }
++
++            Experience = experience;
++            Money = money;
++            _items = new ReadOnlyDictionary<uint, int>(new Dictionary<uint, int>(items));
++        }
++    }
++
++    public static class CombatRewardResolver
++    {
++        public static CombatRewardSummary Resolve(IEnumerable<CombatRewardSource> sources)
++        {
++            if (sources == null) throw new ArgumentNullException(nameof(sources));
++
++            int experience = 0;
++            int money = 0;
++            Dictionary<uint, int> items = new();
++
++            foreach (CombatRewardSource source in sources)
++            {
++                if (source == null)
++                {
++                    throw new ArgumentException("Reward sources cannot contain null entries.", nameof(sources));
++                }
++
++                experience = checked(experience + source.Experience);
++                money = checked(money + source.Money);
++                if (source.LootItemId == 0) continue;
++
++                items[source.LootItemId] =
++                    checked(items.GetValueOrDefault(source.LootItemId) + source.LootCount);
++            }
++
++            return new CombatRewardSummary(experience, money, items);
++        }
++    }
++}
+
+diff --git a/Assets/Tests/EditMode/CombatRewardResolverTests.cs b/Assets/Tests/EditMode/CombatRewardResolverTests.cs
+new file mode 100644
+--- /dev/null
++++ b/Assets/Tests/EditMode/CombatRewardResolverTests.cs
+@@ -0,0 +1,76 @@
++namespace Pal3.Game.Tests.GameSystems.Combat.Domain
++{
++    using System;
++    using System.Collections.Generic;
++    using NUnit.Framework;
++    using Pal3.Game.GameSystems.Combat.Domain;
++
++    public sealed class CombatRewardResolverTests
++    {
++        [Test]
++        public void Resolve_SumsMoneyExperienceAndAggregatesLoot()
++        {
++            CombatRewardSummary reward = CombatRewardResolver.Resolve(new[]
++            {
++                new CombatRewardSource(10, 3, 101, 1),
++                new CombatRewardSource(20, 7, 101, 2),
++                new CombatRewardSource(5, 0, 202, 4),
++            });
++
++            Assert.That(reward.Experience, Is.EqualTo(35));
++            Assert.That(reward.Money, Is.EqualTo(10));
++            Assert.That(reward.Items[101], Is.EqualTo(3));
++            Assert.That(reward.Items[202], Is.EqualTo(4));
++        }
++
++        [Test]
++        public void Resolve_EmptySources_ReturnsEmptyReward()
++        {
++            CombatRewardSummary reward =
++                CombatRewardResolver.Resolve(Array.Empty<CombatRewardSource>());
++
++            Assert.That(reward.Experience, Is.Zero);
++            Assert.That(reward.Money, Is.Zero);
++            Assert.That(reward.Items, Is.Empty);
++        }
++
++        [TestCase(-1, 0, 0u, 0)]
++        [TestCase(0, -1, 0u, 0)]
++        [TestCase(0, 0, 0u, -1)]
++        public void Source_RejectsNegativeRewardValues(
++            int experience, int money, uint lootItemId, int lootCount)
++        {
++            Assert.Throws<ArgumentOutOfRangeException>(() =>
++                new CombatRewardSource(experience, money, lootItemId, lootCount));
++        }
++
++        [TestCase(0u, 1)]
++        [TestCase(101u, 0)]
++        public void Source_RejectsInconsistentLootTuple(uint lootItemId, int lootCount)
++        {
++            Assert.Throws<ArgumentException>(() =>
++                new CombatRewardSource(0, 0, lootItemId, lootCount));
++        }
++
++        [Test]
++        public void Resolve_UsesCheckedArithmetic()
++        {
++            Assert.Throws<OverflowException>(() =>
++                CombatRewardResolver.Resolve(new[]
++                {
++                    new CombatRewardSource(int.MaxValue, int.MaxValue),
++                    new CombatRewardSource(1, 1),
++                }));
++        }
++
++        [Test]
++        public void Summary_DefensivelyCopiesItems()
++        {
++            Dictionary<uint, int> items = new() { [101] = 2 };
++            CombatRewardSummary reward = new(1, 2, items);
++            items[101] = 99;
++
++            Assert.That(reward.Items[101], Is.EqualTo(2));
++        }
++    }
++}
