@@ -1,0 +1,19 @@
+{
+  "name": "Ruby Quest: Undertow",
+  "version": "final/source archive mirror snapshot",
+  "engine": "RPG Maker XP",
+  "min_mb": 400,
+  "sources": [
+    "https://www.mediafire.com/file/dwi69pbe4esl8xz/rubyquestundertow.zip/file",
+    "https://weaverquestz.neocities.org/undertow/"
+  ],
+  "provenance": {
+    "archive_page": "https://weaverquestz.neocities.org/undertow/",
+    "mediafire_file_key": "dwi69pbe4esl8xz",
+    "expected_filename": "rubyquestundertow.zip",
+    "reported_size_mb": 462,
+    "content_note": "Archive page states this mirror contains the final game plus RPG Maker XP project file, project assets, and extra development art assets.",
+    "rights_note": "Archive page reports that the cancelled project was open sourced, but no formal SPDX/root license has yet been verified; preserve privately and keep redistribution status UNVERIFIED.",
+    "source_failover": "Creator-uploaded ModDB demo v0.0.10 returned HTTP 403 to GitHub Actions; its exact 247733635-byte / MD5 b53a43485b7a52fb9382e43aaaee0fbc receipt remains provenance evidence, not a fabricated fetch success."
+  }
+}
