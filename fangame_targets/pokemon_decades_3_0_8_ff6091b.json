@@ -1,0 +1,17 @@
+{
+  "name": "Pokémon Decades",
+  "version": "3.0.8",
+  "engine": "RPG Maker XP",
+  "min_mb": 300,
+  "sources": [
+    "https://codeload.github.com/HazyCrazy/Pokemon-Decades/zip/ff6091b23603b3298ad72a7584b02a51e1d01c0e"
+  ],
+  "provenance": {
+    "upstream_repo": "https://github.com/HazyCrazy/Pokemon-Decades",
+    "pinned_commit": "ff6091b23603b3298ad72a7584b02a51e1d01c0e",
+    "commit_message": "3.0.8 Update",
+    "commit_date_utc": "2026-08-13T20:56:45Z",
+    "content_signals": ["Game.rxproj", "Game.exe", "Data", "Audio"],
+    "rights_note": "Public GitHub repository, but no clear root SPDX/license was verified. Treat resulting archive as PRIVATE_PRESERVATION_ONLY; do not place in public ARK or claim open redistribution rights."
+  }
+}
