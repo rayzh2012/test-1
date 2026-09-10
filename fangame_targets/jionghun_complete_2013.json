@@ -1,0 +1,19 @@
+{
+  "name": "囧魂 / JiongHun",
+  "version": "完整版 / 2013-10-14 修正版链",
+  "engine": "RPG Maker XP",
+  "min_mb": 50,
+  "sources": [
+    "https://dl.iplaysoft.com/files/1245.html",
+    "https://www.iplaysoft.com/jionghun.html",
+    "https://www.962.net/rpg/4894.html"
+  ],
+  "provenance": {
+    "author_release": "https://rpg.blue/thread-165831-1-1.html",
+    "author": "回转寿司（dormouse） / 四块二茶会",
+    "release_note": "Project1 author page identifies the complete RPG Maker XP game and a 2013-10-14 corrected build chain.",
+    "redistribution_note": "Author release states the game is free and may be freely redistributed if kept unchanged, but not used commercially.",
+    "mirror_size_hint_mb": 84.9,
+    "archive_policy": "PUBLIC_ARK_ALLOWED_IF_BINARY_IDENTITY_MATCHES_AUTHOR_RELEASE_AND_PACKAGE_IS_UNCHANGED"
+  }
+}
