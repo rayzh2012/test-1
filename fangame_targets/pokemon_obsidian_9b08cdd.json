@@ -1,0 +1,15 @@
+{
+  "name": "Pokemon Obsidian",
+  "version": "source snapshot 9b08cdd4d6b62fa80763a58a690c476aed2c1ea8",
+  "engine": "RPG Maker XP / Pokemon SDK",
+  "min_mb": 50,
+  "sources": [
+    "https://github.com/torresflo/Pokemon-Obsidian/archive/9b08cdd4d6b62fa80763a58a690c476aed2c1ea8.zip"
+  ],
+  "provenance": {
+    "repository": "torresflo/Pokemon-Obsidian",
+    "commit": "9b08cdd4d6b62fa80763a58a690c476aed2c1ea8",
+    "license": "GPL-3.0",
+    "selection_reason": "Public RMXP Pokemon fangame source; immutable commit; explicit open-source license; suitable for static structure and runtime recovery pipeline."
+  }
+}
