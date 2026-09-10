@@ -6,7 +6,7 @@ from urllib.parse import urljoin, urlparse
 import requests
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
-ARCHIVE_EXTS = ('.zip','.rar','.7z','.exe','.tar','.gz','.xz')
+ARCHIVE_EXTS = ('.zip','.rar','.7z','.exe','.tar','.gz','.xz','.pdf')
 
 def sha256(path):
     h=hashlib.sha256()
@@ -16,7 +16,7 @@ def sha256(path):
 
 def archive_head_ok(path):
     with open(path,'rb') as f: h=f.read(16)
-    return h.startswith(b'Rar!\x1a\x07') or h.startswith(b'PK\x03\x04') or h.startswith(b'7z\xbc\xaf\x27\x1c') or h.startswith(b'MZ')
+    return h.startswith(b'%PDF-') or h.startswith(b'Rar!\x1a\x07') or h.startswith(b'PK\x03\x04') or h.startswith(b'7z\xbc\xaf\x27\x1c') or h.startswith(b'MZ')
 
 def extract_links(base, text):
     out=[]
