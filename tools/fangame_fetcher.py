@@ -6,7 +6,7 @@ from urllib.parse import urljoin, urlparse
 import requests
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
-ARCHIVE_EXTS = ('.zip','.rar','.7z','.exe','.tar','.gz','.xz')
+ARCHIVE_EXTS = ('.zip','.rar','.7z','.exe','.tar','.gz','.xz','.pdf')
 
 def sha256(path):
     h=hashlib.sha256()
@@ -16,7 +16,18 @@ def sha256(path):
 
 def archive_head_ok(path):
     with open(path,'rb') as f: h=f.read(16)
-    return h.startswith(b'Rar!\x1a\x07') or h.startswith(b'PK\x03\x04') or h.startswith(b'7z\xbc\xaf\x27\x1c') or h.startswith(b'MZ')
+    return h.startswith(b'%PDF-') or h.startswith(b'Rar!\x1a\x07') or h.startswith(b'PK\x03\x04') or h.startswith(b'7z\xbc\xaf\x27\x1c') or h.startswith(b'MZ')
+
+def safe_name(name, content_type=''):
+    name=(name or '').strip().replace('\\','_').replace('/','_')
+    if not name:
+        name='download.pdf' if 'pdf' in content_type else 'download.bin'
+    if len(name.encode('utf-8')) > 180:
+        ext=Path(name).suffix.lower()
+        if not ext:
+            ext='.pdf' if 'pdf' in content_type else '.bin'
+        name='download'+ext
+    return name
 
 def extract_links(base, text):
     out=[]
@@ -63,6 +74,7 @@ def fetch_http(session,url,outdir,min_mb,report):
             if m: name=m.group(1)
             if not name:
                 name=os.path.basename(urlparse(r.url).path) or 'download.bin'
+            name=safe_name(name,ct)
             path=Path(outdir)/name
             n=0
             with open(path,'wb') as f:
@@ -77,7 +89,7 @@ def fetch_http(session,url,outdir,min_mb,report):
     return None
 
 def fetch_ftp(url,outdir,min_mb,report):
-    name=os.path.basename(urlparse(url).path) or 'download.rar'
+    name=safe_name(os.path.basename(urlparse(url).path) or 'download.rar')
     path=Path(outdir)/name
     for cmd in (["curl","-L","--fail","--connect-timeout","20","--max-time","900","-o",str(path),url],
                 ["wget","-O",str(path),url]):
