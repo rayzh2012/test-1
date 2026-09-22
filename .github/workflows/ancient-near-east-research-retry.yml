@@ -1,0 +1,66 @@
+name: Ancient Near East Research Pack Retry
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ancient-near-east-research-retry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download second-pass open-access sources
+        shell: bash
+        run: |
+          set -u
+          mkdir -p downloads
+          : > downloads/MANIFEST.tsv
+
+          fetch() {
+            name="$1"
+            url="$2"
+            echo "=== $name ==="
+            if curl -L --fail --retry 3 --retry-delay 2               -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36'               --connect-timeout 30 --max-time 900               -o "downloads/$name.tmp" "$url"; then
+              type=$(file -b --mime-type "downloads/$name.tmp" || true)
+              bytes=$(stat -c%s "downloads/$name.tmp")
+              if [ "$type" = "application/pdf" ]; then
+                mv "downloads/$name.tmp" "downloads/$name"
+                printf '%s\tOK\t%s\t%s\t%s\n' "$name" "$bytes" "$type" "$url" >> downloads/MANIFEST.tsv
+              else
+                printf '%s\tNONPDF\t%s\t%s\t%s\n' "$name" "$bytes" "$type" "$url" >> downloads/MANIFEST.tsv
+                mv "downloads/$name.tmp" "downloads/$name.response"
+              fi
+            else
+              printf '%s\tFAILED\t0\t-\t%s\n' "$name" "$url" >> downloads/MANIFEST.tsv
+              rm -f "downloads/$name.tmp"
+            fi
+          }
+
+          fetch '01_Whiting_Old_Babylonian_Letters_Tell_Asmar_AS22.pdf'             'https://isac-assets.s3.amazonaws.com/isac-publications/as22.pdf'
+
+          fetch '02_Guterbock_Perspectives_on_Hittite_Civilization_AS26.pdf'             'https://isac-assets.s3.amazonaws.com/isac-publications/as26.pdf'
+
+          fetch '03_Gasche_Dating_the_Fall_of_Babylon_1998.pdf'             'https://isac-assets.s3.amazonaws.com/isac-publications/fall_of_babylon.pdf'
+
+          fetch '04_Gelb_Hurrians_and_Subarians_SAOC22.pdf'             'https://isac-assets.s3.amazonaws.com/isac-publications/saoc22.pdf'
+
+          fetch '05_Dai_Xiangming_Xia_Culture_mobile.pdf'             'https://m.chnmuseum.cn/yj/xscg/xslw/202204/W020220419559021749858.pdf'
+
+          fetch '06_Dai_Xiangming_Xia_Culture_www.pdf'             'https://www.chnmuseum.cn/yj/xscg/xslw/202204/W020220419559021749858.pdf'
+
+          sha256sum downloads/*.pdf > downloads/SHA256SUMS.txt 2>/dev/null || true
+          cat downloads/MANIFEST.tsv
+
+      - name: Upload retry pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: ancient-near-east-research-retry
+          path: downloads/
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
