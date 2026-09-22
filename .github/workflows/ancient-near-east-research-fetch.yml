@@ -1,0 +1,61 @@
+name: Ancient Near East Research Pack Fetch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ancient-near-east-research-fetch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download open-access research sources
+        shell: bash
+        run: |
+          set -u
+          mkdir -p downloads
+          : > downloads/MANIFEST.tsv
+
+          fetch() {
+            name="$1"
+            url="$2"
+            echo "=== $name ==="
+            if curl -L --fail --retry 3 --retry-delay 2               -A 'Mozilla/5.0 (research archive fetch)'               -e 'https://www.chnmuseum.cn/'               --connect-timeout 30 --max-time 900               -o "downloads/$name" "$url"; then
+              bytes=$(stat -c%s "downloads/$name")
+              type=$(file -b --mime-type "downloads/$name" || true)
+              printf '%s\tOK\t%s\t%s\t%s\n' "$name" "$bytes" "$type" "$url" >> downloads/MANIFEST.tsv
+            else
+              printf '%s\tFAILED\t0\t-\t%s\n' "$name" "$url" >> downloads/MANIFEST.tsv
+              rm -f "downloads/$name"
+            fi
+          }
+
+          fetch '01_Dai_Xiangming_Xia_Culture_Xia_Dynasty.pdf'             'https://www.chnmuseum.cn/yj/xscg/xslw/202204/W020220419559021749858.pdf'
+
+          fetch '02_Whiting_Old_Babylonian_Letters_Tell_Asmar_AS22.pdf'             'https://isac.uchicago.edu/sites/default/files/uploads/shared/docs/as22.pdf'
+
+          fetch '03_Brinkman_Kassite_Dynasty_Cuneiform_Sources_MSKH1.pdf'             'https://isac-assets.s3.amazonaws.com/isac-publications/mskh1.pdf'
+
+          fetch '04_Guterbock_Perspectives_on_Hittite_Civilization_AS26.pdf'             'https://isac.uchicago.edu/sites/default/files/uploads/shared/docs/as26.pdf'
+
+          fetch '05_Aruz_Beyond_Babylon_2008.pdf'             'https://cdn.sanity.io/files/cctd4ker/production/744889cac80ed60df83e4267d08f6da0056b76e4.pdf'
+
+          fetch '06_Aruz_Cultures_in_Contact_2013.pdf'             'https://cdn.sanity.io/files/cctd4ker/production/2bea25ddf7154d99e9238376168bf52063b9ac34.pdf'
+
+          echo
+          cat downloads/MANIFEST.tsv
+          sha256sum downloads/*.pdf > downloads/SHA256SUMS.txt 2>/dev/null || true
+
+      - name: Upload research pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: ancient-near-east-research-pack
+          path: downloads/
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
