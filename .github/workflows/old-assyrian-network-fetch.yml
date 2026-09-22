@@ -1,0 +1,44 @@
+name: Old Assyrian Network Research Pack
+
+on:
+  push:
+    paths:
+      - '.github/workflows/old-assyrian-network-fetch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download open scholarly sources
+        shell: bash
+        run: |
+          set -u
+          mkdir -p downloads
+          : > downloads/MANIFEST.tsv
+          fetch() {
+            name="$1"; url="$2"
+            if curl -L --fail --retry 3 --retry-delay 2 -A 'Mozilla/5.0' --connect-timeout 30 --max-time 900 -o "downloads/$name" "$url"; then
+              bytes=$(stat -c%s "downloads/$name"); type=$(file -b --mime-type "downloads/$name" || true)
+              printf '%s\tOK\t%s\t%s\t%s\n' "$name" "$bytes" "$type" "$url" >> downloads/MANIFEST.tsv
+            else
+              printf '%s\tFAILED\t0\t-\t%s\n' "$name" "$url" >> downloads/MANIFEST.tsv
+              rm -f "downloads/$name"
+            fi
+          }
+          fetch '09_Veenhof_Aspects_of_Old_Assyrian_Trade_1972_lowres.pdf'             'https://mc.dlib.nyu.edu/files/books/brill_awdl000024/brill_awdl000024_lo.pdf'
+          fetch '10_Palmisano_Geography_of_Trade_Old_Assyrian_2018_postprint.pdf'             'https://iris.unito.it/retrieve/f04e797d-3103-4163-86cd-95d0c94b9754/Palmisano-2018.pdf'
+          fetch '11_Britton_Individual_Agency_Karum_2026_UCL_thesis.pdf'             'https://discovery.ucl.ac.uk/id/eprint/10226881/1/Joshua%20Britton%20thesis%20%5Bcorrected%5D.pdf'
+          sha256sum downloads/*.pdf > downloads/SHA256SUMS.txt 2>/dev/null || true
+          cat downloads/MANIFEST.tsv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: old-assyrian-network-research-pack
+          path: downloads/
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
