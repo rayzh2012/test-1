@@ -6,6 +6,8 @@ on:
     paths:
       - 'tools/rtp_reference_build.py'
       - 'tools/fangame_asset_reference_match.py'
+      - 'tools/fangame_asset_reference_fuse.py'
+      - 'tests/test_fangame_asset_reference_fuse.py'
       - '.github/workflows/rtp-reference.yml'
   workflow_dispatch:
 
@@ -15,24 +17,31 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
-      - name: Install extractors
-        run: sudo apt-get update && sudo apt-get install -y p7zip-full unar libarchive-tools innoextract
-      - name: Build VX hash-only reference
+      - name: Install extractors and image hashing dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar libarchive-tools innoextract
+          python3 -m pip install pillow pytest
+      - name: Run fusion unit test
+        run: python3 -m pytest -q tests/test_fangame_asset_reference_fuse.py
+      - name: Build VX fingerprint-only reference
         run: |
           mkdir -p out
           python3 tools/rtp_reference_build.py vx --out out/rtp_vx_reference.json
-      - name: Validate hash-only output
+      - name: Validate fingerprint-only output
         run: |
           python3 - <<'PY'
           import json
           x=json.load(open('out/rtp_vx_reference.json'))
+          assert x['schema']=='rpgmaker-rtp-reference-v2'
           assert x['engine']=='RPG Maker VX'
           assert x['package_bytes']>1000000
           assert len(x['package_sha256'])==64
           assert x['asset_files']>0 and x['unique_asset_hashes']>0, x
+          assert x['image_perceptual_signatures']>0, x
           assert all('sha256' in a and 'relative_path' in a for a in x['assets'])
           assert 'binary' not in x and 'payload' not in x
-          print({k:x[k] for k in ['package_bytes','package_sha256','asset_files','unique_asset_hashes']})
+          print({k:x[k] for k in ['package_bytes','package_sha256','asset_files','unique_asset_hashes','image_perceptual_signatures']})
           PY
       - name: Fetch benchmark game
         run: python3 tools/fangame_fetcher.py fangame_targets/nulong_zhanji3_v30.json -o out/game
@@ -49,23 +58,33 @@ jobs:
           st=json.load(open('out/game_static.json'))
           print((pathlib.Path('out/game_work/extract')/st['game_root']).resolve())
           PY
-      - name: Fingerprint and match benchmark assets
+      - name: Fingerprint and fuse benchmark asset evidence
         run: |
           python3 tools/fangame_asset_fingerprint.py "$(cat out/game_root.txt)" --out out/game_assets.json
-          python3 tools/fangame_asset_reference_match.py out/game_assets.json out/rtp_vx_reference.json --out out/game_rtp_match.json
+          python3 tools/fangame_perceptual_hash.py "$(cat out/game_root.txt)" --threshold 6 --out out/game_perceptual.json
+          python3 tools/fangame_asset_reference_match.py out/game_assets.json out/rtp_vx_reference.json --out out/game_rtp_exact.json
+          python3 tools/fangame_asset_reference_fuse.py out/game_assets.json out/game_perceptual.json out/rtp_vx_reference.json --threshold 4 --out out/game_rtp_fusion.json
           python3 - <<'PY'
           import json
-          s=json.load(open('out/game_rtp_match.json'))['summary']
-          assert s['game_asset_files']>0
-          assert s['exact_reference_match_files']>0, s
-          print(json.dumps(s,ensure_ascii=False,indent=2))
+          exact=json.load(open('out/game_rtp_exact.json'))['summary']
+          fused=json.load(open('out/game_rtp_fusion.json'))['summary']
+          assert exact['exact_reference_match_files']==587, exact
+          assert fused['exact_reference_match_files']==587, fused
+          assert fused['modified_rtp_like_files']==3, fused
+          assert fused['modified_rtp_like_high_confidence_files']==3, fused
+          assert fused['modified_rtp_like_medium_confidence_files']==0, fused
+          assert fused['rtp_supported_files_union']==590, fused
+          assert fused['no_reference_similarity_files']==688, fused
+          assert fused['no_reference_similarity_files'] + fused['rtp_supported_files_union'] == fused['game_asset_files']
+          print(json.dumps(fused,ensure_ascii=False,indent=2))
           PY
-      - name: Upload hash-only evidence
+      - name: Upload fingerprint-only evidence
         uses: actions/upload-artifact@v4
         with:
-          name: rtp-vx-hash-reference-v1
+          name: rtp-vx-reference-fusion-v2
           path: |
             out/rtp_vx_reference.json
-            out/game_rtp_match.json
+            out/game_rtp_exact.json
+            out/game_rtp_fusion.json
           retention-days: 14
           compression-level: 9
